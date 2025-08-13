@@ -415,8 +415,8 @@
         }
 
         .dealer-character {
-            width: 300px;
-            height: 300px;
+            width: 300px; /* BIGGER GIF */
+            height: 300px; /* BIGGER GIF */
             display: flex;
             justify-content: center;
             align-items: center;
@@ -446,8 +446,8 @@
         }
 
         #dealer-area {
-            top: 220px;
-            z-index: 2;
+            top: 220px; /* Positioned in front of GIF */
+            z-index: 2; /* In front of GIF */
         }
 
         #player-area {
@@ -587,6 +587,7 @@
             width: 100%;
             height: 100%;
             padding: 0;
+            position: relative; /* Needed for absolute positioning of player */
         }
         
         #game-area {
@@ -597,14 +598,12 @@
             border: 2px solid var(--primary-blue);
             box-shadow: 0 0 25px rgba(10, 132, 255, 0.3);
             position: relative;
-            overflow: hidden;
+            overflow: hidden; /* Keep player inside the box */
         }
         
         #player-character {
             position: absolute;
-            width: 200px;
-            height: 200px;
-            transition: transform 0.1s linear;
+            transition: transform 0.1s linear; /* Smooth flip */
         }
 
         /* Toast Notifications */
@@ -669,7 +668,7 @@
 
         <main class="content">
              <div class="header-balance">
-                <span id="header-balance-amount">0</span>
+                <span id="header-balance-amount">1,000</span>
                 <span>BUX</span>
             </div>
 
@@ -678,7 +677,7 @@
                 <div class="header">
                     <h2>YOUR BALANCE</h2>
                     <div class="balance-display">
-                        <span id="main-balance-amount">0</span>
+                        <span id="main-balance-amount">1,000</span>
                         <span>BUX</span>
                     </div>
                 </div>
@@ -775,294 +774,587 @@
     <!-- External libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
     
-    <!-- IMPORTANT: Import Firebase modules -->
-    <script type="module">
-        import { db } from './firebase-config.js';
-        import {
-            doc,
-            getDoc,
-            setDoc,
-            updateDoc,
-            onSnapshot,
-            collection,
-            getDocs,
-            deleteDoc,
-            runTransaction,
-            serverTimestamp
-        } from "https://www.gstatic.com/firebasejs/9.15.0/firestore.js";
+    <!-- Application Logic -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
 
-        // --- App State & Firebase References ---
-        let currentBalance = 0;
-        const userId = "main_user"; // Hardcoded user ID for this example
-        const userDocRef = doc(db, "users", userId);
-        const codesCollectionRef = collection(db, "codes");
-
-        // --- UI Elements ---
-        const mainBalanceElement = document.getElementById('main-balance-amount');
-        const headerBalanceElement = document.getElementById('header-balance-amount');
-        const headerBalanceContainer = document.querySelector('.header-balance');
-        const navLinks = document.querySelectorAll('.nav-link');
-        const tabContents = document.querySelectorAll('.tab-content');
-        
-        // --- Toast Notification System ---
-        const toastContainer = document.getElementById('toast-container');
-        function showToast(message, type = 'info') {
-            const toast = document.createElement('div');
-            toast.className = `toast toast-${type}`;
-            toast.textContent = message;
-            toastContainer.appendChild(toast);
-            gsap.to(toast, {
-                opacity: 0,
-                y: 20,
-                delay: 3.5,
-                duration: 0.5,
-                onComplete: () => toast.remove()
-            });
-        }
-        
-        // --- Mouse-tracking for Card Glow Effect ---
-        document.querySelectorAll('.card').forEach(card => {
-            card.addEventListener('mousemove', e => {
-                const rect = card.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                card.style.setProperty('--mouse-x', `${x}px`);
-                card.style.setProperty('--mouse-y', `${y}px`);
-            });
-        });
-
-        // --- Tab Switching ---
-        navLinks.forEach(link => {
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                const tabId = e.currentTarget.getAttribute('data-tab');
-                navLinks.forEach(l => l.classList.remove('active'));
-                tabContents.forEach(content => content.classList.remove('active'));
-                e.currentTarget.classList.add('active');
-                document.getElementById(tabId).classList.add('active');
-                headerBalanceContainer.classList.toggle('visible', tabId !== 'balance');
-            });
-        });
-
-        // --- Balance Display & Real-time Sync ---
-        function updateAllBalanceDisplays(newBalance) {
-             const elementsToUpdate = [mainBalanceElement, headerBalanceElement];
-             elementsToUpdate.forEach(el => {
-                 if (!el) return;
-                 const startVal = parseFloat(el.innerText.replace(/,/g, '') || 0);
-                 gsap.to({ val: startVal }, {
-                    duration: 1,
-                    val: newBalance,
-                    roundProps: "val",
-                    onUpdate: function() {
-                        el.innerText = this.targets()[0].val.toLocaleString();
-                    },
-                    ease: "power3.out"
-                });
-             });
-        }
-        
-        // Listen for real-time updates to the user's balance
-        onSnapshot(userDocRef, (docSnap) => {
-            if (docSnap.exists()) {
-                const newBalance = docSnap.data().balance;
-                updateAllBalanceDisplays(newBalance);
-                currentBalance = newBalance;
-            } else {
-                // If user doesn't exist, create them with a starting balance
-                setDoc(userDocRef, { balance: 1000, createdAt: serverTimestamp() });
-            }
-        });
-
-
-        // --- Balance Tab: Code Creation/Redemption (with Firestore) ---
-        (function setupBalanceTab() {
-            const createCodeAmountInput = document.getElementById('create-code-amount');
-            const createCodeBtn = document.getElementById('create-code-btn');
-            const redeemCodeInput = document.getElementById('redeem-code-input');
-            const redeemCodeBtn = document.getElementById('redeem-code-btn');
-            const generatedCodesContainer = document.getElementById('generated-codes');
-
-            function generateRandomCode() {
-                return 'LBX-' + Math.random().toString(36).substring(2, 10).toUpperCase();
-            }
-
-            // Function to render codes from Firestore
-            async function renderCodes() {
-                generatedCodesContainer.innerHTML = '';
-                const querySnapshot = await getDocs(codesCollectionRef);
-                querySnapshot.forEach((doc) => {
-                    const codeData = doc.data();
-                    const codeElement = document.createElement('div');
-                    codeElement.classList.add('generated-code-item');
-                    codeElement.innerHTML = `<span class="code-text">${doc.id}</span><span>${codeData.amount.toLocaleString()} BUX</span>`;
-                    codeElement.addEventListener('click', () => navigator.clipboard.writeText(doc.id).then(() => showToast(`Code ${doc.id} copied!`, 'success')));
-                    generatedCodesContainer.prepend(codeElement);
+            // --- App State ---
+            let balance = 1000;
+            const generatedCodes = {};
+            
+            // --- UI Elements ---
+            const mainBalanceElement = document.getElementById('main-balance-amount');
+            const headerBalanceElement = document.getElementById('header-balance-amount');
+            const headerBalanceContainer = document.querySelector('.header-balance');
+            const navLinks = document.querySelectorAll('.nav-link');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            // --- Toast Notification System ---
+            const toastContainer = document.getElementById('toast-container');
+            function showToast(message, type = 'info') {
+                const toast = document.createElement('div');
+                toast.className = `toast toast-${type}`;
+                toast.textContent = message;
+                toastContainer.appendChild(toast);
+                gsap.to(toast, {
+                    opacity: 0,
+                    y: 20,
+                    delay: 3.5,
+                    duration: 0.5,
+                    onComplete: () => toast.remove()
                 });
             }
+            
+            // --- Mouse-tracking for Card Glow Effect ---
+            document.querySelectorAll('.card').forEach(card => {
+                card.addEventListener('mousemove', e => {
+                    const rect = card.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    card.style.setProperty('--mouse-x', `${x}px`);
+                    card.style.setProperty('--mouse-y', `${y}px`);
+                });
+            });
 
-            createCodeBtn.addEventListener('click', async () => {
-                const amount = parseInt(createCodeAmountInput.value, 10);
-                if (isNaN(amount) || amount <= 0) { showToast('Please enter a valid amount.', 'error'); return; }
-                if (amount > currentBalance) { showToast('Insufficient balance.', 'error'); return; }
+            // --- Tab Switching ---
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const tabId = e.currentTarget.getAttribute('data-tab');
 
-                const newCode = generateRandomCode();
-                const newCodeRef = doc(db, "codes", newCode);
+                    navLinks.forEach(l => l.classList.remove('active'));
+                    tabContents.forEach(content => content.classList.remove('active'));
 
-                try {
-                    await runTransaction(db, async (transaction) => {
-                        const userSnap = await transaction.get(userDocRef);
-                        if (!userSnap.exists()) { throw "User document does not exist!"; }
-                        
-                        const newBalance = userSnap.data().balance - amount;
-                        if (newBalance < 0) { throw "Insufficient balance."; }
-                        
-                        transaction.update(userDocRef, { balance: newBalance });
-                        transaction.set(newCodeRef, { amount: amount, createdAt: serverTimestamp() });
-                    });
+                    e.currentTarget.classList.add('active');
+                    document.getElementById(tabId).classList.add('active');
                     
-                    showToast(`Code for ${amount.toLocaleString()} BUX created.`, 'success');
-                    createCodeAmountInput.value = '';
-                    renderCodes(); // Re-render the codes list
-                } catch (e) {
-                    console.error("Transaction failed: ", e);
-                    showToast(`Error: ${e}`, 'error');
-                }
-            });
-
-            redeemCodeBtn.addEventListener('click', async () => {
-                const code = redeemCodeInput.value.trim().toUpperCase();
-                if (!code) return;
-                const codeRef = doc(db, "codes", code);
-
-                try {
-                     await runTransaction(db, async (transaction) => {
-                        const codeSnap = await transaction.get(codeRef);
-                        if (!codeSnap.exists()) { throw "Invalid or already used code."; }
-
-                        const amount = codeSnap.data().amount;
-                        const userSnap = await transaction.get(userDocRef);
-                        const newBalance = userSnap.data().balance + amount;
-
-                        transaction.update(userDocRef, { balance: newBalance });
-                        transaction.delete(codeRef);
-                    });
-
-                    showToast(`Redeemed code successfully!`, 'success');
-                    redeemCodeInput.value = '';
-                    renderCodes(); // Re-render the codes list
-                } catch (e) {
-                     console.error("Redeem transaction failed: ", e);
-                     showToast(`${e}`, 'error');
-                }
-            });
-
-            renderCodes(); // Initial render
-        })();
-        
-        // --- All Game Logic now uses `currentBalance` and updates Firestore ---
-        async function updateUserBalance(newBalance) {
-            await updateDoc(userDocRef, { balance: newBalance });
-        }
-
-        (function setupGamblingTab() {
-            // ... (Gambling logic remains mostly the same) ...
-            // Replace `balance -= currentBet` with:
-            // currentBalance -= currentBet;
-            // updateUserBalance(currentBalance);
-            // And `balance += winnings` with:
-            // currentBalance += winnings;
-            // updateUserBalance(currentBalance);
-        })();
-        
-        (function setupBlackjackTab() {
-            // ... (Blackjack logic remains mostly the same) ...
-            // Replace `balance -= currentBetBJ` with:
-            // currentBalance -= currentBetBJ;
-            // updateUserBalance(currentBalance);
-            // And `balance += Math.floor(currentBetBJ * payoutMultiplier)` with:
-            // currentBalance += Math.floor(currentBetBJ * payoutMultiplier);
-            // updateUserBalance(currentBalance);
-        })();
-        
-        (function setupLinusHubTab() {
-            const gameArea = document.getElementById('game-area');
-            if (!gameArea) return;
-            
-            const player = {
-                element: document.getElementById('player-character'),
-                x: gameArea.offsetWidth / 2 - 100,
-                y: gameArea.offsetHeight / 2 - 100,
-                width: 200,
-                height: 200,
-                speed: 5,
-                direction: 1
-            };
-
-            player.element.style.left = `${player.x}px`;
-            player.element.style.top = `${player.y}px`;
-
-            const keys = { w: false, a: false, s: false, d: false };
-            let currentAnimation = 'idle';
-            let gameLoopId = null;
-
-            function updatePlayerPosition() {
-                const isMoving = (keys.w || keys.a || keys.s || keys.d);
-                
-                if (keys.w && player.y > 0) player.y -= player.speed;
-                if (keys.s && player.y < gameArea.offsetHeight - player.height) player.y += player.speed;
-                if (keys.a && player.x > 0) {
-                    player.x -= player.speed;
-                    player.direction = -1;
-                }
-                if (keys.d && player.x < gameArea.offsetWidth - player.width) {
-                    player.x += player.speed;
-                    player.direction = 1;
-                }
-
-                player.element.style.left = `${player.x}px`;
-                player.element.style.top = `${player.y}px`;
-                player.element.style.transform = `scaleX(${player.direction})`;
-
-                const newAnimation = isMoving ? 'walk' : 'idle';
-                if (currentAnimation !== newAnimation) {
-                    currentAnimation = newAnimation;
-                    player.element.src = (newAnimation === 'walk') ? 'WALK.gif' : 'IDLE.gif';
-                }
-            }
-            
-            function gameLoop() {
-                updatePlayerPosition();
-                gameLoopId = requestAnimationFrame(gameLoop);
-            }
-
-            const linusHubTab = document.getElementById('linus-hub');
-            const observer = new MutationObserver((mutations) => {
-                mutations.forEach((mutation) => {
-                    if (mutation.attributeName === 'class' && linusHubTab.classList.contains('active')) {
-                        player.x = gameArea.offsetWidth / 2 - player.width / 2;
-                        player.y = gameArea.offsetHeight / 2 - player.height / 2;
-                        document.addEventListener('keydown', handleKeyDown);
-                        document.addEventListener('keyup', handleKeyUp);
-                        if (!gameLoopId) gameLoop();
+                    if (tabId === 'balance') {
+                        headerBalanceContainer.classList.remove('visible');
                     } else {
-                        document.removeEventListener('keydown', handleKeyDown);
-                        document.removeEventListener('keyup', handleKeyUp);
-                        Object.keys(keys).forEach(k => keys[k] = false);
-                        if(gameLoopId) {
-                            cancelAnimationFrame(gameLoopId);
-                            gameLoopId = null;
-                        }
+                        headerBalanceContainer.classList.add('visible');
                     }
                 });
             });
 
-            function handleKeyDown(e) { if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = true; }
-            function handleKeyUp(e) { if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false; }
+            // --- Balance Display Logic ---
+            function updateAllBalanceDisplays() {
+                const elementsToUpdate = [mainBalanceElement, headerBalanceElement];
+                elementsToUpdate.forEach(el => {
+                     gsap.to({ val: parseFloat(el.innerText.replace(/,/g, '') || 0) }, {
+                        duration: 1,
+                        val: balance,
+                        roundProps: "val",
+                        onUpdate: function() {
+                            el.innerText = this.targets()[0].val.toLocaleString();
+                        },
+                        ease: "power3.out"
+                    });
+                });
+            }
 
-            observer.observe(linusHubTab, { attributes: true });
-        })();
+            // --- Balance Tab: Code Creation/Redemption ---
+            (function setupBalanceTab() {
+                const createCodeAmountInput = document.getElementById('create-code-amount');
+                const createCodeBtn = document.getElementById('create-code-btn');
+                const redeemCodeInput = document.getElementById('redeem-code-input');
+                const redeemCodeBtn = document.getElementById('redeem-code-btn');
+                const generatedCodesContainer = document.getElementById('generated-codes');
 
+                function generateRandomCode() {
+                    return 'LBX-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+                }
+
+                createCodeBtn.addEventListener('click', () => {
+                    const amount = parseInt(createCodeAmountInput.value, 10);
+                    if (isNaN(amount) || amount <= 0) { showToast('Please enter a valid amount.', 'error'); return; }
+                    if (amount > balance) { showToast('Insufficient balance.', 'error'); return; }
+                    balance -= amount;
+                    updateAllBalanceDisplays();
+                    const code = generateRandomCode();
+                    generatedCodes[code] = amount;
+                    const codeElement = document.createElement('div');
+                    codeElement.classList.add('generated-code-item');
+                    codeElement.innerHTML = `<span class="code-text">${code}</span><span>${amount.toLocaleString()} BUX</span>`;
+                    codeElement.addEventListener('click', () => navigator.clipboard.writeText(code).then(() => showToast(`Code ${code} copied!`, 'success')));
+                    generatedCodesContainer.prepend(codeElement);
+                    gsap.from(codeElement, { duration: 0.5, opacity: 0, x: -30, ease: 'power3.out' });
+                    createCodeAmountInput.value = '';
+                    showToast(`Code for ${amount.toLocaleString()} BUX created.`, 'success');
+                });
+
+                redeemCodeBtn.addEventListener('click', () => {
+                    const code = redeemCodeInput.value.trim().toUpperCase();
+                    if (generatedCodes[code]) {
+                        const amount = generatedCodes[code];
+                        balance += amount;
+                        updateAllBalanceDisplays();
+                        delete generatedCodes[code];
+                        document.querySelectorAll('.generated-code-item .code-text').forEach(el => {
+                            if (el.textContent === code) {
+                                gsap.to(el.parentElement, { duration: 0.5, opacity: 0, x: 30, ease: 'power3.in', onComplete: () => el.parentElement.remove() });
+                            }
+                        });
+                        showToast(`Redeemed ${amount.toLocaleString()} BUX!`, 'success');
+                        redeemCodeInput.value = '';
+                    } else {
+                        showToast('Invalid or already used code.', 'error');
+                    }
+                });
+            })();
+            
+            // --- Gambling Tab Logic ---
+            (function setupGamblingTab() {
+                const canvas = document.getElementById('wheel-canvas');
+                const ctx = canvas.getContext('2d');
+                const spinButton = document.getElementById('spin-btn');
+                const betAmountInput = document.getElementById('bet-amount-input');
+                let wheelSpinning = false;
+                let currentBet = 0;
+
+                const segments = [
+                    { color: '#d81b60', label: 'x3 BET', multiplier: 3 },
+                    { color: '#e53935', label: 'LOSE BET', multiplier: 0 },
+                    { color: '#43a047', label: 'x1.5 BET', multiplier: 1.5 },
+                    { color: '#c2185b', label: 'BANKRUPT', multiplier: -1 },
+                    { color: '#7e57c2', label: 'x2 BET', multiplier: 2 },
+                    { color: '#fb8c00', label: '÷3 BET', multiplier: 1/3 },
+                    { color: '#00acc1', label: 'SAFE', multiplier: 1 },
+                    { color: '#e53935', label: 'LOSE BET', multiplier: 0 }
+                ];
+                const segCount = segments.length;
+                const radius = canvas.width / 2;
+                
+                function drawWheel() {
+                    const segAngleRad = 2 * Math.PI / segCount;
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.save();
+                    ctx.translate(radius, radius);
+                    
+                    for (let i = 0; i < segCount; i++) {
+                        const angle = i * segAngleRad;
+                        ctx.beginPath();
+                        ctx.fillStyle = segments[i].color;
+                        ctx.moveTo(0, 0);
+                        ctx.arc(0, 0, radius - 10, angle, angle + segAngleRad);
+                        ctx.lineTo(0,0);
+                        ctx.fill();
+                        ctx.save();
+                        ctx.fillStyle = 'white';
+                        ctx.font = 'bold 18px Poppins';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.rotate(angle + segAngleRad / 2);
+                        ctx.fillText(segments[i].label, radius * 0.65, 0);
+                        ctx.restore();
+                    }
+                    ctx.restore();
+                }
+
+                function handlePrize(winningSegment) {
+                    const multiplier = winningSegment.multiplier;
+
+                    if (multiplier === -1) {
+                        const amountLost = balance;
+                        balance = 0;
+                        showToast(`BANKRUPT! You lost all ${amountLost.toLocaleString()} BUX!`, 'error');
+                    } else if (multiplier > 0) {
+                        const winnings = Math.floor(currentBet * multiplier);
+                        balance += winnings;
+                        if (multiplier > 1) { showToast(`YOU WON ${winnings.toLocaleString()} BUX!`, 'success'); }
+                        else if (multiplier === 1) { showToast(`Safe! Your bet of ${currentBet.toLocaleString()} was returned.`, 'info'); }
+                        else { showToast(`You got back ${winnings.toLocaleString()} BUX.`, 'info'); }
+                    } else {
+                        showToast(`You lost your bet of ${currentBet.toLocaleString()} BUX.`, 'error');
+                    }
+                    
+                    updateAllBalanceDisplays();
+                    spinButton.disabled = false;
+                    betAmountInput.disabled = false;
+                    wheelSpinning = false;
+                }
+
+                spinButton.addEventListener('click', () => {
+                    if (wheelSpinning) return;
+                    const bet = parseInt(betAmountInput.value, 10);
+                    if (isNaN(bet) || bet <= 0) { showToast('Please enter a valid positive bet.', 'error'); return; }
+                    if (bet > balance) { showToast('You cannot bet more than your balance.', 'error'); return; }
+                    
+                    currentBet = bet;
+                    balance -= currentBet;
+                    updateAllBalanceDisplays();
+                    
+                    spinButton.disabled = true;
+                    betAmountInput.disabled = true;
+                    wheelSpinning = true;
+
+                    const randomSpins = (8 + Math.random() * 4) * 360;
+                    const randomExtraDegrees = Math.random() * 360;
+                    const totalRotation = randomSpins + randomExtraDegrees;
+
+                    gsap.to(canvas, {
+                        rotation: `+=${totalRotation}`,
+                        duration: 7,
+                        ease: 'power3.out',
+                        onComplete: () => {
+                            const finalRotation = gsap.getProperty(canvas, "rotation");
+                            const normalizedAngle = finalRotation % 360;
+                            const angleToPointer = ( ( (270 - normalizedAngle) % 360 ) + 360 ) % 360;
+                            const segAngleDeg = 360 / segments.length;
+                            const winningIndex = Math.floor(angleToPointer / segAngleDeg);
+                            const winningSegment = segments[winningIndex];
+                            
+                            handlePrize(winningSegment);
+                        }
+                    });
+                });
+                drawWheel();
+            })();
+            
+            // --- Blackjack Tab Logic ---
+            (function setupBlackjackTab() {
+                const suits = ['♥', '♦', '♠', '♣'];
+                const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+                let deck = [];
+                let playerHand, dealerHand;
+                let currentBetBJ = 0;
+                
+                const betControls = document.getElementById('blackjack-bet-controls');
+                const gameActions = document.getElementById('blackjack-game-actions');
+                const betInput = document.getElementById('blackjack-bet-input');
+                const dealButton = document.getElementById('deal-button');
+                const hitButton = document.getElementById('hit-button');
+                const standButton = document.getElementById('stand-button');
+                const doubleDownButton = document.getElementById('double-down-button');
+                
+                const playerHandEl = document.getElementById('player-hand');
+                const dealerHandEl = document.getElementById('dealer-hand');
+                const playerScoreEl = document.getElementById('player-score');
+                const dealerScoreEl = document.getElementById('dealer-score');
+                const gameStatusEl = document.getElementById('game-status');
+
+                function createDeck() {
+                    deck = [];
+                    for(let i=0; i<6; i++) {
+                        for (const suit of suits) {
+                            for (const rank of ranks) {
+                                deck.push({ suit, rank, value: getCardValue(rank) });
+                            }
+                        }
+                    }
+                    shuffleDeck();
+                }
+
+                function shuffleDeck() {
+                    for (let i = deck.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [deck[i], deck[j]] = [deck[j], deck[i]];
+                    }
+                }
+
+                function getCardValue(rank) {
+                    if (['J', 'Q', 'K'].includes(rank)) return 10;
+                    if (rank === 'A') return 11;
+                    return parseInt(rank);
+                }
+
+                function calculateScore(hand) {
+                    let score = hand.reduce((sum, card) => sum + card.value, 0);
+                    let numAces = hand.filter(card => card.rank === 'A').length;
+                    while (score > 21 && numAces > 0) {
+                        score -= 10;
+                        numAces--;
+                    }
+                    return score;
+                }
+
+                function renderCard(card, targetEl, isFaceDown = false) {
+                    const cardEl = document.createElement('div');
+                    cardEl.className = 'bj-card';
+                    if (!isFaceDown) {
+                        const colorClass = ['♥', '♦'].includes(card.suit) ? 'red' : 'black';
+                        cardEl.innerHTML = `
+                            <span class="rank-top">${card.rank}${card.suit}</span>
+                            <span class="center-suit">${card.suit}</span>
+                            <span class="rank-bottom">${card.rank}${card.suit}</span>`;
+                        cardEl.classList.add(colorClass);
+                    } else {
+                        cardEl.classList.add('facedown');
+                    }
+                    targetEl.appendChild(cardEl);
+                    gsap.from(cardEl, { duration: 0.5, y: -100, opacity: 0, ease: 'power3.out' });
+                }
+
+                function updateScores(isDealerHidden = false) {
+                    const playerScore = calculateScore(playerHand);
+                    playerScoreEl.textContent = playerScore;
+                    if (isDealerHidden) {
+                         const visibleDealerScore = dealerHand[0].rank === 'A' ? 11 : dealerHand[0].value;
+                         dealerScoreEl.textContent = `${visibleDealerScore} + ?`;
+                    } else {
+                        const dealerScore = calculateScore(dealerHand);
+                        dealerScoreEl.textContent = dealerScore;
+                    }
+                }
+                
+                function checkInitialBlackjack() {
+                     if (calculateScore(playerHand) === 21) {
+                         const dealerScoreCheck = calculateScore(dealerHand);
+                         revealDealerCard();
+                         if (dealerScoreCheck === 21) {
+                            endGame("Push! Both have Blackjack.", 1);
+                         } else {
+                            endGame("Blackjack!", 2.5);
+                         }
+                         return true;
+                     }
+                     return false;
+                }
+
+                dealButton.addEventListener('click', () => {
+                    const bet = parseInt(betInput.value, 10);
+                    if (isNaN(bet) || bet <= 0) { showToast('Please enter a valid bet.', 'error'); return; }
+                    if (bet > balance) { showToast('Bet exceeds your balance.', 'error'); return; }
+                    
+                    currentBetBJ = bet;
+                    balance -= currentBetBJ;
+                    updateAllBalanceDisplays();
+                    
+                    if (deck.length < 52) createDeck();
+                    
+                    playerHand = [deck.pop(), deck.pop()];
+                    dealerHand = [deck.pop(), deck.pop()];
+                    
+                    playerHandEl.innerHTML = '';
+                    dealerHandEl.innerHTML = '';
+                    
+                    renderCard(playerHand[0], playerHandEl);
+                    renderCard(dealerHand[0], dealerHandEl);
+                    renderCard(playerHand[1], playerHandEl);
+                    renderCard(dealerHand[1], dealerHandEl, true);
+
+                    updateScores(true);
+                    
+                    betControls.style.display = 'none';
+                    gameActions.style.display = 'flex';
+                    setActionsState(true, balance >= currentBetBJ);
+                    gameStatusEl.textContent = '';
+                    
+                    if (checkInitialBlackjack()) {
+                       setActionsState(false, false);
+                    }
+                });
+                
+                function setActionsState(enabled, canDouble) {
+                    hitButton.disabled = !enabled;
+                    standButton.disabled = !enabled;
+                    doubleDownButton.disabled = !enabled || !canDouble || playerHand.length > 2;
+                }
+
+                hitButton.addEventListener('click', () => {
+                    playerHand.push(deck.pop());
+                    renderCard(playerHand[playerHand.length - 1], playerHandEl);
+                    updateScores(true);
+                    setActionsState(true, false);
+                    if (calculateScore(playerHand) > 21) {
+                        endGame("You Busted!", 0);
+                    }
+                });
+                
+                standButton.addEventListener('click', () => {
+                    setActionsState(false, false);
+                    dealerTurn();
+                });
+                
+                doubleDownButton.addEventListener('click', () => {
+                    if (balance < currentBetBJ) { showToast("Not enough Bux to double down!", "error"); return; }
+                    balance -= currentBetBJ;
+                    currentBetBJ *= 2;
+                    updateAllBalanceDisplays();
+                    
+                    setActionsState(false, false);
+                    playerHand.push(deck.pop());
+                    renderCard(playerHand[playerHand.length-1], playerHandEl);
+                    
+                    setTimeout(() => {
+                        updateScores(true);
+                         if (calculateScore(playerHand) > 21) {
+                            endGame("You Busted on Double Down!", 0);
+                        } else {
+                            dealerTurn();
+                        }
+                    }, 800);
+                });
+                
+                function revealDealerCard() {
+                    const holeCard = dealerHandEl.children[1];
+                    const cardData = dealerHand[1];
+                    if (!holeCard || !holeCard.classList.contains('facedown')) return;
+                    
+                    gsap.to(holeCard, {rotationY: 90, duration: 0.3, ease: 'power1.in', onComplete: () => {
+                        holeCard.classList.remove('facedown');
+                        const colorClass = ['♥', '♦'].includes(cardData.suit) ? 'red' : 'black';
+                        
+                        holeCard.innerHTML = `
+                            <span class="rank-top">${cardData.rank}${cardData.suit}</span>
+                            <span class="center-suit">${cardData.suit}</span>
+                            <span class="rank-bottom">${cardData.rank}${cardData.suit}</span>`;
+                        holeCard.classList.add(colorClass);
+
+                        gsap.to(holeCard, {rotationY: 0, duration: 0.3, ease: 'power1.out'});
+                    }});
+                }
+
+                function dealerTurn() {
+                    revealDealerCard();
+                    setTimeout(() => {
+                        updateScores(false);
+                        const dealerHitLoop = () => {
+                            if (calculateScore(dealerHand) < 17) {
+                                dealerHand.push(deck.pop());
+                                renderCard(dealerHand[dealerHand.length - 1], dealerHandEl);
+                                updateScores(false);
+                                setTimeout(dealerHitLoop, 800);
+                            } else {
+                                determineWinner();
+                            }
+                        };
+                        setTimeout(dealerHitLoop, 800);
+                    }, 500);
+                }
+
+                function determineWinner() {
+                    const finalDealerScore = calculateScore(dealerHand);
+                    const finalPlayerScore = calculateScore(playerHand);
+                    
+                    if(finalDealerScore > 21) { endGame("Dealer Busts! You Win!", 2); }
+                    else if (finalPlayerScore > finalDealerScore) { endGame("You Win!", 2); }
+                    else if (finalDealerScore > finalPlayerScore) { endGame("Dealer Wins!", 0); }
+                    else { endGame("Push!", 1); }
+                }
+                
+                function endGame(message, payoutMultiplier) {
+                    gameStatusEl.textContent = message;
+                    balance += Math.floor(currentBetBJ * payoutMultiplier);
+                    updateAllBalanceDisplays();
+                    
+                    setActionsState(false, false);
+                    setTimeout(() => {
+                        gameActions.style.display = 'none';
+                        dealButton.textContent = 'Play Again';
+                        betControls.style.display = 'flex';
+                        gameStatusEl.textContent = 'Place your bet!';
+                    }, 2500);
+                }
+
+                createDeck();
+            })();
+
+            // --- Linus Hub 2D Game Logic ---
+            (function setupLinusHubTab() {
+                const gameArea = document.getElementById('game-area');
+                if (!gameArea) return;
+                
+                const player = {
+                    element: document.getElementById('player-character'),
+                    x: gameArea.offsetWidth / 2 - 100,
+                    y: gameArea.offsetHeight / 2 - 100,
+                    width: 200,
+                    height: 200,
+                    speed: 5,
+                    direction: 1 // 1 for right, -1 for left
+                };
+
+                // Set initial size and position
+                player.element.style.width = `${player.width}px`;
+                player.element.style.height = `${player.height}px`;
+                player.element.style.left = `${player.x}px`;
+                player.element.style.top = `${player.y}px`;
+
+                const keys = { w: false, a: false, s: false, d: false };
+                let currentAnimation = 'idle';
+                let gameLoopId = null;
+
+                function updatePlayerPosition() {
+                    const isMoving = (keys.w || keys.a || keys.s || keys.d);
+                    
+                    // Update position
+                    if (keys.w && player.y > 0) {
+                        player.y -= player.speed;
+                    }
+                    if (keys.s && player.y < gameArea.offsetHeight - player.height) {
+                        player.y += player.speed;
+                    }
+                    if (keys.a && player.x > 0) {
+                        player.x -= player.speed;
+                        player.direction = -1;
+                    }
+                    if (keys.d && player.x < gameArea.offsetWidth - player.width) {
+                        player.x += player.speed;
+                        player.direction = 1;
+                    }
+
+                    // Update visual style
+                    player.element.style.left = `${player.x}px`;
+                    player.element.style.top = `${player.y}px`;
+                    player.element.style.transform = `scaleX(${player.direction})`;
+
+                    // Switch GIF source if state changes
+                    const newAnimation = isMoving ? 'walk' : 'idle';
+                    if (currentAnimation !== newAnimation) {
+                        currentAnimation = newAnimation;
+                        player.element.src = (newAnimation === 'walk') ? 'WALK.gif' : 'IDLE.gif';
+                    }
+                }
+                
+                function gameLoop() {
+                    updatePlayerPosition();
+                    gameLoopId = requestAnimationFrame(gameLoop);
+                }
+
+                function handleKeyDown(e) {
+                    if (keys.hasOwnProperty(e.key.toLowerCase())) {
+                        keys[e.key.toLowerCase()] = true;
+                    }
+                }
+                
+                function handleKeyUp(e) {
+                    if (keys.hasOwnProperty(e.key.toLowerCase())) {
+                        keys[e.key.toLowerCase()] = false;
+                    }
+                }
+                
+                const linusHubTab = document.getElementById('linus-hub');
+                const observer = new MutationObserver((mutations) => {
+                    mutations.forEach((mutation) => {
+                        if (mutation.attributeName === 'class') {
+                            if (linusHubTab.classList.contains('active')) {
+                                // Reset position when tab is opened
+                                player.x = gameArea.offsetWidth / 2 - player.width / 2;
+                                player.y = gameArea.offsetHeight / 2 - player.height / 2;
+                                document.addEventListener('keydown', handleKeyDown);
+                                document.addEventListener('keyup', handleKeyUp);
+                                if (!gameLoopId) {
+                                    gameLoop();
+                                }
+                            } else {
+                                // Stop game when tab is hidden
+                                document.removeEventListener('keydown', handleKeyDown);
+                                document.removeEventListener('keyup', handleKeyUp);
+                                for(let key in keys) { keys[key] = false; }
+                                if(gameLoopId) {
+                                    cancelAnimationFrame(gameLoopId);
+                                    gameLoopId = null;
+                                }
+                            }
+                        }
+                    });
+                });
+                observer.observe(linusHubTab, { attributes: true });
+            })();
+            
+            // --- Initial Setup ---
+            updateAllBalanceDisplays();
+        });
     </script>
 </body>
 </html>
