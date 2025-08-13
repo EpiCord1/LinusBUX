@@ -304,27 +304,23 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
 
     <script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
+    <script>
         // PASTE YOUR FIREBASE CONFIG OBJECT HERE
 const firebaseConfig = {
-
   apiKey: "AIzaSyC-aZNBPQz2y4e-9DZ9hvz-puEan47li-4",
-
   authDomain: "linusbux-fab58.firebaseapp.com",
-
   databaseURL: "https://linusbux-fab58-default-rtdb.firebaseio.com",
-
   projectId: "linusbux-fab58",
-
   storageBucket: "linusbux-fab58.firebasestorage.app",
-
   messagingSenderId: "714906159220",
-
   appId: "1:714906159220:web:4de6a1d3c27f39e0bca921",
-
   measurementId: "G-EZWXN01SZT"
-
 };
 
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
@@ -390,6 +386,9 @@ const firebaseConfig = {
                 }
             });
 
+            // ===================================================================
+            // FIXED SIGN UP LOGIC
+            // ===================================================================
             signupBtn.addEventListener('click', async () => {
                 const username = usernameInput.value.trim().toLowerCase();
                 const password = passwordInput.value;
@@ -400,17 +399,32 @@ const firebaseConfig = {
                 try {
                     const snapshot = await usernameRef.once('value');
                     if (snapshot.exists()) { showToast('This username is already taken.', 'error'); return; }
+                    
                     const dummyEmail = `${username}@linusbux.app`;
                     const userCredential = await auth.createUserWithEmailAndPassword(dummyEmail, password);
                     const newUser = userCredential.user;
-                    const initialUserData = {
-                        [`users/${newUser.uid}`]: { balance: 100, username: username },
-                        [`usernames/${username}`]: newUser.uid
-                    };
-                    await db.ref().update(initialUserData);
+
+                    // --- FIX APPLIED HERE ---
+                    // Perform two separate, specific writes instead of one root update.
+                    
+                    // 1. Set the user's data in the /users/ path
+                    await db.ref(`users/${newUser.uid}`).set({
+                        balance: 100,
+                        username: username
+                    });
+
+                    // 2. Set the username-to-UID mapping in the /usernames/ path
+                    await db.ref(`usernames/${username}`).set(newUser.uid);
+
                     showToast(`Account created for ${username}!`, 'success');
-                } catch (error) { showToast(error.message, 'error'); }
+                } catch (error) { 
+                    showToast(error.message, 'error'); 
+                }
             });
+            // ===================================================================
+            // END OF FIX
+            // ===================================================================
+
 
             loginBtn.addEventListener('click', () => {
                 const username = usernameInput.value.trim().toLowerCase();
@@ -434,6 +448,8 @@ const firebaseConfig = {
                 if (!currentUser || !currentUsername) return;
                 if (window.confirm(`Are you sure you want to delete account "${currentUsername}"? This is permanent.`)) {
                     try {
+                        // This multi-path update from the root IS correct for deletion
+                        // because we are writing `null` values, which is a delete operation.
                         const pathsToDelete = { [`users/${currentUser.uid}`]: null, [`usernames/${currentUsername}`]: null };
                         await db.ref().update(pathsToDelete);
                         await currentUser.delete();
@@ -442,6 +458,8 @@ const firebaseConfig = {
                 }
             });
 
+            // This function is still INSECURE and relies on the less-secure rules.
+            // The final step for security is to replace these calls with Cloud Functions.
             function updateUserBalance(newBalance) {
                 if (currentUser && balanceRef) {
                     balanceRef.child('balance').set(Math.floor(newBalance));
