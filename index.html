@@ -10,6 +10,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
 
     <style>
         :root {
@@ -152,7 +153,6 @@
 </head>
 <body>
 
-    <!-- Authentication Container -->
     <div id="auth-container">
         <div class="auth-box">
             <h2>Welcome to LinusBux</h2>
@@ -167,7 +167,6 @@
         </div>
     </div>
 
-    <!-- Main Application Container -->
     <div id="app">
         <nav class="sidebar">
             <h1 class="logo">linusbux</h1>
@@ -202,7 +201,6 @@
                 <span>BUX</span>
             </div>
 
-            <!-- Balance Tab -->
             <div id="balance" class="tab-content active">
                 <div style="text-align: center; margin-bottom: 2rem;">
                     <h2>YOUR BALANCE</h2>
@@ -235,7 +233,6 @@
                 </div>
             </div>
 
-            <!-- Leaderboard Tab -->
             <div id="leaderboard" class="tab-content">
                 <div style="text-align: center; margin-bottom: 2rem;">
                     <h2>LEADERBOARD</h2>
@@ -244,7 +241,6 @@
                 <ol id="leaderboard-list"></ol>
             </div>
             
-            <!-- Gambling Tab -->
             <div id="gambling" class="tab-content">
                  <div class="header">
                     <h2>Gambling</h2>
@@ -261,7 +257,6 @@
                 </div>
             </div>
             
-            <!-- Blackjack Tab -->
             <div id="blackjack" class="tab-content">
                  <div class="dealer-character">
                     <img src="IDLE.gif" alt="Dealer Mascot">
@@ -297,7 +292,6 @@
                  </div>
             </div>
 
-            <!-- Linus Hub Tab -->
             <div id="linus-hub" class="tab-content">
                 <div id="game-area">
                     <img id="player-character" src="IDLE.gif" alt="Player">
@@ -308,22 +302,35 @@
 
     <div id="toast-container"></div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
+
     <script>
         // PASTE YOUR FIREBASE CONFIG OBJECT HERE
-        const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_AUTH_DOMAIN",
-            databaseURL: "YOUR_DATABASE_URL",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_STORAGE_BUCKET",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-            appId: "YOUR_APP_ID"
-        };
+const firebaseConfig = {
+
+  apiKey: "AIzaSyC-aZNBPQz2y4e-9DZ9hvz-puEan47li-4",
+
+  authDomain: "linusbux-fab58.firebaseapp.com",
+
+  databaseURL: "https://linusbux-fab58-default-rtdb.firebaseio.com",
+
+  projectId: "linusbux-fab58",
+
+  storageBucket: "linusbux-fab58.firebasestorage.app",
+
+  messagingSenderId: "714906159220",
+
+  appId: "1:714906159220:web:4de6a1d3c27f39e0bca921",
+
+  measurementId: "G-EZWXN01SZT"
+
+};
+
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.database();
+        const functions = firebase.functions();
 
         document.addEventListener('DOMContentLoaded', () => {
 
@@ -349,37 +356,25 @@
             const logoutBtn = document.getElementById('logout-btn');
             const deleteAccountBtn = document.getElementById('delete-account-btn');
             const leaderboardList = document.getElementById('leaderboard-list');
-            
-            // --- Toast Notification System ---
             const toastContainer = document.getElementById('toast-container');
+
             function showToast(message, type = 'info') {
                 const toast = document.createElement('div');
                 toast.className = `toast toast-${type}`;
                 toast.textContent = message;
                 toastContainer.appendChild(toast);
-                gsap.to(toast, {
-                    opacity: 0,
-                    y: 20,
-                    delay: 3.5,
-                    duration: 0.5,
-                    onComplete: () => toast.remove()
-                });
+                gsap.to(toast, { opacity: 0, y: 20, delay: 3.5, duration: 0.5, onComplete: () => toast.remove() });
             }
             
-            // --- Firebase Auth Logic ---
             auth.onAuthStateChanged(user => {
                 if (user) {
                     currentUser = user;
                     balanceRef = db.ref(`users/${currentUser.uid}`);
-                    
                     balanceRef.on('value', (snapshot) => {
                         const data = snapshot.val();
                         if (data) {
                             balance = data.balance !== undefined ? data.balance : 100;
                             currentUsername = data.username || '...';
-                        } else {
-                            balance = 100;
-                            currentUsername = 'NewUser';
                         }
                         updateAllBalanceDisplays(balance);
                     });
@@ -387,8 +382,7 @@
                     authContainer.style.display = 'none';
                 } else {
                     currentUser = null;
-                    currentUsername = null;
-                    if(balanceRef) balanceRef.off();
+                    if (balanceRef) balanceRef.off();
                     balance = 0;
                     updateAllBalanceDisplays(0);
                     appContainer.classList.remove('visible');
@@ -399,17 +393,13 @@
             signupBtn.addEventListener('click', async () => {
                 const username = usernameInput.value.trim().toLowerCase();
                 const password = passwordInput.value;
-                if (!/^[a-z0-9_]{3,15}$/.test(username)) {
-                    showToast('Username must be 3-15 characters (letters, numbers, underscore).', 'error'); return;
-                }
+                if (!/^[a-z0-9_]{3,15}$/.test(username)) { showToast('Username must be 3-15 chars (letters, numbers, _).', 'error'); return; }
                 if (password.length < 6) { showToast('Password must be at least 6 characters.', 'error'); return; }
 
                 const usernameRef = db.ref(`usernames/${username}`);
                 try {
                     const snapshot = await usernameRef.once('value');
-                    if (snapshot.exists()) {
-                        showToast('This username is already taken.', 'error'); return;
-                    }
+                    if (snapshot.exists()) { showToast('This username is already taken.', 'error'); return; }
                     const dummyEmail = `${username}@linusbux.app`;
                     const userCredential = await auth.createUserWithEmailAndPassword(dummyEmail, password);
                     const newUser = userCredential.user;
@@ -418,10 +408,8 @@
                         [`usernames/${username}`]: newUser.uid
                     };
                     await db.ref().update(initialUserData);
-                    showToast(`Account created for ${username}! Welcome!`, 'success');
-                } catch (error) {
-                    showToast(error.message, 'error');
-                }
+                    showToast(`Account created for ${username}!`, 'success');
+                } catch (error) { showToast(error.message, 'error'); }
             });
 
             loginBtn.addEventListener('click', () => {
@@ -430,45 +418,36 @@
                 if (!username || !password) { showToast('Please enter username and password.', 'error'); return; }
                 const dummyEmail = `${username}@linusbux.app`;
                 auth.signInWithEmailAndPassword(dummyEmail, password)
-                    .then(() => showToast(`Welcome back, ${username}!`, 'success'))
+                    .then(() => { showToast(`Welcome back, ${username}!`, 'success'); })
                     .catch(error => {
-                        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+                        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
                             showToast('Invalid username or password.', 'error');
-                        } else {
-                            showToast(error.message, 'error');
-                        }
+                        } else { showToast(error.message, 'error'); }
                     });
             });
 
             logoutBtn.addEventListener('click', () => {
-                auth.signOut().then(() => showToast('You have been logged out.', 'info'));
+                auth.signOut().then(() => { showToast('You have been logged out.', 'info'); });
             });
 
             deleteAccountBtn.addEventListener('click', async () => {
                 if (!currentUser || !currentUsername) return;
-                if (window.confirm(`Are you sure you want to delete your account "${currentUsername}"? This is permanent.`)) {
+                if (window.confirm(`Are you sure you want to delete account "${currentUsername}"? This is permanent.`)) {
                     try {
-                        const pathsToDelete = {
-                            [`users/${currentUser.uid}`]: null,
-                            [`usernames/${currentUsername}`]: null
-                        };
+                        const pathsToDelete = { [`users/${currentUser.uid}`]: null, [`usernames/${currentUsername}`]: null };
                         await db.ref().update(pathsToDelete);
                         await currentUser.delete();
-                        showToast('Account successfully deleted. Goodbye!', 'success');
-                    } catch (error) {
-                        showToast(`Error: ${error.message}`, 'error');
-                    }
+                        showToast('Account deleted.', 'success');
+                    } catch (error) { showToast(`Error: ${error.message}. You may need to re-login.`, 'error'); }
                 }
             });
 
-            // --- Helper to update balance in Firebase ---
             function updateUserBalance(newBalance) {
                 if (currentUser && balanceRef) {
                     balanceRef.child('balance').set(Math.floor(newBalance));
                 }
             }
             
-            // --- Tab Switching ---
             navLinks.forEach(link => {
                 link.addEventListener('click', (e) => {
                     e.preventDefault();
@@ -482,15 +461,11 @@
                 });
             });
 
-            // --- Function to fetch and display leaderboard ---
             function fetchLeaderboard() {
                 const usersRef = db.ref('users');
                 leaderboardList.innerHTML = '<li>Loading...</li>';
                 usersRef.orderByChild('balance').limitToLast(10).once('value', (snapshot) => {
-                    if (!snapshot.exists()) {
-                        leaderboardList.innerHTML = '<li>No players yet!</li>';
-                        return;
-                    }
+                    if (!snapshot.exists()) { leaderboardList.innerHTML = '<li>No players yet!</li>'; return; }
                     const leaderboardData = [];
                     snapshot.forEach(childSnapshot => {
                         leaderboardData.push({
@@ -503,31 +478,19 @@
                     leaderboardData.forEach((player, index) => {
                         const li = document.createElement('li');
                         li.className = 'leaderboard-item';
-                        li.innerHTML = `
-                            <span class="leaderboard-rank">#${index + 1}</span>
-                            <span class="leaderboard-name">${player.username || '...'}</span>
-                            <span class="leaderboard-balance">${(player.balance || 0).toLocaleString()} BUX</span>`;
+                        li.innerHTML = `<span class="leaderboard-rank">#${index + 1}</span><span class="leaderboard-name">${player.username || '...'}</span><span class="leaderboard-balance">${(player.balance || 0).toLocaleString()} BUX</span>`;
                         leaderboardList.appendChild(li);
                     });
-                }).catch(error => {
-                    leaderboardList.innerHTML = `<li>Error loading leaderboard.</li>`;
-                    console.error("Leaderboard Error:", error);
-                });
+                }).catch(error => { leaderboardList.innerHTML = `<li>Error loading leaderboard.</li>`; console.error("Leaderboard Error:", error); });
             }
 
-            // --- Balance Display Logic ---
             function updateAllBalanceDisplays(targetBalance) {
                 const elementsToUpdate = [mainBalanceElement, headerBalanceElement];
                 elementsToUpdate.forEach(el => {
-                     gsap.to(el, {
-                        duration: 1, innerHTML: Math.floor(targetBalance), roundProps: "innerHTML",
-                        onUpdate: function() { this.targets()[0].innerHTML = parseInt(this.targets()[0].innerHTML).toLocaleString(); },
-                        ease: "power3.out"
-                    });
+                    gsap.to(el, { duration: 1, innerHTML: Math.floor(targetBalance), roundProps: "innerHTML", onUpdate: function() { this.targets()[0].innerHTML = parseInt(this.targets()[0].innerHTML).toLocaleString(); }, ease: "power3.out" });
                 });
             }
 
-            // --- Balance Tab: Code Creation/Redemption ---
             (function setupBalanceTab() {
                 const createCodeAmountInput = document.getElementById('create-code-amount');
                 const createCodeBtn = document.getElementById('create-code-btn');
@@ -540,56 +503,41 @@
                     if (isNaN(amount) || amount <= 0) { showToast('Please enter a valid amount.', 'error'); return; }
                     if (amount > balance) { showToast('Insufficient balance.', 'error'); return; }
                     updateUserBalance(balance - amount);
-                    const code = generateRandomCode();
-                    generatedCodes[code] = amount;
-                    const codeElement = document.createElement('div');
-                    codeElement.classList.add('generated-code-item');
+                    const code = generateRandomCode(); generatedCodes[code] = amount;
+                    const codeElement = document.createElement('div'); codeElement.classList.add('generated-code-item');
                     codeElement.innerHTML = `<span class="code-text">${code}</span><span>${amount.toLocaleString()} BUX</span>`;
                     codeElement.addEventListener('click', () => navigator.clipboard.writeText(code).then(() => showToast(`Code ${code} copied!`, 'success')));
                     generatedCodesContainer.prepend(codeElement);
                     gsap.from(codeElement, { duration: 0.5, opacity: 0, x: -30, ease: 'power3.out' });
-                    createCodeAmountInput.value = '';
-                    showToast(`Code for ${amount.toLocaleString()} BUX created.`, 'success');
+                    createCodeAmountInput.value = ''; showToast(`Code for ${amount.toLocaleString()} BUX created.`, 'success');
                 });
                 redeemCodeBtn.addEventListener('click', () => {
                     const code = redeemCodeInput.value.trim().toUpperCase();
                     if (generatedCodes[code]) {
-                        const amount = generatedCodes[code];
-                        updateUserBalance(balance + amount);
-                        delete generatedCodes[code];
+                        const amount = generatedCodes[code]; updateUserBalance(balance + amount); delete generatedCodes[code];
                         document.querySelectorAll('.generated-code-item .code-text').forEach(el => {
-                            if (el.textContent === code) {
-                                gsap.to(el.parentElement, { duration: 0.5, opacity: 0, x: 30, ease: 'power3.in', onComplete: () => el.parentElement.remove() });
-                            }
+                            if (el.textContent === code) { gsap.to(el.parentElement, { duration: 0.5, opacity: 0, x: 30, ease: 'power3.in', onComplete: () => el.parentElement.remove() }); }
                         });
-                        showToast(`Redeemed ${amount.toLocaleString()} BUX!`, 'success');
-                        redeemCodeInput.value = '';
+                        showToast(`Redeemed ${amount.toLocaleString()} BUX!`, 'success'); redeemCodeInput.value = '';
                     } else { showToast('Invalid or already used code.', 'error'); }
                 });
             })();
             
-            // --- Gambling Tab Logic ---
             (function setupGamblingTab() {
-                const canvas = document.getElementById('wheel-canvas');
-                const ctx = canvas.getContext('2d');
-                const spinButton = document.getElementById('spin-btn');
-                const betAmountInput = document.getElementById('bet-amount-input');
-                let wheelSpinning = false; let currentBet = 0;
+                const canvas = document.getElementById('wheel-canvas'), ctx = canvas.getContext('2d'), spinButton = document.getElementById('spin-btn'), betAmountInput = document.getElementById('bet-amount-input');
+                let wheelSpinning = false, currentBet = 0;
                 const segments = [
-                    { color: '#d81b60', label: 'x3 BET', multiplier: 3 }, { color: '#e53935', label: 'LOSE BET', multiplier: 0 },
-                    { color: '#43a047', label: 'x1.5 BET', multiplier: 1.5 }, { color: '#c2185b', label: 'BANKRUPT', multiplier: -1 },
-                    { color: '#7e57c2', label: 'x2 BET', multiplier: 2 }, { color: '#fb8c00', label: '÷3 BET', multiplier: 1/3 },
+                    { color: '#d81b60', label: 'x3 BET', multiplier: 3 }, { color: '#e53935', label: 'LOSE BET', multiplier: 0 }, { color: '#43a047', label: 'x1.5 BET', multiplier: 1.5 },
+                    { color: '#c2185b', label: 'BANKRUPT', multiplier: -1 }, { color: '#7e57c2', label: 'x2 BET', multiplier: 2 }, { color: '#fb8c00', label: '÷3 BET', multiplier: 1/3 },
                     { color: '#00acc1', label: 'SAFE', multiplier: 1 }, { color: '#e53935', label: 'LOSE BET', multiplier: 0 }
                 ];
                 function drawWheel() {
-                    const radius = canvas.width / 2; const segAngleRad = 2 * Math.PI / segments.length;
+                    const radius = canvas.width / 2, segAngleRad = 2 * Math.PI / segments.length;
                     ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.save(); ctx.translate(radius, radius);
                     for (let i = 0; i < segments.length; i++) {
                         const angle = i * segAngleRad;
-                        ctx.beginPath(); ctx.fillStyle = segments[i].color; ctx.moveTo(0, 0);
-                        ctx.arc(0, 0, radius - 10, angle, angle + segAngleRad); ctx.lineTo(0,0); ctx.fill();
-                        ctx.save(); ctx.fillStyle = 'white'; ctx.font = 'bold 18px Poppins';
-                        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.rotate(angle + segAngleRad / 2);
+                        ctx.beginPath(); ctx.fillStyle = segments[i].color; ctx.moveTo(0, 0); ctx.arc(0, 0, radius - 10, angle, angle + segAngleRad); ctx.lineTo(0,0); ctx.fill();
+                        ctx.save(); ctx.fillStyle = 'white'; ctx.font = 'bold 18px Poppins'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.rotate(angle + segAngleRad / 2);
                         ctx.fillText(segments[i].label, radius * 0.65, 0); ctx.restore();
                     }
                     ctx.restore();
@@ -614,20 +562,16 @@
                     currentBet = bet; updateUserBalance(balance - currentBet);
                     spinButton.disabled = true; betAmountInput.disabled = true; wheelSpinning = true;
                     const totalRotation = (8 + Math.random() * 4) * 360 + Math.random() * 360;
-                    gsap.to(canvas, {
-                        rotation: `+=${totalRotation}`, duration: 7, ease: 'power3.out',
-                        onComplete: () => {
-                            const finalRotation = gsap.getProperty(canvas, "rotation");
-                            const normalizedAngle = ((270 - (finalRotation % 360)) + 360) % 360;
-                            const winningIndex = Math.floor(normalizedAngle / (360 / segments.length));
-                            handlePrize(segments[winningIndex]);
-                        }
-                    });
+                    gsap.to(canvas, { rotation: `+=${totalRotation}`, duration: 7, ease: 'power3.out', onComplete: () => {
+                        const finalRotation = gsap.getProperty(canvas, "rotation");
+                        const normalizedAngle = ((270 - (finalRotation % 360)) + 360) % 360;
+                        const winningIndex = Math.floor(normalizedAngle / (360 / segments.length));
+                        handlePrize(segments[winningIndex]);
+                    }});
                 });
                 drawWheel();
             })();
             
-            // --- Blackjack Tab Logic ---
             (function setupBlackjackTab() {
                 const suits = ['♥', '♦', '♠', '♣'], ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
                 let deck = [], playerHand, dealerHand, currentBetBJ = 0;
@@ -683,7 +627,6 @@
                 createDeck();
             })();
 
-            // --- Linus Hub 2D Game Logic ---
             (function setupLinusHubTab() {
                 const gameArea = document.getElementById('game-area'); if (!gameArea) return;
                 const player = { element: document.getElementById('player-character'), x: 0, y: 0, width: 200, height: 200, speed: 5, direction: 1 };
@@ -705,8 +648,8 @@
                 function handleKeyUp(e) { if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false; }
                 const observer = new MutationObserver(mutations => {
                     mutations.forEach(mutation => {
-                        if (mutation.attributeName === 'class') {
-                            if (document.getElementById('linus-hub').classList.contains('active')) {
+                        if (mutation.attributeName === 'class' && mutation.target.id === 'linus-hub') {
+                            if (mutation.target.classList.contains('active')) {
                                 player.x = gameArea.offsetWidth / 2 - player.width / 2; player.y = gameArea.offsetHeight / 2 - player.height / 2;
                                 document.addEventListener('keydown', handleKeyDown); document.addEventListener('keyup', handleKeyUp);
                                 if (!gameLoopId) gameLoop();
