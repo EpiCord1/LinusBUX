@@ -10,8 +10,11 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <!-- ADDED: Firebase Functions SDK is required for the new secure architecture -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
 
     <style>
+        /* CSS styles remain the same as the original */
         :root {
             --primary-blue: #0a84ff;
             --secondary-purple: #bf5af2;
@@ -425,19 +428,22 @@ const firebaseConfig = {
 };
 
 
-
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.database();
+        // ADDED: Initialize Firebase Functions
+        const functions = firebase.functions();
+        
+        // OPTIONAL: To test locally, uncomment the line below
+        // functions.useEmulator("localhost", 5001);
 
         document.addEventListener('DOMContentLoaded', () => {
 
             // --- App State ---
-            let balance = 0; // Local balance, will be synced with Firebase
+            let balance = 0;
             let currentUser = null;
             let balanceRef = null;
-            const generatedCodes = {}; // These will remain local to the session
             
             // --- UI Elements ---
             const mainBalanceElement = document.getElementById('main-balance-amount');
@@ -470,36 +476,29 @@ const firebaseConfig = {
             }
             
             // --- Firebase Auth Logic ---
-            
             auth.onAuthStateChanged(user => {
                 if (user) {
-                    // User is signed in.
                     currentUser = user;
-                    balanceRef = db.ref(`users/${currentUser.uid}`);
+                    balanceRef = db.ref(`users/${currentUser.uid}/balance`);
                     
-                    // Listen for balance changes in real-time
+                    // The client now ONLY reads the balance. It cannot write to it.
+                    // The server is the only one who can change the balance value.
                     balanceRef.on('value', (snapshot) => {
-                        const data = snapshot.val();
-                        if (data && data.balance !== undefined) {
-                            balance = data.balance;
-                        } else {
-                            // First time login, set initial balance
-                            balance = 100;
-                            balanceRef.set({ balance: balance });
+                        const newBalance = snapshot.val();
+                        if (newBalance !== null) {
+                            balance = newBalance;
+                            updateAllBalanceDisplays(balance);
                         }
-                        updateAllBalanceDisplays(balance);
                     });
 
                     appContainer.classList.add('visible');
                     authContainer.style.display = 'none';
 
                 } else {
-                    // User is signed out.
                     currentUser = null;
-                    if(balanceRef) balanceRef.off(); // Stop listening to old user's balance
+                    if(balanceRef) balanceRef.off(); 
                     balance = 0;
                     updateAllBalanceDisplays(0);
-
                     appContainer.classList.remove('visible');
                     authContainer.style.display = 'flex';
                 }
@@ -508,100 +507,68 @@ const firebaseConfig = {
             signupBtn.addEventListener('click', () => {
                 const email = emailInput.value;
                 const password = passwordInput.value;
-                if (!email || !password) {
-                    showToast('Please enter email and password.', 'error');
-                    return;
-                }
+                if (!email || !password) return showToast('Please enter email and password.', 'error');
+
                 auth.createUserWithEmailAndPassword(email, password)
                     .then((userCredential) => {
-                        showToast(`Account created for ${userCredential.user.email}! Welcome!`, 'success');
-                        // The onAuthStateChanged observer will handle the rest.
-                        // Initial balance is set there.
+                        // NEW: Set the initial user data. The rules allow one initial write.
+                        const initialData = { balance: 100, username: email.split('@')[0] };
+                        db.ref(`users/${userCredential.user.uid}`).set(initialData)
+                          .then(() => {
+                              showToast(`Account created for ${userCredential.user.email}! Welcome!`, 'success');
+                          });
                     })
-                    .catch((error) => {
-                        showToast(error.message, 'error');
-                    });
+                    .catch((error) => showToast(error.message, 'error'));
             });
 
             loginBtn.addEventListener('click', () => {
                 const email = emailInput.value;
                 const password = passwordInput.value;
-                 if (!email || !password) {
-                    showToast('Please enter email and password.', 'error');
-                    return;
-                }
+                if (!email || !password) return showToast('Please enter email and password.', 'error');
+                
                 auth.signInWithEmailAndPassword(email, password)
-                    .then((userCredential) => {
-                         showToast(`Welcome back, ${userCredential.user.email}!`, 'success');
-                         // The onAuthStateChanged observer handles UI changes.
-                    })
-                    .catch((error) => {
-                        showToast(error.message, 'error');
-                    });
+                    .then((userCredential) => showToast(`Welcome back, ${userCredential.user.email}!`, 'success'))
+                    .catch((error) => showToast(error.message, 'error'));
             });
 
             logoutBtn.addEventListener('click', () => {
-                auth.signOut().then(() => {
-                    showToast('You have been logged out.', 'info');
-                });
+                auth.signOut().then(() => showToast('You have been logged out.', 'info'));
             });
 
-
-            // --- Helper function to update balance in Firebase ---
-            function updateUserBalance(newBalance) {
-                if (currentUser && balanceRef) {
-                    balanceRef.child('balance').set(Math.floor(newBalance));
-                }
-            }
-            
-            // --- Mouse-tracking for Card Glow Effect ---
+            // --- UI and Animation Helpers ---
             document.querySelectorAll('.card').forEach(card => {
                 card.addEventListener('mousemove', e => {
                     const rect = card.getBoundingClientRect();
-                    const x = e.clientX - rect.left;
-                    const y = e.clientY - rect.top;
-                    card.style.setProperty('--mouse-x', `${x}px`);
-                    card.style.setProperty('--mouse-y', `${y}px`);
+                    card.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
+                    card.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
                 });
             });
 
-            // --- Tab Switching ---
             navLinks.forEach(link => {
                 link.addEventListener('click', (e) => {
                     e.preventDefault();
                     const tabId = e.currentTarget.getAttribute('data-tab');
-
                     navLinks.forEach(l => l.classList.remove('active'));
                     tabContents.forEach(content => content.classList.remove('active'));
-
                     e.currentTarget.classList.add('active');
                     document.getElementById(tabId).classList.add('active');
-                    
-                    if (tabId === 'balance') {
-                        headerBalanceContainer.classList.remove('visible');
-                    } else {
-                        headerBalanceContainer.classList.add('visible');
-                    }
+                    headerBalanceContainer.classList.toggle('visible', tabId !== 'balance');
                 });
             });
 
-            // --- Balance Display Logic ---
             function updateAllBalanceDisplays(targetBalance) {
-                const elementsToUpdate = [mainBalanceElement, headerBalanceElement];
-                elementsToUpdate.forEach(el => {
+                [mainBalanceElement, headerBalanceElement].forEach(el => {
                      gsap.to(el, {
                         duration: 1,
                         innerHTML: Math.floor(targetBalance),
                         roundProps: "innerHTML",
-                        onUpdate: function() {
-                            this.targets()[0].innerHTML = parseInt(this.targets()[0].innerHTML).toLocaleString();
-                        },
+                        onUpdate: function() { this.targets()[0].innerHTML = parseInt(this.targets()[0].innerHTML).toLocaleString(); },
                         ease: "power3.out"
                     });
                 });
             }
 
-            // --- Balance Tab: Code Creation/Redemption ---
+            // --- Balance Tab: NOW USES CLOUD FUNCTIONS ---
             (function setupBalanceTab() {
                 const createCodeAmountInput = document.getElementById('create-code-amount');
                 const createCodeBtn = document.getElementById('create-code-btn');
@@ -609,57 +576,54 @@ const firebaseConfig = {
                 const redeemCodeBtn = document.getElementById('redeem-code-btn');
                 const generatedCodesContainer = document.getElementById('generated-codes');
 
-                function generateRandomCode() {
-                    return 'LBX-' + Math.random().toString(36).substring(2, 10).toUpperCase();
-                }
-
                 createCodeBtn.addEventListener('click', () => {
                     const amount = parseInt(createCodeAmountInput.value, 10);
-                    if (isNaN(amount) || amount <= 0) { showToast('Please enter a valid amount.', 'error'); return; }
-                    if (amount > balance) { showToast('Insufficient balance.', 'error'); return; }
+                    if (isNaN(amount) || amount <= 0) return showToast('Please enter a valid amount.', 'error');
                     
-                    updateUserBalance(balance - amount);
-
-                    const code = generateRandomCode();
-                    generatedCodes[code] = amount; // Codes are still session-local
-                    const codeElement = document.createElement('div');
-                    codeElement.classList.add('generated-code-item');
-                    codeElement.innerHTML = `<span class="code-text">${code}</span><span>${amount.toLocaleString()} BUX</span>`;
-                    codeElement.addEventListener('click', () => navigator.clipboard.writeText(code).then(() => showToast(`Code ${code} copied!`, 'success')));
-                    generatedCodesContainer.prepend(codeElement);
-                    gsap.from(codeElement, { duration: 0.5, opacity: 0, x: -30, ease: 'power3.out' });
-                    createCodeAmountInput.value = '';
-                    showToast(`Code for ${amount.toLocaleString()} BUX created.`, 'success');
+                    createCodeBtn.disabled = true;
+                    // SECURE: Call the 'createCode' Cloud Function.
+                    const createCodeFunc = functions.httpsCallable('createCode');
+                    createCodeFunc({ amount: amount })
+                        .then(result => {
+                            const { code } = result.data;
+                            const codeElement = document.createElement('div');
+                            codeElement.className = 'generated-code-item';
+                            codeElement.innerHTML = `<span class="code-text">${code}</span><span>${amount.toLocaleString()} BUX</span>`;
+                            codeElement.addEventListener('click', () => navigator.clipboard.writeText(code).then(() => showToast(`Code ${code} copied!`, 'success')));
+                            generatedCodesContainer.prepend(codeElement);
+                            gsap.from(codeElement, { duration: 0.5, opacity: 0, x: -30, ease: 'power3.out' });
+                            createCodeAmountInput.value = '';
+                            showToast('Code created successfully!', 'success');
+                        })
+                        .catch(error => showToast(`Error: ${error.message}`, 'error'))
+                        .finally(() => createCodeBtn.disabled = false);
                 });
 
                 redeemCodeBtn.addEventListener('click', () => {
-                    const code = redeemCodeInput.value.trim().toUpperCase();
-                    if (generatedCodes[code]) {
-                        const amount = generatedCodes[code];
-                        updateUserBalance(balance + amount);
-                        delete generatedCodes[code];
-                        document.querySelectorAll('.generated-code-item .code-text').forEach(el => {
-                            if (el.textContent === code) {
-                                gsap.to(el.parentElement, { duration: 0.5, opacity: 0, x: 30, ease: 'power3.in', onComplete: () => el.parentElement.remove() });
-                            }
-                        });
-                        showToast(`Redeemed ${amount.toLocaleString()} BUX!`, 'success');
-                        redeemCodeInput.value = '';
-                    } else {
-                        showToast('Invalid or already used code.', 'error');
-                    }
+                    const code = redeemCodeInput.value.trim();
+                    if (!code) return showToast('Please enter a code.', 'error');
+                    
+                    redeemCodeBtn.disabled = true;
+                    // SECURE: Call the 'redeemCode' Cloud Function.
+                    const redeemCodeFunc = functions.httpsCallable('redeemCode');
+                    redeemCodeFunc({ code: code })
+                        .then(result => {
+                            const { message, amount } = result.data;
+                            showToast(`${message} You received ${amount.toLocaleString()} BUX!`, 'success');
+                            redeemCodeInput.value = '';
+                        })
+                        .catch(error => showToast(`Error: ${error.message}`, 'error'))
+                        .finally(() => redeemCodeBtn.disabled = false);
                 });
             })();
             
-            // --- Gambling Tab Logic ---
+            // --- Gambling Tab: NOW USES CLOUD FUNCTIONS ---
             (function setupGamblingTab() {
                 const canvas = document.getElementById('wheel-canvas');
                 const ctx = canvas.getContext('2d');
                 const spinButton = document.getElementById('spin-btn');
                 const betAmountInput = document.getElementById('bet-amount-input');
-                let wheelSpinning = false;
-                let currentBet = 0;
-
+                
                 const segments = [
                     { color: '#d81b60', label: 'x3 BET', multiplier: 3 },
                     { color: '#e53935', label: 'LOSE BET', multiplier: 0 },
@@ -671,14 +635,13 @@ const firebaseConfig = {
                     { color: '#e53935', label: 'LOSE BET', multiplier: 0 }
                 ];
                 const segCount = segments.length;
+                const segAngleRad = 2 * Math.PI / segCount;
                 const radius = canvas.width / 2;
                 
-                function drawWheel() {
-                    const segAngleRad = 2 * Math.PI / segCount;
+                function drawWheel() { /* This function remains the same */
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                     ctx.save();
                     ctx.translate(radius, radius);
-                    
                     for (let i = 0; i < segCount; i++) {
                         const angle = i * segAngleRad;
                         ctx.beginPath();
@@ -699,74 +662,49 @@ const firebaseConfig = {
                     ctx.restore();
                 }
 
-                function handlePrize(winningSegment) {
-                    const multiplier = winningSegment.multiplier;
-                    let newBalance = balance;
-
-                    if (multiplier === -1) {
-                        const amountLost = balance;
-                        newBalance = 0;
-                        showToast(`BANKRUPT! You lost all ${amountLost.toLocaleString()} BUX!`, 'error');
-                    } else if (multiplier > 0) {
-                        const winnings = Math.floor(currentBet * multiplier);
-                        newBalance += winnings;
-                        if (multiplier > 1) { showToast(`YOU WON ${winnings.toLocaleString()} BUX!`, 'success'); }
-                        else if (multiplier === 1) { showToast(`Safe! Your bet of ${currentBet.toLocaleString()} was returned.`, 'info'); }
-                        else { showToast(`You got back ${winnings.toLocaleString()} BUX.`, 'info'); }
-                    } else {
-                        showToast(`You lost your bet of ${currentBet.toLocaleString()} BUX.`, 'error');
-                    }
-                    
-                    updateUserBalance(newBalance);
-                    spinButton.disabled = false;
-                    betAmountInput.disabled = false;
-                    wheelSpinning = false;
-                }
-
                 spinButton.addEventListener('click', () => {
-                    if (wheelSpinning) return;
                     const bet = parseInt(betAmountInput.value, 10);
-                    if (isNaN(bet) || bet <= 0) { showToast('Please enter a valid positive bet.', 'error'); return; }
-                    if (bet > balance) { showToast('You cannot bet more than your balance.', 'error'); return; }
-                    
-                    currentBet = bet;
-                    updateUserBalance(balance - currentBet);
+                    if (isNaN(bet) || bet <= 0) return showToast('Please enter a valid positive bet.', 'error');
                     
                     spinButton.disabled = true;
                     betAmountInput.disabled = true;
-                    wheelSpinning = true;
 
-                    const randomSpins = (8 + Math.random() * 4) * 360;
-                    const randomExtraDegrees = Math.random() * 360;
-                    const totalRotation = randomSpins + randomExtraDegrees;
-
-                    gsap.to(canvas, {
-                        rotation: `+=${totalRotation}`,
-                        duration: 7,
-                        ease: 'power3.out',
-                        onComplete: () => {
-                            const finalRotation = gsap.getProperty(canvas, "rotation");
-                            const normalizedAngle = finalRotation % 360;
-                            const angleToPointer = ( ( (270 - normalizedAngle) % 360 ) + 360 ) % 360;
-                            const segAngleDeg = 360 / segments.length;
-                            const winningIndex = Math.floor(angleToPointer / segAngleDeg);
-                            const winningSegment = segments[winningIndex];
+                    // SECURE: Call the 'spinWheel' cloud function
+                    const spinWheelFunc = functions.httpsCallable('spinWheel');
+                    spinWheelFunc({ bet: bet })
+                        .then(result => {
+                            const { winningIndex, message, prize } = result.data;
                             
-                            handlePrize(winningSegment);
-                        }
-                    });
+                            // Animate the wheel to the server-determined position
+                            const segAngleDeg = 360 / segments.length;
+                            const targetRotation = 360 - (winningIndex * segAngleDeg) - (segAngleDeg / 2);
+                            const randomSpins = (8 + Math.random() * 4) * 360;
+                            const totalRotation = randomSpins + targetRotation;
+
+                            gsap.to(canvas, {
+                                rotation: totalRotation,
+                                duration: 7,
+                                ease: 'power3.out',
+                                onComplete: () => {
+                                    // Balance updates are handled by the real-time listener.
+                                    // Just show the message from the server.
+                                    showToast(message, prize > 0 ? 'success' : 'error');
+                                    spinButton.disabled = false;
+                                    betAmountInput.disabled = false;
+                                }
+                            });
+                        })
+                        .catch(error => {
+                            showToast(`Error: ${error.message}`, 'error');
+                            spinButton.disabled = false;
+                            betAmountInput.disabled = false;
+                        });
                 });
                 drawWheel();
             })();
             
-            // --- Blackjack Tab Logic ---
+            // --- Blackjack Tab: NOW USES CLOUD FUNCTIONS ---
             (function setupBlackjackTab() {
-                const suits = ['♥', '♦', '♠', '♣'];
-                const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
-                let deck = [];
-                let playerHand, dealerHand;
-                let currentBetBJ = 0;
-                
                 const betControls = document.getElementById('blackjack-bet-controls');
                 const gameActions = document.getElementById('blackjack-game-actions');
                 const betInput = document.getElementById('blackjack-bet-input');
@@ -780,43 +718,11 @@ const firebaseConfig = {
                 const playerScoreEl = document.getElementById('player-score');
                 const dealerScoreEl = document.getElementById('dealer-score');
                 const gameStatusEl = document.getElementById('game-status');
+                
+                // CLIENT-SIDE LOGIC REMOVED: No deck, no score calculation.
+                // The client is now just a "renderer" for server state.
 
-                function createDeck() {
-                    deck = [];
-                    for(let i=0; i<6; i++) {
-                        for (const suit of suits) {
-                            for (const rank of ranks) {
-                                deck.push({ suit, rank, value: getCardValue(rank) });
-                            }
-                        }
-                    }
-                    shuffleDeck();
-                }
-
-                function shuffleDeck() {
-                    for (let i = deck.length - 1; i > 0; i--) {
-                        const j = Math.floor(Math.random() * (i + 1));
-                        [deck[i], deck[j]] = [deck[j], deck[i]];
-                    }
-                }
-
-                function getCardValue(rank) {
-                    if (['J', 'Q', 'K'].includes(rank)) return 10;
-                    if (rank === 'A') return 11;
-                    return parseInt(rank);
-                }
-
-                function calculateScore(hand) {
-                    let score = hand.reduce((sum, card) => sum + card.value, 0);
-                    let numAces = hand.filter(card => card.rank === 'A').length;
-                    while (score > 21 && numAces > 0) {
-                        score -= 10;
-                        numAces--;
-                    }
-                    return score;
-                }
-
-                function renderCard(card, targetEl, isFaceDown = false) {
+                function renderCard(card, isFaceDown = false) {
                     const cardEl = document.createElement('div');
                     cardEl.className = 'bj-card';
                     if (!isFaceDown) {
@@ -829,175 +735,70 @@ const firebaseConfig = {
                     } else {
                         cardEl.classList.add('facedown');
                     }
-                    targetEl.appendChild(cardEl);
                     gsap.from(cardEl, { duration: 0.5, y: -100, opacity: 0, ease: 'power3.out' });
+                    return cardEl;
                 }
 
-                function updateScores(isDealerHidden = false) {
-                    const playerScore = calculateScore(playerHand);
-                    playerScoreEl.textContent = playerScore;
-                    if (isDealerHidden) {
-                         const visibleDealerScore = dealerHand[0].rank === 'A' ? 11 : dealerHand[0].value;
-                         dealerScoreEl.textContent = `${visibleDealerScore} + ?`;
-                    } else {
-                        const dealerScore = calculateScore(dealerHand);
-                        dealerScoreEl.textContent = dealerScore;
-                    }
-                }
-                
-                function checkInitialBlackjack() {
-                     if (calculateScore(playerHand) === 21) {
-                         const dealerScoreCheck = calculateScore(dealerHand);
-                         revealDealerCard();
-                         if (dealerScoreCheck === 21) {
-                            endGame("Push! Both have Blackjack.", 1);
-                         } else {
-                            endGame("Blackjack!", 2.5);
-                         }
-                         return true;
-                     }
-                     return false;
-                }
-
-                dealButton.addEventListener('click', () => {
-                    const bet = parseInt(betInput.value, 10);
-                    if (isNaN(bet) || bet <= 0) { showToast('Please enter a valid bet.', 'error'); return; }
-                    if (bet > balance) { showToast('Bet exceeds your balance.', 'error'); return; }
-                    
-                    currentBetBJ = bet;
-                    updateUserBalance(balance - currentBetBJ);
-                    
-                    if (deck.length < 52) createDeck();
-                    
-                    playerHand = [deck.pop(), deck.pop()];
-                    dealerHand = [deck.pop(), deck.pop()];
-                    
+                function renderGameState(state) {
                     playerHandEl.innerHTML = '';
                     dealerHandEl.innerHTML = '';
                     
-                    renderCard(playerHand[0], playerHandEl);
-                    renderCard(dealerHand[0], dealerHandEl);
-                    renderCard(playerHand[1], playerHandEl);
-                    renderCard(dealerHand[1], dealerHandEl, true);
+                    state.playerHand.forEach(card => playerHandEl.appendChild(renderCard(card)));
+                    state.dealerHand.forEach((card, index) => {
+                        const isHidden = state.isDealerHidden && index === 1;
+                        dealerHandEl.appendChild(renderCard(card, isHidden));
+                    });
+                    
+                    playerScoreEl.textContent = state.playerScore;
+                    dealerScoreEl.textContent = state.dealerScore;
+                    gameStatusEl.textContent = state.statusMessage;
 
-                    updateScores(true);
+                    const isGameActive = state.isGameActive;
+                    betControls.style.display = isGameActive ? 'none' : 'flex';
+                    gameActions.style.display = isGameActive ? 'flex' : 'none';
+                    hitButton.disabled = !isGameActive;
+                    standButton.disabled = !isGameActive;
+                    doubleDownButton.disabled = !state.canDoubleDown;
+                }
+
+                function callBlackjackAction(action, bet = 0) {
+                    const bjActionFunc = functions.httpsCallable('blackjackAction');
+                    dealButton.disabled = true;
+                    hitButton.disabled = true;
+                    standButton.disabled = true;
+                    doubleDownButton.disabled = true;
                     
-                    betControls.style.display = 'none';
-                    gameActions.style.display = 'flex';
-                    setActionsState(true, balance >= currentBetBJ);
-                    gameStatusEl.textContent = '';
-                    
-                    if (checkInitialBlackjack()) {
-                       setActionsState(false, false);
-                    }
+                    bjActionFunc({ action: action, bet: bet })
+                        .then(result => {
+                            renderGameState(result.data);
+                        })
+                        .catch(error => {
+                            showToast(`Error: ${error.message}`, 'error');
+                            // Reset UI on error
+                            renderGameState({
+                                playerHand: [], dealerHand: [], playerScore: 0, dealerScore: '?',
+                                statusMessage: 'An error occurred. Place a bet.', isGameActive: false, canDoubleDown: false
+                            });
+                        })
+                        .finally(() => {
+                           // The renderGameState function will re-enable buttons as needed.
+                           dealButton.disabled = false;
+                        });
+                }
+                
+                dealButton.addEventListener('click', () => {
+                    const bet = parseInt(betInput.value, 10);
+                    if (isNaN(bet) || bet <= 0) return showToast('Please enter a valid bet.', 'error');
+                    callBlackjackAction('deal', bet);
                 });
                 
-                function setActionsState(enabled, canDouble) {
-                    hitButton.disabled = !enabled;
-                    standButton.disabled = !enabled;
-                    doubleDownButton.disabled = !enabled || !canDouble || playerHand.length > 2;
-                }
-
-                hitButton.addEventListener('click', () => {
-                    playerHand.push(deck.pop());
-                    renderCard(playerHand[playerHand.length - 1], playerHandEl);
-                    updateScores(true);
-                    setActionsState(true, false);
-                    if (calculateScore(playerHand) > 21) {
-                        endGame("You Busted!", 0);
-                    }
-                });
-                
-                standButton.addEventListener('click', () => {
-                    setActionsState(false, false);
-                    dealerTurn();
-                });
-                
-                doubleDownButton.addEventListener('click', () => {
-                    if (balance < currentBetBJ) { showToast("Not enough Bux to double down!", "error"); return; }
-                    
-                    updateUserBalance(balance - currentBetBJ);
-                    currentBetBJ *= 2;
-                    
-                    setActionsState(false, false);
-                    playerHand.push(deck.pop());
-                    renderCard(playerHand[playerHand.length-1], playerHandEl);
-                    
-                    setTimeout(() => {
-                        updateScores(true);
-                         if (calculateScore(playerHand) > 21) {
-                            endGame("You Busted on Double Down!", 0);
-                        } else {
-                            dealerTurn();
-                        }
-                    }, 800);
-                });
-                
-                function revealDealerCard() {
-                    const holeCard = dealerHandEl.children[1];
-                    const cardData = dealerHand[1];
-                    if (!holeCard || !holeCard.classList.contains('facedown')) return;
-                    
-                    gsap.to(holeCard, {rotationY: 90, duration: 0.3, ease: 'power1.in', onComplete: () => {
-                        holeCard.classList.remove('facedown');
-                        const colorClass = ['♥', '♦'].includes(cardData.suit) ? 'red' : 'black';
-                        
-                        holeCard.innerHTML = `
-                            <span class="rank-top">${cardData.rank}${cardData.suit}</span>
-                            <span class="center-suit">${cardData.suit}</span>
-                            <span class="rank-bottom">${cardData.rank}${cardData.suit}</span>`;
-                        holeCard.classList.add(colorClass);
-
-                        gsap.to(holeCard, {rotationY: 0, duration: 0.3, ease: 'power1.out'});
-                    }});
-                }
-
-                function dealerTurn() {
-                    revealDealerCard();
-                    setTimeout(() => {
-                        updateScores(false);
-                        const dealerHitLoop = () => {
-                            if (calculateScore(dealerHand) < 17) {
-                                dealerHand.push(deck.pop());
-                                renderCard(dealerHand[dealerHand.length - 1], dealerHandEl);
-                                updateScores(false);
-                                setTimeout(dealerHitLoop, 800);
-                            } else {
-                                determineWinner();
-                            }
-                        };
-                        setTimeout(dealerHitLoop, 800);
-                    }, 500);
-                }
-
-                function determineWinner() {
-                    const finalDealerScore = calculateScore(dealerHand);
-                    const finalPlayerScore = calculateScore(playerHand);
-                    
-                    if(finalDealerScore > 21) { endGame("Dealer Busts! You Win!", 2); }
-                    else if (finalPlayerScore > finalDealerScore) { endGame("You Win!", 2); }
-                    else if (finalDealerScore > finalPlayerScore) { endGame("Dealer Wins!", 0); }
-                    else { endGame("Push!", 1); }
-                }
-                
-                function endGame(message, payoutMultiplier) {
-                    gameStatusEl.textContent = message;
-                    const finalBalance = balance + (currentBetBJ * payoutMultiplier);
-                    updateUserBalance(finalBalance);
-                    
-                    setActionsState(false, false);
-                    setTimeout(() => {
-                        gameActions.style.display = 'none';
-                        dealButton.textContent = 'Play Again';
-                        betControls.style.display = 'flex';
-                        gameStatusEl.textContent = 'Place your bet!';
-                    }, 2500);
-                }
-
-                createDeck();
+                hitButton.addEventListener('click', () => callBlackjackAction('hit'));
+                standButton.addEventListener('click', () => callBlackjackAction('stand'));
+                doubleDownButton.addEventListener('click', () => callBlackjackAction('doubleDown'));
             })();
 
-            // --- Linus Hub 2D Game Logic ---
+
+            // --- Linus Hub 2D Game Logic (No changes needed, as it doesn't affect balance) ---
             (function setupLinusHubTab() {
                 const gameArea = document.getElementById('game-area');
                 if (!gameArea) return;
@@ -1073,4 +874,3 @@ const firebaseConfig = {
     </script>
 </body>
 </html>
-
