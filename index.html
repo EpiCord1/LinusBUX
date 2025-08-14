@@ -25,11 +25,7 @@
         --border-radius: 16px;
     }
 
-
-    
-{ margin: 0; padding: 0; box-sizing: border-box; }
-
-  
+    { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
 font-family: var(--font-family);
@@ -463,7 +459,11 @@ transform: translateY(-2px);
         </div>
         <div id="generated-codes"></div>
     </div>
+code Code
+IGNORE_WHEN_COPYING_START
+IGNORE_WHEN_COPYING_END
 
+    
 <div class="card">
     <h3>Redeem Code</h3>
     <div class="input-group">
@@ -471,6 +471,9 @@ transform: translateY(-2px);
         <button id="redeem-code-btn">Redeem</button>
     </div>
 </div>
+
+  
+
 </div>
 </div>
 <!-- Gambling Tab -->
@@ -536,13 +539,20 @@ transform: translateY(-2px);
             <img id="player-character-img" src="IDLE.gif" alt="Player">
         </div>
 <!-- Chat Input -->
+code Code
+IGNORE_WHEN_COPYING_START
+IGNORE_WHEN_COPYING_END
 
+    
 <div id="chat-input-container" style="display: none;">
     <form id="chat-form">
         <input type="text" id="chat-input" placeholder="Say something..." maxlength="50" autocomplete="off">
     </form>
 </div>
 <!-- Other players will be added here by JS -->
+
+  
+
 </div>
 </div>
 </main>
@@ -632,46 +642,41 @@ if (user) {
 currentUser = user;
 balanceRef = db.ref(users/${currentUser.uid});
 
+    
 // Listen for balance changes in real-time
-balanceRef.on('value', (snapshot) => {
-const data = snapshot.val();
-if (data && data.balance !== undefined) {
-balance = data.balance;
-} else {
-// First time login, set initial balance
-balance = 100;
-balanceRef.set({
-balance: balance,
-email: user.email // Also store email for reference
-});
-}
-updateAllBalanceDisplays(balance);
-});
+    balanceRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data && data.balance !== undefined) {
+            balance = data.balance;
+        } else {
+            // First time login, set initial balance
+            balance = 100;
+            balanceRef.set({ 
+                balance: balance,
+                email: user.email // Also store email for reference
+            });
+        }
+        updateAllBalanceDisplays(balance);
+    });
 
-    
-appContainer.classList.add('visible');
-authContainer.style.display = 'none';
-
-  
+    appContainer.classList.add('visible');
+    authContainer.style.display = 'none';
 
 } else {
-// User is signed out.
-if (currentUser) {
-db.ref(linusHub/players/${currentUser.uid}).remove();
+    // User is signed out.
+    if (currentUser) {
+       db.ref(`linusHub/players/${currentUser.uid}`).remove();
+    }
+    currentUser = null;
+    if(balanceRef) balanceRef.off(); // Stop listening to old user's balance
+    balance = 0;
+    updateAllBalanceDisplays(0);
+
+    appContainer.classList.remove('visible');
+    authContainer.style.display = 'flex';
 }
-currentUser = null;
-if(balanceRef) balanceRef.off(); // Stop listening to old user's balance
-balance = 0;
-updateAllBalanceDisplays(0);
-
-
-    
-appContainer.classList.remove('visible');
-authContainer.style.display = 'flex';
 
   
-
-}
 
 });
 
@@ -737,24 +742,21 @@ link.addEventListener('click', (e) => {
 e.preventDefault();
 const tabId = e.currentTarget.getAttribute('data-tab');
 
-
-navLinks.forEach(l => l.classList.remove('active'));
-tabContents.forEach(content => content.classList.remove('active'));
-
-
     
-e.currentTarget.classList.add('active');
-document.getElementById(tabId).classList.add('active');
+navLinks.forEach(l => l.classList.remove('active'));
+    tabContents.forEach(content => content.classList.remove('active'));
 
-if (tabId === 'balance') {
-    headerBalanceContainer.classList.remove('visible');
-} else {
-    headerBalanceContainer.classList.add('visible');
-}
+    e.currentTarget.classList.add('active');
+    document.getElementById(tabId).classList.add('active');
+    
+    if (tabId === 'balance') {
+        headerBalanceContainer.classList.remove('visible');
+    } else {
+        headerBalanceContainer.classList.add('visible');
+    }
+});
 
   
-
-});
 
 });
 
@@ -782,51 +784,49 @@ const redeemCodeInput = document.getElementById('redeem-code-input');
 const redeemCodeBtn = document.getElementById('redeem-code-btn');
 const generatedCodesContainer = document.getElementById('generated-codes');
 
-
+    
 function generateRandomCode() {
-return 'LBX-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+    return 'LBX-' + Math.random().toString(36).substring(2, 10).toUpperCase();
 }
 
 createCodeBtn.addEventListener('click', () => {
-const amount = parseInt(createCodeAmountInput.value, 10);
-if (isNaN(amount) || amount <= 0) { showToast('Please enter a valid amount.', 'error'); return; }
-if (amount > balance) { showToast('Insufficient balance.', 'error'); return; }
-
+    const amount = parseInt(createCodeAmountInput.value, 10);
+    if (isNaN(amount) || amount <= 0) { showToast('Please enter a valid amount.', 'error'); return; }
+    if (amount > balance) { showToast('Insufficient balance.', 'error'); return; }
     
-updateUserBalance(balance - amount);
+    updateUserBalance(balance - amount);
 
-const code = generateRandomCode();
-generatedCodes[code] = amount; // Codes are still session-local
-const codeElement = document.createElement('div');
-codeElement.classList.add('generated-code-item');
-codeElement.innerHTML = `<span class="code-text">${code}</span><span>${amount.toLocaleString()} BUX</span>`;
-codeElement.addEventListener('click', () => navigator.clipboard.writeText(code).then(() => showToast(`Code ${code} copied!`, 'success')));
-generatedCodesContainer.prepend(codeElement);
-gsap.from(codeElement, { duration: 0.5, opacity: 0, x: -30, ease: 'power3.out' });
-createCodeAmountInput.value = '';
-showToast(`Code for ${amount.toLocaleString()} BUX created.`, 'success');
-
-  
-
+    const code = generateRandomCode();
+    generatedCodes[code] = amount; // Codes are still session-local
+    const codeElement = document.createElement('div');
+    codeElement.classList.add('generated-code-item');
+    codeElement.innerHTML = `<span class="code-text">${code}</span><span>${amount.toLocaleString()} BUX</span>`;
+    codeElement.addEventListener('click', () => navigator.clipboard.writeText(code).then(() => showToast(`Code ${code} copied!`, 'success')));
+    generatedCodesContainer.prepend(codeElement);
+    gsap.from(codeElement, { duration: 0.5, opacity: 0, x: -30, ease: 'power3.out' });
+    createCodeAmountInput.value = '';
+    showToast(`Code for ${amount.toLocaleString()} BUX created.`, 'success');
 });
 
 redeemCodeBtn.addEventListener('click', () => {
-const code = redeemCodeInput.value.trim().toUpperCase();
-if (generatedCodes[code]) {
-const amount = generatedCodes[code];
-updateUserBalance(balance + amount);
-delete generatedCodes[code];
-document.querySelectorAll('.generated-code-item .code-text').forEach(el => {
-if (el.textContent === code) {
-gsap.to(el.parentElement, { duration: 0.5, opacity: 0, x: 30, ease: 'power3.in', onComplete: () => el.parentElement.remove() });
-}
+    const code = redeemCodeInput.value.trim().toUpperCase();
+    if (generatedCodes[code]) {
+        const amount = generatedCodes[code];
+        updateUserBalance(balance + amount);
+        delete generatedCodes[code];
+        document.querySelectorAll('.generated-code-item .code-text').forEach(el => {
+            if (el.textContent === code) {
+                gsap.to(el.parentElement, { duration: 0.5, opacity: 0, x: 30, ease: 'power3.in', onComplete: () => el.parentElement.remove() });
+            }
+        });
+        showToast(`Redeemed ${amount.toLocaleString()} BUX!`, 'success');
+        redeemCodeInput.value = '';
+    } else {
+        showToast('Invalid or already used code.', 'error');
+    }
 });
-showToast(Redeemed ${amount.toLocaleString()} BUX!, 'success');
-redeemCodeInput.value = '';
-} else {
-showToast('Invalid or already used code.', 'error');
-}
-});
+
+  
 
 })();
 
@@ -839,117 +839,108 @@ const betAmountInput = document.getElementById('bet-amount-input');
 let wheelSpinning = false;
 let currentBet = 0;
 
+    
 const segments = [
-{ color: '#d81b60', label: 'x3 BET', multiplier: 3 },
-{ color: '#e53935', label: 'LOSE BET', multiplier: 0 },
-{ color: '#43a047', label: 'x1.5 BET', multiplier: 1.5 },
-{ color: '#c2185b', label: 'BANKRUPT', multiplier: -1 },
-{ color: '#7e57c2', label: 'x2 BET', multiplier: 2 },
-{ color: '#fb8c00', label: '÷3 BET', multiplier: 1/3 },
-{ color: '#00acc1', label: 'SAFE', multiplier: 1 },
-{ color: '#e53935', label: 'LOSE BET', multiplier: 0 }
+    { color: '#d81b60', label: 'x3 BET', multiplier: 3 },
+    { color: '#e53935', label: 'LOSE BET', multiplier: 0 },
+    { color: '#43a047', label: 'x1.5 BET', multiplier: 1.5 },
+    { color: '#c2185b', label: 'BANKRUPT', multiplier: -1 },
+    { color: '#7e57c2', label: 'x2 BET', multiplier: 2 },
+    { color: '#fb8c00', label: '÷3 BET', multiplier: 1/3 },
+    { color: '#00acc1', label: 'SAFE', multiplier: 1 },
+    { color: '#e53935', label: 'LOSE BET', multiplier: 0 }
 ];
 const segCount = segments.length;
 const radius = canvas.width / 2;
 
 function drawWheel() {
-const segAngleRad = 2 * Math.PI / segCount;
-ctx.clearRect(0, 0, canvas.width, canvas.height);
-ctx.save();
-ctx.translate(radius, radius);
-
-for (let i = 0; i < segCount; i++) {
-    const angle = i * segAngleRad;
-    ctx.beginPath();
-    ctx.fillStyle = segments[i].color;
-    ctx.moveTo(0, 0);
-    ctx.arc(0, 0, radius - 10, angle, angle + segAngleRad);
-    ctx.lineTo(0,0);
-    ctx.fill();
+    const segAngleRad = 2 * Math.PI / segCount;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.save();
-    ctx.fillStyle = 'white';
-    ctx.font = 'bold 18px Poppins';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.rotate(angle + segAngleRad / 2);
-    ctx.fillText(segments[i].label, radius * 0.65, 0);
+    ctx.translate(radius, radius);
+    
+    for (let i = 0; i < segCount; i++) {
+        const angle = i * segAngleRad;
+        ctx.beginPath();
+        ctx.fillStyle = segments[i].color;
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, radius - 10, angle, angle + segAngleRad);
+        ctx.lineTo(0,0);
+        ctx.fill();
+        ctx.save();
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 18px Poppins';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.rotate(angle + segAngleRad / 2);
+        ctx.fillText(segments[i].label, radius * 0.65, 0);
+        ctx.restore();
+    }
     ctx.restore();
-}
-ctx.restore();
-
-  
-
 }
 
 function handlePrize(winningSegment) {
-const multiplier = winningSegment.multiplier;
-let newBalance = balance;
-const bet = currentBet;
+    const multiplier = winningSegment.multiplier;
+    let newBalance = balance;
+    const bet = currentBet;
 
+    if (multiplier === -1) {
+        newBalance = 0;
+        showToast(`BANKRUPT! You lost all your BUX!`, 'error');
+    } else if (multiplier === 0) {
+        showToast(`You lost your bet of ${bet.toLocaleString()} BUX.`, 'error');
+    } else {
+         const winnings = Math.floor(bet * multiplier);
+         const profit = winnings - bet;
+         newBalance = balance + profit;
+
+        if (multiplier > 1) { showToast(`YOU WON ${winnings.toLocaleString()} BUX!`, 'success'); }
+        else if (multiplier === 1) { showToast(`Safe! Your bet of ${bet.toLocaleString()} was returned.`, 'info'); }
+        else { showToast(`You got back ${winnings.toLocaleString()} BUX.`, 'info'); }
+    }
     
-if (multiplier === -1) {
-    newBalance = 0;
-    showToast(`BANKRUPT! You lost all your BUX!`, 'error');
-} else if (multiplier === 0) {
-    showToast(`You lost your bet of ${bet.toLocaleString()} BUX.`, 'error');
-} else {
-     const winnings = Math.floor(bet * multiplier);
-     const profit = winnings - bet;
-     newBalance = balance + profit;
-
-    if (multiplier > 1) { showToast(`YOU WON ${winnings.toLocaleString()} BUX!`, 'success'); }
-    else if (multiplier === 1) { showToast(`Safe! Your bet of ${bet.toLocaleString()} was returned.`, 'info'); }
-    else { showToast(`You got back ${winnings.toLocaleString()} BUX.`, 'info'); }
-}
-
-updateUserBalance(newBalance);
-spinButton.disabled = false;
-betAmountInput.disabled = false;
-wheelSpinning = false;
-
-  
-
+    updateUserBalance(newBalance);
+    spinButton.disabled = false;
+    betAmountInput.disabled = false;
+    wheelSpinning = false;
 }
 
 spinButton.addEventListener('click', () => {
-if (wheelSpinning) return;
-const bet = parseInt(betAmountInput.value, 10);
-if (isNaN(bet) || bet <= 0) { showToast('Please enter a valid positive bet.', 'error'); return; }
-if (bet > balance) { showToast('You cannot bet more than your balance.', 'error'); return; }
-
-
+    if (wheelSpinning) return;
+    const bet = parseInt(betAmountInput.value, 10);
+    if (isNaN(bet) || bet <= 0) { showToast('Please enter a valid positive bet.', 'error'); return; }
+    if (bet > balance) { showToast('You cannot bet more than your balance.', 'error'); return; }
     
-currentBet = bet;
-updateUserBalance(balance - currentBet);
+    currentBet = bet;
+    updateUserBalance(balance - currentBet);
+    
+    spinButton.disabled = true;
+    betAmountInput.disabled = true;
+    wheelSpinning = true;
 
-spinButton.disabled = true;
-betAmountInput.disabled = true;
-wheelSpinning = true;
+    const randomSpins = (8 + Math.random() * 4) * 360;
+    const randomExtraDegrees = Math.random() * 360;
+    const totalRotation = randomSpins + randomExtraDegrees;
 
-const randomSpins = (8 + Math.random() * 4) * 360;
-const randomExtraDegrees = Math.random() * 360;
-const totalRotation = randomSpins + randomExtraDegrees;
-
-gsap.to(canvas, {
-    rotation: `+=${totalRotation}`,
-    duration: 7,
-    ease: 'power3.out',
-    onComplete: () => {
-        const finalRotation = gsap.getProperty(canvas, "rotation");
-        const normalizedAngle = finalRotation % 360;
-        const angleToPointer = ( ( (270 - normalizedAngle) % 360 ) + 360 ) % 360;
-        const segAngleDeg = 360 / segments.length;
-        const winningIndex = Math.floor(angleToPointer / segAngleDeg);
-        const winningSegment = segments[winningIndex];
-        
-        handlePrize(winningSegment);
-    }
-});
-
-  
-
+    gsap.to(canvas, {
+        rotation: `+=${totalRotation}`,
+        duration: 7,
+        ease: 'power3.out',
+        onComplete: () => {
+            const finalRotation = gsap.getProperty(canvas, "rotation");
+            const normalizedAngle = finalRotation % 360;
+            const angleToPointer = ( ( (270 - normalizedAngle) % 360 ) + 360 ) % 360;
+            const segAngleDeg = 360 / segments.length;
+            const winningIndex = Math.floor(angleToPointer / segAngleDeg);
+            const winningSegment = segments[winningIndex];
+            
+            handlePrize(winningSegment);
+        }
+    });
 });
 drawWheel();
+
+  
 
 })();
 
@@ -962,6 +953,7 @@ let playerHand, dealerHand;
 let currentBetBJ = 0;
 
 
+    
 const betControls = document.getElementById('blackjack-bet-controls');
 const gameActions = document.getElementById('blackjack-game-actions');
 const betInput = document.getElementById('blackjack-bet-input');
@@ -977,234 +969,222 @@ const dealerScoreEl = document.getElementById('dealer-score');
 const gameStatusEl = document.getElementById('game-status');
 
 function createDeck() {
-deck = [];
-for(let i=0; i<6; i++) {
-for (const suit of suits) {
-for (const rank of ranks) {
-deck.push({ suit, rank, value: getCardValue(rank) });
-}
-}
-}
-shuffleDeck();
+    deck = [];
+    for(let i=0; i<6; i++) {
+        for (const suit of suits) {
+            for (const rank of ranks) {
+                deck.push({ suit, rank, value: getCardValue(rank) });
+            }
+        }
+    }
+    shuffleDeck();
 }
 
 function shuffleDeck() {
-for (let i = deck.length - 1; i > 0; i--) {
-const j = Math.floor(Math.random() * (i + 1));
-[deck[i], deck[j]] = [deck[j], deck[i]];
-}
+    for (let i = deck.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
 }
 
 function getCardValue(rank) {
-if (['J', 'Q', 'K'].includes(rank)) return 10;
-if (rank === 'A') return 11;
-return parseInt(rank);
+    if (['J', 'Q', 'K'].includes(rank)) return 10;
+    if (rank === 'A') return 11;
+    return parseInt(rank);
 }
 
 function calculateScore(hand) {
-let score = hand.reduce((sum, card) => sum + card.value, 0);
-let numAces = hand.filter(card => card.rank === 'A').length;
-while (score > 21 && numAces > 0) {
-score -= 10;
-numAces--;
-}
-return score;
+    let score = hand.reduce((sum, card) => sum + card.value, 0);
+    let numAces = hand.filter(card => card.rank === 'A').length;
+    while (score > 21 && numAces > 0) {
+        score -= 10;
+        numAces--;
+    }
+    return score;
 }
 
 function renderCard(card, targetEl, isFaceDown = false) {
-const cardEl = document.createElement('div');
-cardEl.className = 'bj-card';
-if (!isFaceDown) {
-const colorClass = ['♥', '♦'].includes(card.suit) ? 'red' : 'black';
-cardEl.innerHTML =  <span class="rank-top">${card.rank}${card.suit}</span> <span class="center-suit">${card.suit}</span> <span class="rank-bottom">${card.rank}${card.suit}</span>;
-cardEl.classList.add(colorClass);
-} else {
-cardEl.classList.add('facedown');
-}
-targetEl.appendChild(cardEl);
-gsap.from(cardEl, { duration: 0.5, y: -100, opacity: 0, ease: 'power3.out' });
+    const cardEl = document.createElement('div');
+    cardEl.className = 'bj-card';
+    if (!isFaceDown) {
+        const colorClass = ['♥', '♦'].includes(card.suit) ? 'red' : 'black';
+        cardEl.innerHTML = `
+            <span class="rank-top">${card.rank}${card.suit}</span>
+            <span class="center-suit">${card.suit}</span>
+            <span class="rank-bottom">${card.rank}${card.suit}</span>`;
+        cardEl.classList.add(colorClass);
+    } else {
+        cardEl.classList.add('facedown');
+    }
+    targetEl.appendChild(cardEl);
+    gsap.from(cardEl, { duration: 0.5, y: -100, opacity: 0, ease: 'power3.out' });
 }
 
 function updateScores(isDealerHidden = false) {
-const playerScore = calculateScore(playerHand);
-playerScoreEl.textContent = playerScore;
-if (isDealerHidden) {
-const visibleDealerScore = dealerHand[0].rank === 'A' ? 11 : dealerHand[0].value;
-dealerScoreEl.textContent = ${visibleDealerScore} + ?;
-} else {
-const dealerScore = calculateScore(dealerHand);
-dealerScoreEl.textContent = dealerScore;
-}
+    const playerScore = calculateScore(playerHand);
+    playerScoreEl.textContent = playerScore;
+    if (isDealerHidden) {
+         const visibleDealerScore = dealerHand[0].rank === 'A' ? 11 : dealerHand[0].value;
+         dealerScoreEl.textContent = `${visibleDealerScore} + ?`;
+    } else {
+        const dealerScore = calculateScore(dealerHand);
+        dealerScoreEl.textContent = dealerScore;
+    }
 }
 
 function checkInitialBlackjack() {
-if (calculateScore(playerHand) === 21) {
-const dealerScoreCheck = calculateScore(dealerHand);
-revealDealerCard();
-if (dealerScoreCheck === 21) {
-endGame("Push! Both have Blackjack.", 1);
-} else {
-endGame("Blackjack!", 2.5);
-}
-return true;
-}
-return false;
+     if (calculateScore(playerHand) === 21) {
+         const dealerScoreCheck = calculateScore(dealerHand);
+         revealDealerCard();
+         if (dealerScoreCheck === 21) {
+            endGame("Push! Both have Blackjack.", 1);
+         } else {
+            endGame("Blackjack!", 2.5);
+         }
+         return true;
+     }
+     return false;
 }
 
 dealButton.addEventListener('click', () => {
-const bet = parseInt(betInput.value, 10);
-if (isNaN(bet) || bet <= 0) { showToast('Please enter a valid bet.', 'error'); return; }
-if (bet > balance) { showToast('Bet exceeds your balance.', 'error'); return; }
+    const bet = parseInt(betInput.value, 10);
+    if (isNaN(bet) || bet <= 0) { showToast('Please enter a valid bet.', 'error'); return; }
+    if (bet > balance) { showToast('Bet exceeds your balance.', 'error'); return; }
+    
+    currentBetBJ = bet;
+    updateUserBalance(balance - currentBetBJ);
+    
+    if (deck.length < 52) createDeck();
+    
+    playerHand = [deck.pop(), deck.pop()];
+    dealerHand = [deck.pop(), deck.pop()];
+    
+    playerHandEl.innerHTML = '';
+    dealerHandEl.innerHTML = '';
+    
+    renderCard(playerHand[0], playerHandEl);
+    renderCard(dealerHand[0], dealerHandEl);
+    renderCard(playerHand[1], playerHandEl);
+    renderCard(dealerHand[1], dealerHandEl, true);
 
-currentBetBJ = bet;
-updateUserBalance(balance - currentBetBJ);
-
-if (deck.length < 52) createDeck();
-
-playerHand = [deck.pop(), deck.pop()];
-dealerHand = [deck.pop(), deck.pop()];
-
-playerHandEl.innerHTML = '';
-dealerHandEl.innerHTML = '';
-
-renderCard(playerHand[0], playerHandEl);
-renderCard(dealerHand[0], dealerHandEl);
-renderCard(playerHand[1], playerHandEl);
-renderCard(dealerHand[1], dealerHandEl, true);
-
-updateScores(true);
-
-betControls.style.display = 'none';
-gameActions.style.display = 'flex';
-setActionsState(true, balance >= currentBetBJ);
-gameStatusEl.textContent = '';
-
-if (checkInitialBlackjack()) {
-   setActionsState(false, false);
-}
-
-  
-
+    updateScores(true);
+    
+    betControls.style.display = 'none';
+    gameActions.style.display = 'flex';
+    setActionsState(true, balance >= currentBetBJ);
+    gameStatusEl.textContent = '';
+    
+    if (checkInitialBlackjack()) {
+       setActionsState(false, false);
+    }
 });
 
 function setActionsState(enabled, canDouble) {
-hitButton.disabled = !enabled;
-standButton.disabled = !enabled;
-doubleDownButton.disabled = !enabled || !canDouble || playerHand.length > 2;
+    hitButton.disabled = !enabled;
+    standButton.disabled = !enabled;
+    doubleDownButton.disabled = !enabled || !canDouble || playerHand.length > 2;
 }
 
 hitButton.addEventListener('click', () => {
-playerHand.push(deck.pop());
-renderCard(playerHand[playerHand.length - 1], playerHandEl);
-updateScores(true);
-setActionsState(true, false);
-if (calculateScore(playerHand) > 21) {
-endGame("You Busted!", 0);
-}
+    playerHand.push(deck.pop());
+    renderCard(playerHand[playerHand.length - 1], playerHandEl);
+    updateScores(true);
+    setActionsState(true, false);
+    if (calculateScore(playerHand) > 21) {
+        endGame("You Busted!", 0);
+    }
 });
 
 standButton.addEventListener('click', () => {
-setActionsState(false, false);
-dealerTurn();
+    setActionsState(false, false);
+    dealerTurn();
 });
 
 doubleDownButton.addEventListener('click', () => {
-if (balance < currentBetBJ) { showToast("Not enough Bux to double down!", "error"); return; }
-
-updateUserBalance(balance - currentBetBJ);
-currentBetBJ *= 2;
-
-setActionsState(false, false);
-playerHand.push(deck.pop());
-renderCard(playerHand[playerHand.length-1], playerHandEl);
-
-setTimeout(() => {
-    updateScores(true);
-     if (calculateScore(playerHand) > 21) {
-        endGame("You Busted on Double Down!", 0);
-    } else {
-        dealerTurn();
-    }
-}, 800);
-
-  
-
+    if (balance < currentBetBJ) { showToast("Not enough Bux to double down!", "error"); return; }
+    
+    updateUserBalance(balance - currentBetBJ);
+    currentBetBJ *= 2;
+    
+    setActionsState(false, false);
+    playerHand.push(deck.pop());
+    renderCard(playerHand[playerHand.length-1], playerHandEl);
+    
+    setTimeout(() => {
+        updateScores(true);
+         if (calculateScore(playerHand) > 21) {
+            endGame("You Busted on Double Down!", 0);
+        } else {
+            dealerTurn();
+        }
+    }, 800);
 });
 
 function revealDealerCard() {
-const holeCard = dealerHandEl.children[1];
-const cardData = dealerHand[1];
-if (!holeCard || !holeCard.classList.contains('facedown')) return;
-
+    const holeCard = dealerHandEl.children[1];
+    const cardData = dealerHand[1];
+    if (!holeCard || !holeCard.classList.contains('facedown')) return;
     
-gsap.to(holeCard, {rotationY: 90, duration: 0.3, ease: 'power1.in', onComplete: () => {
-    holeCard.classList.remove('facedown');
-    const colorClass = ['♥', '♦'].includes(cardData.suit) ? 'red' : 'black';
-    
-    holeCard.innerHTML = `
-        <span class="rank-top">${cardData.rank}${cardData.suit}</span>
-        <span class="center-suit">${cardData.suit}</span>
-        <span class="rank-bottom">${cardData.rank}${cardData.suit}</span>`;
-    holeCard.classList.add(colorClass);
+    gsap.to(holeCard, {rotationY: 90, duration: 0.3, ease: 'power1.in', onComplete: () => {
+        holeCard.classList.remove('facedown');
+        const colorClass = ['♥', '♦'].includes(cardData.suit) ? 'red' : 'black';
+        
+        holeCard.innerHTML = `
+            <span class="rank-top">${cardData.rank}${cardData.suit}</span>
+            <span class="center-suit">${cardData.suit}</span>
+            <span class="rank-bottom">${cardData.rank}${cardData.suit}</span>`;
+        holeCard.classList.add(colorClass);
 
-    gsap.to(holeCard, {rotationY: 0, duration: 0.3, ease: 'power1.out'});
-}});
-
-  
-
+        gsap.to(holeCard, {rotationY: 0, duration: 0.3, ease: 'power1.out'});
+    }});
 }
 
 function dealerTurn() {
-revealDealerCard();
-setTimeout(() => {
-updateScores(false);
-const dealerHitLoop = () => {
-if (calculateScore(dealerHand) < 17) {
-dealerHand.push(deck.pop());
-renderCard(dealerHand[dealerHand.length - 1], dealerHandEl);
-updateScores(false);
-setTimeout(dealerHitLoop, 800);
-} else {
-determineWinner();
-}
-};
-setTimeout(dealerHitLoop, 800);
-}, 500);
+    revealDealerCard();
+    setTimeout(() => {
+        updateScores(false);
+        const dealerHitLoop = () => {
+            if (calculateScore(dealerHand) < 17) {
+                dealerHand.push(deck.pop());
+                renderCard(dealerHand[dealerHand.length - 1], dealerHandEl);
+                updateScores(false);
+                setTimeout(dealerHitLoop, 800);
+            } else {
+                determineWinner();
+            }
+        };
+        setTimeout(dealerHitLoop, 800);
+    }, 500);
 }
 
 function determineWinner() {
-const finalDealerScore = calculateScore(dealerHand);
-const finalPlayerScore = calculateScore(playerHand);
-
+    const finalDealerScore = calculateScore(dealerHand);
+    const finalPlayerScore = calculateScore(playerHand);
     
-if(finalDealerScore > 21) { endGame("Dealer Busts! You Win!", 2); }
-else if (finalPlayerScore > finalDealerScore) { endGame("You Win!", 2); }
-else if (finalDealerScore > finalPlayerScore) { endGame("Dealer Wins!", 0); }
-else { endGame("Push!", 1); }
-
-  
-
+    if(finalDealerScore > 21) { endGame("Dealer Busts! You Win!", 2); }
+    else if (finalPlayerScore > finalDealerScore) { endGame("You Win!", 2); }
+    else if (finalDealerScore > finalPlayerScore) { endGame("Dealer Wins!", 0); }
+    else { endGame("Push!", 1); }
 }
 
 function endGame(message, payoutMultiplier) {
-gameStatusEl.textContent = message;
-if(payoutMultiplier > 0) {
-updateUserBalance(balance + (currentBetBJ * payoutMultiplier));
-}
- 
-setActionsState(false, false);
-setTimeout(() => {
-    gameActions.style.display = 'none';
-    dealButton.textContent = 'Play Again';
-    betControls.style.display = 'flex';
-    gameStatusEl.textContent = 'Place your bet!';
-}, 2500);
-
-  
-
+    gameStatusEl.textContent = message;
+    if(payoutMultiplier > 0) {
+      updateUserBalance(balance + (currentBetBJ * payoutMultiplier));
+    }
+    
+    setActionsState(false, false);
+    setTimeout(() => {
+        gameActions.style.display = 'none';
+        dealButton.textContent = 'Play Again';
+        betControls.style.display = 'flex';
+        gameStatusEl.textContent = 'Place your bet!';
+    }, 2500);
 }
 
 createDeck();
+
+  
 
 })();
 
@@ -1213,6 +1193,7 @@ createDeck();
 const gameArea = document.getElementById('game-area');
 if (!gameArea) return;
 
+    
 const hubRef = db.ref('linusHub/players');
 let playerRef = null;
 
@@ -1223,323 +1204,302 @@ const chatInput = document.getElementById('chat-input');
 const playerContainer = document.getElementById('local-player-container');
 const playerImage = document.getElementById('player-character-img');
 const playerState = {
-element: playerContainer,
-imgElement: playerImage,
-x: gameArea.offsetWidth / 2 - 25,
-y: gameArea.offsetHeight / 2 - 25,
-width: 50,
-height: 50,
-speed: 4,
-direction: 1,
-animation: 'idle'
+    element: playerContainer,
+    imgElement: playerImage,
+    x: gameArea.offsetWidth / 2 - 25,
+    y: gameArea.offsetHeight / 2 - 25,
+    width: 50,
+    height: 50,
+    speed: 4,
+    direction: 1,
+    animation: 'idle'
 };
 
-playerState.element.style.width = ${playerState.width}px;
-playerState.element.style.height = ${playerState.height}px;
+playerState.element.style.width = `${playerState.width}px`;
+playerState.element.style.height = `${playerState.height}px`;
 
 const keys = { w: false, a: false, s: false, d: false };
 let isChatting = false;
 let gameLoopId = null;
-let otherPlayerElements = {};
+let otherPlayerElements = {}; 
 
 // --- User Gifting Panel Logic ---
 
 function openUserPanel(targetUid, targetEmail) {
-if (!targetUid || !targetEmail) return;
+    if (!targetUid || !targetEmail) return;
 
-    
-db.ref(`users/${targetUid}/balance`).once('value', (snapshot) => {
-    const targetBalance = snapshot.val() || 0;
-    
-    panelUserName.textContent = targetEmail.split('@')[0];
-    panelUserBalance.textContent = targetBalance.toLocaleString();
-    giftAmountInput.value = '';
-    userInteractionPanel.dataset.targetUid = targetUid;
-    userInteractionPanel.classList.add('visible');
+    db.ref(`users/${targetUid}/balance`).once('value', (snapshot) => {
+        const targetBalance = snapshot.val() || 0;
+        
+        panelUserName.textContent = targetEmail.split('@')[0];
+        panelUserBalance.textContent = targetBalance.toLocaleString();
+        giftAmountInput.value = '';
+        userInteractionPanel.dataset.targetUid = targetUid;
+        userInteractionPanel.classList.add('visible');
 
-}).catch(err => {
-    console.error("Could not fetch user data:", err);
-    showToast("Could not retrieve user data.", "error");
-});
-
-  
-
+    }).catch(err => {
+        console.error("Could not fetch user data:", err);
+        showToast("Could not retrieve user data.", "error");
+    });
 }
 
 // Gifting function using a client-side multi-path update
 async function handleGift() {
-const recipientUid = userInteractionPanel.dataset.targetUid;
-const senderUid = currentUser.uid;
-const amount = parseInt(giftAmountInput.value, 10);
+    const recipientUid = userInteractionPanel.dataset.targetUid;
+    const senderUid = currentUser.uid;
+    const amount = parseInt(giftAmountInput.value, 10);
 
-// --- Client-side validation for immediate user feedback ---
-if (!recipientUid) return;
-if (isNaN(amount) || amount <= 0) {
-    showToast('Please enter a valid amount.', 'error');
-    return;
-}
-if (senderUid === recipientUid) {
-    showToast("You can't gift to yourself!", 'error');
-    return;
-}
-if (balance < amount) { // 'balance' is our local, real-time variable
-    showToast('You do not have enough BUX.', 'error');
-    return;
-}
+    // --- Client-side validation for immediate user feedback ---
+    if (!recipientUid) return;
+    if (isNaN(amount) || amount <= 0) {
+        showToast('Please enter a valid amount.', 'error');
+        return;
+    }
+    if (senderUid === recipientUid) {
+        showToast("You can't gift to yourself!", 'error');
+        return;
+    }
+    if (balance < amount) { // 'balance' is our local, real-time variable
+        showToast('You do not have enough BUX.', 'error');
+        return;
+    }
 
-giftBtn.disabled = true;
+    giftBtn.disabled = true;
 
-try {
-    // This is the core logic: a single atomic update request
-    // The security rules on the server will have the final say.
-    const updates = {};
-    updates[`/users/${senderUid}/balance`] = firebase.database.ServerValue.increment(-amount);
-    updates[`/users/${recipientUid}/balance`] = firebase.database.ServerValue.increment(amount);
+    try {
+        // This is the core logic: a single atomic update request
+        // The security rules on the server will have the final say.
+        const updates = {};
+        updates[`/users/${senderUid}/balance`] = firebase.database.ServerValue.increment(-amount);
+        updates[`/users/${recipientUid}/balance`] = firebase.database.ServerValue.increment(amount);
 
-    await db.ref().update(updates);
-    
-    showToast(`Successfully gifted ${amount.toLocaleString()} BUX!`, 'success');
-    userInteractionPanel.classList.remove('visible');
+        await db.ref().update(updates);
+        
+        showToast(`Successfully gifted ${amount.toLocaleString()} BUX!`, 'success');
+        userInteractionPanel.classList.remove('visible');
 
-} catch (error) {
-    console.error('Gift update failed:', error);
-    showToast(error.message, 'error'); // The rules engine will provide a "Permission denied" message on failure.
-} finally {
-    giftBtn.disabled = false;
-    delete userInteractionPanel.dataset.targetUid;
-}
-
-  
-
+    } catch (error) {
+        console.error('Gift update failed:', error);
+        showToast(error.message, 'error'); // The rules engine will provide a "Permission denied" message on failure.
+    } finally {
+        giftBtn.disabled = false;
+        delete userInteractionPanel.dataset.targetUid;
+    }
 }
 
 giftBtn.addEventListener('click', handleGift);
 closePanelBtn.addEventListener('click', () => userInteractionPanel.classList.remove('visible'));
 userInteractionPanel.addEventListener('click', (e) => {
-if (e.target === userInteractionPanel) userInteractionPanel.classList.remove('visible');
+    if (e.target === userInteractionPanel) userInteractionPanel.classList.remove('visible');
 });
 
 function handlePlayerChat(playerEl, chatMessage) {
-const bubble = playerEl.querySelector('.chat-bubble');
-if (!bubble) return;
+    const bubble = playerEl.querySelector('.chat-bubble');
+    if (!bubble) return;
 
-if (playerEl.bubbleTimeout) clearTimeout(playerEl.bubbleTimeout);
+    if (playerEl.bubbleTimeout) clearTimeout(playerEl.bubbleTimeout);
 
-bubble.textContent = chatMessage;
-bubble.classList.add('visible');
+    bubble.textContent = chatMessage;
+    bubble.classList.add('visible');
 
-playerEl.bubbleTimeout = setTimeout(() => {
-    bubble.classList.remove('visible');
-}, 5000);
-
-  
-
+    playerEl.bubbleTimeout = setTimeout(() => {
+        bubble.classList.remove('visible');
+    }, 5000);
 }
 
 function updateLocalPlayerPosition() {
-const isMoving = (keys.w || keys.a || keys.s || keys.d);
-let dataChanged = false;
+    const isMoving = (keys.w || keys.a || keys.s || keys.d);
+    let dataChanged = false;
 
-if (keys.w && playerState.y > 0) { playerState.y -= playerState.speed; dataChanged = true; }
-if (keys.s && playerState.y < gameArea.offsetHeight - playerState.height) { playerState.y += playerState.speed; dataChanged = true; }
-if (keys.a && playerState.x > 0) { playerState.x -= playerState.speed; if(playerState.direction !== -1){ playerState.direction = -1; dataChanged = true;} }
-if (keys.d && playerState.x < gameArea.offsetWidth - playerState.width) { playerState.x += playerState.speed; if(playerState.direction !== 1){ playerState.direction = 1; dataChanged = true;} }
+    if (keys.w && playerState.y > 0) { playerState.y -= playerState.speed; dataChanged = true; }
+    if (keys.s && playerState.y < gameArea.offsetHeight - playerState.height) { playerState.y += playerState.speed; dataChanged = true; }
+    if (keys.a && playerState.x > 0) { playerState.x -= playerState.speed; if(playerState.direction !== -1){ playerState.direction = -1; dataChanged = true;} }
+    if (keys.d && playerState.x < gameArea.offsetWidth - playerState.width) { playerState.x += playerState.speed; if(playerState.direction !== 1){ playerState.direction = 1; dataChanged = true;} }
 
-const newAnimation = isMoving ? 'walk' : 'idle';
-if(playerState.animation !== newAnimation) {
-     playerState.animation = newAnimation;
-     dataChanged = true;
-}
+    const newAnimation = isMoving ? 'walk' : 'idle';
+    if(playerState.animation !== newAnimation) {
+         playerState.animation = newAnimation;
+         dataChanged = true;
+    }
 
-playerState.element.style.left = `${playerState.x}px`;
-playerState.element.style.top = `${playerState.y}px`;
-playerState.imgElement.style.transform = `scaleX(${playerState.direction})`;
-const newSrc = (playerState.animation === 'walk') ? 'WALK.gif' : 'IDLE.gif';
-if (playerState.imgElement.src.indexOf(newSrc) === -1) {
-    playerState.imgElement.src = newSrc;
-}
-
-if (dataChanged && playerRef) {
-     playerRef.update({
-        x: playerState.x,
-        y: playerState.y,
-        direction: playerState.direction,
-        animation: playerState.animation
-    });
-}
-
-  
-
+    playerState.element.style.left = `${playerState.x}px`;
+    playerState.element.style.top = `${playerState.y}px`;
+    playerState.imgElement.style.transform = `scaleX(${playerState.direction})`;
+    const newSrc = (playerState.animation === 'walk') ? 'WALK.gif' : 'IDLE.gif';
+    if (playerState.imgElement.src.indexOf(newSrc) === -1) {
+        playerState.imgElement.src = newSrc;
+    }
+    
+    if (dataChanged && playerRef) {
+         playerRef.update({
+            x: playerState.x,
+            y: playerState.y,
+            direction: playerState.direction,
+            animation: playerState.animation
+        });
+    }
 }
 
 function gameLoop() {
-if(!isChatting) updateLocalPlayerPosition();
-gameLoopId = requestAnimationFrame(gameLoop);
+    if(!isChatting) updateLocalPlayerPosition();
+    gameLoopId = requestAnimationFrame(gameLoop);
 }
 
 function handleGlobalKeyDown(e) {
-if (userInteractionPanel.classList.contains('visible')) return;
+    if (userInteractionPanel.classList.contains('visible')) return;
 
-if (e.key === 'Enter') {
-    e.preventDefault();
-    if (isChatting) {
-         chatForm.dispatchEvent(new Event('submit'));
-    } else {
-        isChatting = true;
-        chatInputContainer.style.display = 'block';
-        chatInput.focus();
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        if (isChatting) {
+             chatForm.dispatchEvent(new Event('submit'));
+        } else {
+            isChatting = true;
+            chatInputContainer.style.display = 'block';
+            chatInput.focus();
+        }
+    } else if (e.key.toLowerCase() in keys && !isChatting) {
+        keys[e.key.toLowerCase()] = true;
     }
-} else if (e.key.toLowerCase() in keys && !isChatting) {
-    keys[e.key.toLowerCase()] = true;
-}
-
-  
-
 }
 
 function handleGlobalKeyUp(e) {
-if (e.key.toLowerCase() in keys) {
-keys[e.key.toLowerCase()] = false;
-}
+    if (e.key.toLowerCase() in keys) {
+        keys[e.key.toLowerCase()] = false;
+    }
 }
 
 chatForm.addEventListener('submit', (e) => {
-e.preventDefault();
-const message = chatInput.value.trim();
-if(message && playerRef) playerRef.child('chatMessage').set(message);
-chatInput.value = '';
-chatInputContainer.style.display = 'none';
-isChatting = false;
+    e.preventDefault();
+    const message = chatInput.value.trim();
+    if(message && playerRef) playerRef.child('chatMessage').set(message);
+    chatInput.value = '';
+    chatInputContainer.style.display = 'none';
+    isChatting = false;
 });
 
 function enterHub() {
-if (!currentUser) return;
-playerRef = hubRef.child(currentUser.uid);
-
-const initialData = {
-    x: playerState.x,
-    y: playerState.y,
-    width: playerState.width,
-    height: playerState.height,
-    direction: 1,
-    animation: 'idle',
-    email: currentUser.email || 'guest'
-};
-playerRef.set(initialData);
-playerRef.onDisconnect().remove();
-
-hubRef.on('child_added', (snapshot) => {
-    const pData = snapshot.val();
-    const uid = snapshot.key;
-
-    if (uid === currentUser.uid || otherPlayerElements[uid]) return;
+    if (!currentUser) return;
+    playerRef = hubRef.child(currentUser.uid);
     
-    const container = document.createElement('div');
-    container.className = 'player-character';
-    container.style.width = `${pData.width}px`;
-    container.style.height = `${pData.height}px`;
-    container.style.left = `${pData.x}px`;
-    container.style.top = `${pData.y}px`;
+    const initialData = {
+        x: playerState.x,
+        y: playerState.y,
+        width: playerState.width,
+        height: playerState.height,
+        direction: 1,
+        animation: 'idle',
+        email: currentUser.email || 'guest'
+    };
+    playerRef.set(initialData);
+    playerRef.onDisconnect().remove();
 
-    const uiContainer = document.createElement('div');
-    uiContainer.className = 'player-ui-container';
-    const bubble = document.createElement('div');
-    bubble.className = 'chat-bubble';
-    const nametag = document.createElement('div');
-    nametag.className = 'player-nametag';
-    nametag.textContent = pData.email.split('@')[0];
-    const img = document.createElement('img');
-    img.src = 'IDLE.gif';
-    img.style.transform = `scaleX(${pData.direction})`;
-    
-    uiContainer.append(bubble, nametag);
-    container.append(uiContainer, img);
-    
-    otherPlayerElements[uid] = { container, img, bubble, bubbleTimeout: null };
-    gameArea.appendChild(container);
+    hubRef.on('child_added', (snapshot) => {
+        const pData = snapshot.val();
+        const uid = snapshot.key;
 
-    container.addEventListener('click', () => {
-        openUserPanel(uid, pData.email);
+        if (uid === currentUser.uid || otherPlayerElements[uid]) return;
+        
+        const container = document.createElement('div');
+        container.className = 'player-character';
+        container.style.width = `${pData.width}px`;
+        container.style.height = `${pData.height}px`;
+        container.style.left = `${pData.x}px`;
+        container.style.top = `${pData.y}px`;
+
+        const uiContainer = document.createElement('div');
+        uiContainer.className = 'player-ui-container';
+        const bubble = document.createElement('div');
+        bubble.className = 'chat-bubble';
+        const nametag = document.createElement('div');
+        nametag.className = 'player-nametag';
+        nametag.textContent = pData.email.split('@')[0];
+        const img = document.createElement('img');
+        img.src = 'IDLE.gif';
+        img.style.transform = `scaleX(${pData.direction})`;
+        
+        uiContainer.append(bubble, nametag);
+        container.append(uiContainer, img);
+        
+        otherPlayerElements[uid] = { container, img, bubble, bubbleTimeout: null };
+        gameArea.appendChild(container);
+
+        container.addEventListener('click', () => {
+            openUserPanel(uid, pData.email);
+        });
     });
-});
 
-hubRef.on('child_changed', (snapshot) => {
-    const pData = snapshot.val();
-    const uid = snapshot.key;
+    hubRef.on('child_changed', (snapshot) => {
+        const pData = snapshot.val();
+        const uid = snapshot.key;
 
-    if (uid === currentUser.uid) {
-        if (pData.chatMessage) handlePlayerChat(playerState.element, pData.chatMessage);
-        return;
-    }
+        if (uid === currentUser.uid) {
+            if (pData.chatMessage) handlePlayerChat(playerState.element, pData.chatMessage);
+            return;
+        }
 
-    const otherPlayer = otherPlayerElements[uid];
-    if (!otherPlayer) return;
+        const otherPlayer = otherPlayerElements[uid];
+        if (!otherPlayer) return;
 
-    otherPlayer.container.style.left = `${pData.x}px`;
-    otherPlayer.container.style.top = `${pData.y}px`;
-    otherPlayer.img.style.transform = `scaleX(${pData.direction})`;
-    const newSrc = (pData.animation === 'walk' ? 'WALK.gif' : 'IDLE.gif');
-    if (otherPlayer.img.src.indexOf(newSrc) === -1) otherPlayer.img.src = newSrc;
-    
-    if (pData.chatMessage) handlePlayerChat(otherPlayer.container, pData.chatMessage);
-});
+        otherPlayer.container.style.left = `${pData.x}px`;
+        otherPlayer.container.style.top = `${pData.y}px`;
+        otherPlayer.img.style.transform = `scaleX(${pData.direction})`;
+        const newSrc = (pData.animation === 'walk' ? 'WALK.gif' : 'IDLE.gif');
+        if (otherPlayer.img.src.indexOf(newSrc) === -1) otherPlayer.img.src = newSrc;
+        
+        if (pData.chatMessage) handlePlayerChat(otherPlayer.container, pData.chatMessage);
+    });
 
-hubRef.on('child_removed', (snapshot) => {
-    const uid = snapshot.key;
-    const otherPlayer = otherPlayerElements[uid];
-    if (otherPlayer) {
-        if (otherPlayer.bubbleTimeout) clearTimeout(otherPlayer.bubbleTimeout);
-        otherPlayer.container.remove();
-        delete otherPlayerElements[uid];
-    }
-});
+    hubRef.on('child_removed', (snapshot) => {
+        const uid = snapshot.key;
+        const otherPlayer = otherPlayerElements[uid];
+        if (otherPlayer) {
+            if (otherPlayer.bubbleTimeout) clearTimeout(otherPlayer.bubbleTimeout);
+            otherPlayer.container.remove();
+            delete otherPlayerElements[uid];
+        }
+    });
 
-document.addEventListener('keydown', handleGlobalKeyDown);
-document.addEventListener('keyup', handleGlobalKeyUp);
-if (!gameLoopId) gameLoop();
-
-  
-
+    document.addEventListener('keydown', handleGlobalKeyDown);
+    document.addEventListener('keyup', handleGlobalKeyUp);
+    if (!gameLoopId) gameLoop();
 }
 
 function leaveHub() {
-if (playerRef) playerRef.remove();
-hubRef.off();
-document.removeEventListener('keydown', handleGlobalKeyDown);
-document.removeEventListener('keyup', handleGlobalKeyUp);
-
+    if (playerRef) playerRef.remove();
+    hubRef.off(); 
+    document.removeEventListener('keydown', handleGlobalKeyDown);
+    document.removeEventListener('keyup', handleGlobalKeyUp);
     
-for(let key in keys) { keys[key] = false; }
-if(gameLoopId) { 
-    cancelAnimationFrame(gameLoopId);
-    gameLoopId = null; 
-}
+    for(let key in keys) { keys[key] = false; }
+    if(gameLoopId) { 
+        cancelAnimationFrame(gameLoopId);
+        gameLoopId = null; 
+    }
 
-for(const uid in otherPlayerElements) {
-    if(otherPlayerElements[uid].bubbleTimeout) clearTimeout(otherPlayerElements[uid].bubbleTimeout);
-    otherPlayerElements[uid].container.remove();
-}
-otherPlayerElements = {};
-isChatting = false;
-chatInputContainer.style.display = 'none';
-
-  
-
+    for(const uid in otherPlayerElements) {
+        if(otherPlayerElements[uid].bubbleTimeout) clearTimeout(otherPlayerElements[uid].bubbleTimeout);
+        otherPlayerElements[uid].container.remove();
+    }
+    otherPlayerElements = {};
+    isChatting = false;
+    chatInputContainer.style.display = 'none';
 }
 
 const linusHubTab = document.getElementById('linus-hub');
 const observer = new MutationObserver((mutations) => {
-mutations.forEach((mutation) => {
-if (mutation.attributeName === 'class') {
-if (linusHubTab.classList.contains('active')) {
-enterHub();
-} else {
-leaveHub();
-}
-}
-});
+    mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class') {
+            if (linusHubTab.classList.contains('active')) {
+                enterHub();
+            } else {
+                leaveHub();
+            }
+        }
+    });
 });
 observer.observe(linusHubTab, { attributes: true });
+
+  
 
 })();
 
@@ -1547,4 +1507,3 @@ observer.observe(linusHubTab, { attributes: true });
 </script>
 </body>
 </html>
-
