@@ -9,6 +9,8 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<!-- ADD FIREBASE FUNCTIONS SDK -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
 <style>
     :root {
         --primary-blue: #373C82;
@@ -593,6 +595,7 @@ measurementId: "G-EZWXN01SZT"
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
+const functions = firebase.functions(); // NEW: Initialize Functions
 
 document.addEventListener('DOMContentLoaded', () => {
     
@@ -1121,7 +1124,7 @@ function updateAllBalanceDisplays(targetBalance) {
             
             holeCard.innerHTML = `
                 <span class="rank-top">${cardData.rank}${cardData.suit}</span>
-                <span class="center-suit">${cardData.suit}</span>
+                <span class="center-suit">${card.suit}</span>
                 <span class="rank-bottom">${cardData.rank}${cardData.suit}</span>`;
             holeCard.classList.add(colorClass);
 
@@ -1209,7 +1212,8 @@ function updateAllBalanceDisplays(targetBalance) {
     let gameLoopId = null;
     let otherPlayerElements = {}; 
 
-    // --- User Gifting Panel Logic ---
+    // --- User Gifting Panel Logic (REWRITTEN) ---
+    
     function openUserPanel(targetUid, targetEmail) {
         if (!targetUid || !targetEmail) return;
     
@@ -1220,12 +1224,8 @@ function updateAllBalanceDisplays(targetBalance) {
             panelUserBalance.textContent = targetBalance.toLocaleString();
             giftAmountInput.value = '';
 
-            // This clone-and-replace trick removes any old event listeners
-            const newGiftBtn = giftBtn.cloneNode(true);
-            giftBtn.parentNode.replaceChild(newGiftBtn, giftBtn);
-            
-            // Add a fresh listener with the correct target UID and the button element
-            newGiftBtn.addEventListener('click', () => handleGift(targetUid, newGiftBtn));
+            // NEW: Store the target UID on the panel itself
+            userInteractionPanel.dataset.targetUid = targetUid;
             
             userInteractionPanel.classList.add('visible');
     
@@ -1235,9 +1235,15 @@ function updateAllBalanceDisplays(targetBalance) {
         });
     }
 
-    async function handleGift(targetUid, buttonElement) {
+    // NEW: Rewritten handleGift function to call a Cloud Function
+    async function handleGift() {
+        const targetUid = userInteractionPanel.dataset.targetUid;
         const amount = parseInt(giftAmountInput.value, 10);
-
+        
+        if (!targetUid) {
+            showToast('No user selected.', 'error');
+            return;
+        }
         if (isNaN(amount) || amount <= 0) {
             showToast('Please enter a valid amount to gift.', 'error');
             return;
@@ -1251,45 +1257,36 @@ function updateAllBalanceDisplays(targetBalance) {
             return;
         }
     
-        buttonElement.disabled = true;
-    
+        giftBtn.disabled = true;
+
         try {
-            // Use a transaction on the 'users' node for atomic updates
-            const result = await db.ref('users').transaction(usersNode => {
-                if (usersNode === null) return; // Abort if 'users' node doesn't exist.
-                
-                // Check if both sender and receiver exist
-                if (!usersNode[currentUser.uid] || !usersNode[targetUid]) return; 
-
-                if (usersNode[currentUser.uid].balance < amount) return; // Abort for insufficient funds
-    
-                // Perform the transfer
-                usersNode[currentUser.uid].balance -= amount;
-                usersNode[targetUid].balance += amount;
-                
-                return usersNode; // Commit the changes
-            });
-
-            if (result.committed) {
-                 showToast(`Successfully gifted ${amount.toLocaleString()} BUX!`, 'success');
-                 userInteractionPanel.classList.remove('visible');
+            // Call the cloud function
+            const giftBuxFunction = functions.httpsCallable('giftBux');
+            const result = await giftBuxFunction({ recipientUid: targetUid, amount: amount });
+            
+            // The function will return a success or error message
+            if (result.data.success) {
+                showToast(result.data.message, 'success');
+                userInteractionPanel.classList.remove('visible');
             } else {
-                 showToast('Gift failed. You may not have enough BUX.', 'error');
+                showToast(result.data.message || 'An unknown error occurred.', 'error');
             }
 
         } catch (error) {
-            console.error('Gift transaction failed: ', error);
-            showToast('The gift could not be sent. Please try again.', 'error');
+            console.error('Error calling giftBux function: ', error);
+            showToast(error.message, 'error');
         } finally {
-            buttonElement.disabled = false;
+            giftBtn.disabled = false;
+            delete userInteractionPanel.dataset.targetUid; // Clean up
         }
     }
-
+    
+    // NEW: Attach listeners ONCE
+    giftBtn.addEventListener('click', handleGift);
     closePanelBtn.addEventListener('click', () => userInteractionPanel.classList.remove('visible'));
     userInteractionPanel.addEventListener('click', (e) => {
         if (e.target === userInteractionPanel) userInteractionPanel.classList.remove('visible');
     });
-
 
     function handlePlayerChat(playerEl, chatMessage) {
         const bubble = playerEl.querySelector('.chat-bubble');
