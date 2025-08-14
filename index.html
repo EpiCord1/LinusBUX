@@ -269,8 +269,9 @@
         transition: transform 0.1s linear; pointer-events: none;
     }
     #local-player-container {
-        /* This element will be moved between game-area and interior-room */
+        /* This element is now positioned dynamically by JS */
         z-index: 11;
+        position: absolute; /* Crucial for JS positioning */
     }
     .player-ui-container { position: absolute; bottom: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 5px; pointer-events: none; }
     .player-nametag {
@@ -1233,41 +1234,17 @@ function updateAllBalanceDisplays(targetBalance) {
         { id: 8, x: -900, y: -450 }, { id: 9, x: -550, y: -750 }
     ];
 
-    function updateAllPlayerVisuals() {
-        const localPlayerSceneId = playerState.inHouseId;
-
-        // Handle local player container
-        if (localPlayerSceneId === null) { // In Hub
-            if (localPlayerContainer.parentElement !== gameArea) {
-                gameArea.appendChild(localPlayerContainer);
-                localPlayerContainer.style.left = '';
-                localPlayerContainer.style.top = '';
-                localPlayerContainer.style.transform = 'translate(-50%, -50%)';
+    function updatePlayerScene(playerElement, sceneId) {
+        if (sceneId === null) { // Should be in Hub
+            if (playerElement.parentElement !== worldContainer) {
+                worldContainer.appendChild(playerElement);
             }
-        } else { // In House
-            if (localPlayerContainer.parentElement !== interiorRoom) {
-                interiorRoom.appendChild(localPlayerContainer);
-                localPlayerContainer.style.transform = '';
+            playerElement.style.display = 'flex';
+        } else { // Should be in a House
+            if (playerElement.parentElement !== interiorRoom) {
+                interiorRoom.appendChild(playerElement);
             }
-        }
-
-        // Handle other players
-        for (const uid in otherPlayerElements) {
-            const otherPlayer = otherPlayerElements[uid];
-            const remotePlayerSceneId = otherPlayer.inHouseId;
-
-            if (remotePlayerSceneId === null) { // Player is in the Hub
-                if (otherPlayer.container.parentElement !== worldContainer) {
-                    worldContainer.appendChild(otherPlayer.container);
-                }
-                otherPlayer.container.style.display = 'flex';
-            } else { // Player is in a House
-                if (otherPlayer.container.parentElement !== interiorRoom) {
-                    interiorRoom.appendChild(otherPlayer.container);
-                }
-                // Only show the player if we are in the same house
-                otherPlayer.container.style.display = (remotePlayerSceneId === localPlayerSceneId) ? 'flex' : 'none';
-            }
+            playerElement.style.display = (sceneId === playerState.inHouseId) ? 'flex' : 'none';
         }
     }
 
@@ -1293,8 +1270,10 @@ function updateAllBalanceDisplays(targetBalance) {
         playerState.hubX = playerState.x;
         playerState.hubY = playerState.y;
         playerState.inHouseId = houseId;
+        
+        // Spawn in the middle of the house
         playerState.x = interiorRoom.offsetWidth / 2;
-        playerState.y = interiorRoom.offsetHeight - playerState.height - 20;
+        playerState.y = interiorRoom.offsetHeight / 2;
 
         const isOwner = allHouses[houseId]?.ownerUid === currentUser.uid;
         editHouseBtn.style.display = isOwner ? 'flex' : 'none';
@@ -1307,8 +1286,12 @@ function updateAllBalanceDisplays(targetBalance) {
         worldContainer.style.display = 'none';
         interiorContainer.style.display = 'block';
 
-        if(playerRef) playerRef.update({ inHouseId: houseId });
+        if(playerRef) playerRef.update({ inHouseId: houseId, x: playerState.x, y: playerState.y });
         
+        // Re-parent all visible players (including local) to the interior
+        Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.inHouseId));
+        updatePlayerScene(localPlayerContainer, playerState.inHouseId);
+
         decorationListener = decorationsRef.child(houseId);
         decorationListener.on('value', snapshot => {
             interiorRoom.querySelectorAll('.placed-item').forEach(el => el.remove());
@@ -1318,13 +1301,11 @@ function updateAllBalanceDisplays(targetBalance) {
                 renderPlacedItem(itemId, items[itemId]);
             }
         });
-        
-        updateAllPlayerVisuals();
     }
 
     function leaveHouse() {
         if (decorationListener) decorationListener.off();
-        if(playerRef) playerRef.update({ inHouseId: null });
+        if(playerRef) playerRef.update({ inHouseId: null, x: playerState.hubX, y: playerState.hubY });
         decorationListener = null;
 
         playerState.inHouseId = null;
@@ -1335,8 +1316,12 @@ function updateAllBalanceDisplays(targetBalance) {
         worldContainer.style.display = 'block';
         
         if (isEditingHouse) toggleEditMode();
-        updateAllPlayerVisuals();
-        updateLocalPlayerPosition(); 
+        
+        // Re-parent all players back to their correct scenes
+        Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.inHouseId));
+        updatePlayerScene(localPlayerContainer, playerState.inHouseId);
+        
+        updateLocalPlayerPosition(); // Immediately update camera
     }
 
     function toggleEditMode() {
@@ -1513,13 +1498,22 @@ function updateAllBalanceDisplays(targetBalance) {
         if (!checkCollision(nextX, playerState.y)) { playerState.x = nextX; }
         if (!checkCollision(playerState.x, nextY)) { playerState.y = nextY; }
 
-        if (playerState.inHouseId === null) { // In Hub
-            worldContainer.style.transform = `translate(${-playerState.x + gameArea.offsetWidth / 2 - playerState.width / 2}px, ${-playerState.y + gameArea.offsetHeight / 2 - playerState.height / 2}px)`;
-        } else { // In House
+        // Camera and Player Position Update
+        if (playerState.inHouseId === null) {
+            // In the hub, the player is fixed to the center of the screen
+            localPlayerContainer.style.left = '50%';
+            localPlayerContainer.style.top = '50%';
+            localPlayerContainer.style.transform = `translate(-50%, -50%)`;
+            // The world moves underneath the player
+            worldContainer.style.transform = `translate(${-playerState.x + gameArea.offsetWidth / 2}px, ${-playerState.y + gameArea.offsetHeight / 2}px)`;
+        } else {
+            // In a house, the player moves within the room container
             localPlayerContainer.style.left = `${playerState.x}px`;
             localPlayerContainer.style.top = `${playerState.y}px`;
+            localPlayerContainer.style.transform = `translate(0, 0)`; // No centering transform
         }
-
+        
+        // Animation and Direction
         const isMoving = (keys.w || keys.a || keys.s || keys.d);
         if (keys.a) playerState.direction = -1;
         if (keys.d) playerState.direction = 1;
@@ -1530,6 +1524,7 @@ function updateAllBalanceDisplays(targetBalance) {
             playerState.imgElement.src = newSrc;
         }
         
+        // Update Firebase
         if (playerRef) {
             playerRef.update({ 
                 x: playerState.x, y: playerState.y, 
@@ -1548,6 +1543,10 @@ function updateAllBalanceDisplays(targetBalance) {
     function enterHub() {
         if (!currentUser) return;
         playerRef = playersRef.child(currentUser.uid);
+        
+        // Add local player to the game area before initializing anything else
+        gameArea.appendChild(localPlayerContainer);
+
         initializeHouses();
         playerRef.set({ 
             x: playerState.x, y: playerState.y, width: playerState.width, height: playerState.height, 
@@ -1604,14 +1603,12 @@ function updateAllBalanceDisplays(targetBalance) {
             container.append(uiContainer, img);
             
             otherPlayerElements[uid] = { container, img, bubble, bubbleTimeout: null, inHouseId: pData.inHouseId };
-            // Add to world temporarily; updateAllPlayerVisuals will move it if needed
-            worldContainer.appendChild(container); 
-            container.addEventListener('click', () => { openUserPanel(uid, pData.email); });
-
-            // Immediately update position and then run the visual sorter
+            
             gsap.to(otherPlayerElements[uid].container, { left: pData.x, top: pData.y, duration: 0 });
             otherPlayerElements[uid].img.style.transform = `scaleX(${pData.direction})`;
-            updateAllPlayerVisuals();
+            updatePlayerScene(container, pData.inHouseId);
+
+            container.addEventListener('click', () => { openUserPanel(uid, pData.email); });
         });
 
         playersRef.on('child_changed', (snapshot) => {
@@ -1625,7 +1622,7 @@ function updateAllBalanceDisplays(targetBalance) {
             if (!otherPlayer) return;
             
             otherPlayer.inHouseId = pData.inHouseId;
-            updateAllPlayerVisuals(); 
+            updatePlayerScene(otherPlayer.container, otherPlayer.inHouseId);
 
             gsap.to(otherPlayer.container, { left: pData.x, top: pData.y, duration: 0.1, ease: 'linear' });
             otherPlayer.img.style.transform = `scaleX(${pData.direction})`;
@@ -1762,4 +1759,4 @@ function updateAllBalanceDisplays(targetBalance) {
 });
 </script>
 </body>
-</html>
+</html>```
