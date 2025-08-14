@@ -288,6 +288,10 @@
         background-color: #8B4513; border: 5px solid #5C4033;
         border-radius: 8px; cursor: pointer; z-index: 5;
     }
+    .hub-house.open-for-visits {
+        box-shadow: 0 0 20px var(--gold);
+        border-color: var(--gold);
+    }
     .house-owner-tag {
         position: absolute; top: -25px; left: 50%; transform: translateX(-50%);
         background-color: rgba(255, 214, 10, 0.8); color: #121212;
@@ -316,6 +320,7 @@
         position: absolute; bottom: 20px; right: 20px; z-index: 20; display: flex; gap: 10px;
     }
     #sell-house-btn { background-color: var(--danger); }
+    #toggle-house-lock-btn { background-color: var(--secondary-purple); }
     #furniture-panel {
         position: absolute; top: 20px; left: 20px; background: var(--dark-card);
         padding: 1rem; border-radius: var(--border-radius); display: none; /* Hidden by default */
@@ -552,6 +557,7 @@
             </div>
             <div id="interior-ui-container">
                  <button id="edit-house-btn">Edit</button>
+                 <button id="toggle-house-lock-btn">Open House</button>
                  <button id="sell-house-btn">Sell House</button>
                  <button id="leave-house-btn">Leave</button>
             </div>
@@ -931,6 +937,9 @@ function updateAllBalanceDisplays(targetBalance) {
     const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
     let deck = [], playerHand, dealerHand, currentBetBJ = 0;
     
+    // Preload dealer images to prevent flickering
+    ['IDLE.gif', 'HAPPY.gif', 'ANGRY.gif'].forEach(src => { new Image().src = src; });
+    
     const betControls = document.getElementById('blackjack-bet-controls');
     const gameActions = document.getElementById('blackjack-game-actions');
     const betInput = document.getElementById('blackjack-bet-input');
@@ -1030,9 +1039,12 @@ function updateAllBalanceDisplays(targetBalance) {
         
         if (payoutMultiplier > 0) {
             const finalPayout = Math.floor(currentBetBJ * payoutMultiplier);
-            db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(finalPayout));
-            showToast(`You receive ${finalPayout.toLocaleString()} BUX`, 'success');
+            if(finalPayout > 0){
+                db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(finalPayout));
+                showToast(`You receive ${finalPayout.toLocaleString()} BUX`, 'success');
+            }
         } else {
+             // Bet was already deducted, so no change needed for a loss.
             showToast(`You lost ${currentBetBJ.toLocaleString()} BUX`, 'error');
         }
         
@@ -1071,7 +1083,7 @@ function updateAllBalanceDisplays(targetBalance) {
                 if (dealerScore > 21 || playerScore > dealerScore) {
                     endGame('You Win!', 2); // Payout is 2x bet (1x original + 1x winnings)
                 } else if (dealerScore > playerScore) {
-                    endGame('Dealer Wins!', 0);
+                    endGame('Dealer Wins!', 0); // No payout
                 } else {
                     endGame('Push!', 1); // Return original bet
                 }
@@ -1116,7 +1128,7 @@ function updateAllBalanceDisplays(targetBalance) {
         const playerScore = calculateScore(playerHand);
 
         if (playerScore === 21) {
-            endGame('Blackjack!', 2.5); // Payout is 1x bet + 1.5x winnings
+            endGame('Blackjack!', 2.5); // Payout is bet + 1.5x winnings
         } else {
             setActionsState(true, true, true);
         }
@@ -1155,8 +1167,8 @@ function updateAllBalanceDisplays(targetBalance) {
 
         const newCard = deck.pop();
         playerHand.push(newCard);
-        renderCard(newCard, playerHandEl);
         const playerScore = calculateScore(playerHand);
+        renderCard(newCard, playerHandEl);
         updateScores(true);
 
         if (playerScore > 21) {
@@ -1178,10 +1190,11 @@ function updateAllBalanceDisplays(targetBalance) {
     const worldContainer = document.getElementById('world-container');
     const interiorContainer = document.getElementById('interior-container');
     const interiorRoom = document.getElementById('interior-room');
-    const interiorUI = document.getElementById('interior-ui-container');
+    const interiorUIContainer = document.getElementById('interior-ui-container');
     const editHouseBtn = document.getElementById('edit-house-btn');
     const sellHouseBtn = document.getElementById('sell-house-btn');
     const leaveHouseBtn = document.getElementById('leave-house-btn');
+    const toggleHouseLockBtn = document.getElementById('toggle-house-lock-btn');
     const furniturePanel = document.getElementById('furniture-panel');
     const playersRef = db.ref('linusHub/players');
     const housesRef = db.ref('linusHub/houses');
@@ -1195,7 +1208,7 @@ function updateAllBalanceDisplays(targetBalance) {
     const playerState = {
         element: localPlayerContainer, imgElement: localPlayerImage,
         x: 0, y: 0, width: 80, height: 80, speed: 250, direction: 1, animation: 'idle',
-        currentScene: 'hub', currentHouseId: null
+        inHouseId: null
     };
     localPlayerContainer.style.width = `${playerState.width}px`;
     localPlayerContainer.style.height = `${playerState.height}px`;
@@ -1235,15 +1248,24 @@ function updateAllBalanceDisplays(targetBalance) {
     }
 
     function enterHouse(houseId) {
-        playerState.currentScene = 'interior';
-        playerState.currentHouseId = houseId;
+        playerState.inHouseId = houseId;
         playerState.x = interiorRoom.offsetWidth / 2;
         playerState.y = interiorRoom.offsetHeight - playerState.height;
+
+        const isOwner = allHouses[houseId]?.ownerUid === currentUser.uid;
+
+        editHouseBtn.style.display = isOwner ? 'flex' : 'none';
+        sellHouseBtn.style.display = isOwner ? 'flex' : 'none';
+        toggleHouseLockBtn.style.display = isOwner ? 'flex' : 'none';
+        leaveHouseBtn.style.display = 'flex';
+        
+        const isOpen = allHouses[houseId]?.isOpen || false;
+        toggleHouseLockBtn.textContent = isOpen ? 'Close House' : 'Open House';
+
         worldContainer.style.display = 'none';
         interiorContainer.style.display = 'block';
-        interiorUI.style.display = 'flex';
         localPlayerContainer.style.transform = '';
-        if(playerRef) playerRef.update({ currentScene: 'interior', currentHouseId: houseId });
+        if(playerRef) playerRef.update({ inHouseId: houseId });
         decorationListener = decorationsRef.child(houseId);
         decorationListener.on('value', snapshot => {
             interiorRoom.querySelectorAll('.placed-item').forEach(el => el.remove());
@@ -1257,10 +1279,9 @@ function updateAllBalanceDisplays(targetBalance) {
 
     function leaveHouse() {
         if (decorationListener) decorationListener.off();
-        if(playerRef) playerRef.update({ currentScene: 'hub', currentHouseId: null });
+        if(playerRef) playerRef.update({ inHouseId: null });
         decorationListener = null;
-        playerState.currentScene = 'hub';
-        playerState.currentHouseId = null;
+        playerState.inHouseId = null;
         interiorContainer.style.display = 'none';
         worldContainer.style.display = 'block';
         localPlayerContainer.style.transform = 'translate(-50%, -50%)';
@@ -1268,6 +1289,10 @@ function updateAllBalanceDisplays(targetBalance) {
     }
 
     function toggleEditMode() {
+        const houseId = playerState.inHouseId;
+        const isOwner = allHouses[houseId]?.ownerUid === currentUser.uid;
+        if (!isOwner) return;
+
         isEditingHouse = !isEditingHouse;
         editHouseBtn.textContent = isEditingHouse ? 'Finish' : 'Edit';
         editHouseBtn.style.backgroundColor = isEditingHouse ? "var(--success)" : '';
@@ -1294,9 +1319,10 @@ function updateAllBalanceDisplays(targetBalance) {
 
         if (isEditingHouse) itemEl.classList.add('removable');
 
-        itemEl.addEventListener('click', () => {
+        itemEl.addEventListener('click', (e) => {
+            e.stopPropagation();
             if (isEditingHouse) {
-                decorationsRef.child(playerState.currentHouseId).child(itemId).remove();
+                decorationsRef.child(playerState.inHouseId).child(itemId).remove();
             }
         });
 
@@ -1312,16 +1338,24 @@ function updateAllBalanceDisplays(targetBalance) {
         let y = Math.round((e.clientY - rect.top - (itemDef.height / 2)) / GRID_SIZE) * GRID_SIZE;
         x = Math.max(0, Math.min(x, interiorRoom.offsetWidth - itemDef.width));
         y = Math.max(0, Math.min(y, interiorRoom.offsetHeight - itemDef.height));
-        decorationsRef.child(playerState.currentHouseId).push({ type: selectedFurnitureType, x: x, y: y });
+        decorationsRef.child(playerState.inHouseId).push({ type: selectedFurnitureType, x: x, y: y });
     });
 
     editHouseBtn.addEventListener('click', toggleEditMode);
     leaveHouseBtn.addEventListener('click', leaveHouse);
+    toggleHouseLockBtn.addEventListener('click', () => {
+        const houseId = playerState.inHouseId;
+        if (!houseId || allHouses[houseId]?.ownerUid !== currentUser.uid) return;
+        const currentStatus = allHouses[houseId]?.isOpen || false;
+        housesRef.child(houseId).child('isOpen').set(!currentStatus);
+    });
+
     sellHouseBtn.addEventListener('click', () => {
         showConfirmationModal("Sell this house for 80 BUX? This cannot be undone.", () => {
+            const houseId = playerState.inHouseId;
             const updates = {};
-            updates[`/linusHub/houses/${playerState.currentHouseId}`] = null;
-            updates[`/linusHub/decorations/${playerState.currentHouseId}`] = null;
+            updates[`/linusHub/houses/${houseId}`] = null;
+            updates[`/linusHub/decorations/${houseId}`] = null;
             updates[`/users/${currentUser.uid}/balance`] = firebase.database.ServerValue.increment(80);
 
             db.ref().update(updates).then(() => {
@@ -1351,13 +1385,12 @@ function updateAllBalanceDisplays(targetBalance) {
         const ownerUid = houseData ? houseData.ownerUid : null;
         
         if (ownerUid) {
-            if (ownerUid === currentUser.uid) {
+            if (ownerUid === currentUser.uid) { // Owner clicks their own house
                 enterHouse(houseId);
-            } else {
-                db.ref(`users/${ownerUid}/email`).once('value').then(snapshot => {
-                    const ownerEmail = snapshot.val() || 'someone';
-                    showToast(`This house is owned by ${ownerEmail.split('@')[0]}.`, 'info');
-                });
+            } else if (houseData.isOpen) { // Visitor clicks an open house
+                enterHouse(houseId);
+            } else { // Visitor clicks a closed house
+                showToast('This house is closed to visitors.', 'info');
             }
         } else {
             if (balance < 100) {
@@ -1368,18 +1401,15 @@ function updateAllBalanceDisplays(targetBalance) {
                 const houseRef = housesRef.child(houseId);
                 houseRef.transaction(currentData => {
                     if (currentData === null) {
-                        return { ownerUid: currentUser.uid, ownerEmail: currentUser.email };
+                        return { ownerUid: currentUser.uid, ownerEmail: currentUser.email, isOpen: false };
                     }
                     return; 
                 }, (error, committed) => {
-                    if (error) {
-                        showToast("Transaction failed. The server might be busy.", 'error');
+                    if (error) { showToast("Transaction failed.", 'error');
                     } else if (committed) {
                         db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(-100));
                         showToast("House claimed successfully!", 'success');
-                    } else {
-                        showToast("This house was just claimed by someone else!", 'error');
-                    }
+                    } else { showToast("This house was just claimed!", 'error'); }
                 });
             });
         }
@@ -1388,12 +1418,12 @@ function updateAllBalanceDisplays(targetBalance) {
     function checkCollision(nextX, nextY) {
         const playerBox = { left: nextX, top: nextY, right: nextX + playerState.width, bottom: nextY + playerState.height };
 
-        if (playerState.currentScene === 'hub') {
+        if (playerState.inHouseId === null) { // Hub collision
             for (const house of houseLayout) {
                 const houseBox = { left: house.x, top: house.y, right: house.x + HOUSE_WIDTH, bottom: house.y + HOUSE_HEIGHT };
                 if (playerBox.right > houseBox.left && playerBox.left < houseBox.right && playerBox.bottom > houseBox.top && playerBox.top < houseBox.bottom) return true;
             }
-        } else if (playerState.currentScene === 'interior') {
+        } else { // Interior collision
             if (nextX < 0 || nextY < 0 || nextX + playerState.width > interiorRoom.offsetWidth || nextY + playerState.height > interiorRoom.offsetHeight) return true;
             for (const itemId in placedItemElements) {
                 const itemEl = placedItemElements[itemId];
@@ -1429,11 +1459,9 @@ function updateAllBalanceDisplays(targetBalance) {
         if (!checkCollision(nextX, playerState.y)) { playerState.x = nextX; }
         if (!checkCollision(playerState.x, nextY)) { playerState.y = nextY; }
 
-        if (playerState.currentScene === 'hub') {
+        if (playerState.inHouseId === null) { // In Hub
             worldContainer.style.transform = `translate(${-playerState.x + gameArea.offsetWidth / 2 - playerState.width / 2}px, ${-playerState.y + gameArea.offsetHeight / 2 - playerState.height / 2}px)`;
-            localPlayerContainer.style.left = '';
-            localPlayerContainer.style.top = '';
-        } else {
+        } else { // In House
             localPlayerContainer.style.left = `${playerState.x}px`;
             localPlayerContainer.style.top = `${playerState.y}px`;
         }
@@ -1453,7 +1481,7 @@ function updateAllBalanceDisplays(targetBalance) {
                 x: playerState.x, y: playerState.y, 
                 direction: playerState.direction, 
                 animation: playerState.animation,
-                currentScene: playerState.currentScene
+                inHouseId: playerState.inHouseId 
             });
         }
     }
@@ -1470,7 +1498,7 @@ function updateAllBalanceDisplays(targetBalance) {
         playerRef.set({ 
             x: playerState.x, y: playerState.y, width: playerState.width, height: playerState.height, 
             direction: 1, animation: 'idle', email: currentUser.email || 'guest',
-            currentScene: 'hub'
+            inHouseId: null
         });
         playerRef.onDisconnect().remove();
 
@@ -1487,10 +1515,16 @@ function updateAllBalanceDisplays(targetBalance) {
                         houseEl.appendChild(ownerTag);
                     }
                     ownerTag.textContent = `${houseData.ownerEmail.split('@')[0]}'s House`;
+                    houseEl.classList.toggle('open-for-visits', !!houseData.isOpen);
                 } else {
                     if (ownerTag) ownerTag.remove();
+                     houseEl.classList.remove('open-for-visits');
                 }
             });
+            // Update lock button text if user is currently inside a house
+            if (playerState.inHouseId && allHouses[playerState.inHouseId]) {
+                 toggleHouseLockBtn.textContent = allHouses[playerState.inHouseId].isOpen ? 'Close House' : 'Open House';
+            }
         });
 
         playersRef.on('child_added', (snapshot) => {
@@ -1503,7 +1537,7 @@ function updateAllBalanceDisplays(targetBalance) {
             container.style.height = `${pData.height}px`;
             container.style.left = `${pData.x}px`;
             container.style.top = `${pData.y}px`;
-            if(pData.currentScene !== 'hub') container.style.display = 'none';
+            container.style.display = pData.inHouseId ? 'none' : 'flex';
 
             const uiContainer = document.createElement('div');
             uiContainer.className = 'player-ui-container';
@@ -1532,11 +1566,8 @@ function updateAllBalanceDisplays(targetBalance) {
             const otherPlayer = otherPlayerElements[uid];
             if (!otherPlayer) return;
             
-            if (pData.currentScene !== 'hub') {
-                otherPlayer.container.style.display = 'none';
-                return;
-            }
-            otherPlayer.container.style.display = 'flex';
+            otherPlayer.container.style.display = pData.inHouseId ? 'none' : 'flex';
+            if (pData.inHouseId) return; // Don't need to update position if they are hidden
 
             gsap.to(otherPlayer.container, { left: pData.x, top: pData.y, duration: 0.1, ease: 'linear' });
             otherPlayer.img.style.transform = `scaleX(${pData.direction})`;
@@ -1570,7 +1601,7 @@ function updateAllBalanceDisplays(targetBalance) {
         if(gameLoopId) { cancelAnimationFrame(gameLoopId); gameLoopId = null; }
         worldContainer.innerHTML = ''; otherPlayerElements = {}; houseElements = {}; isChatting = false;
         chatInputContainer.style.display = 'none';
-        if (playerState.currentScene === 'interior') leaveHouse();
+        if (playerState.inHouseId) leaveHouse();
     }
 
     function showConfirmationModal(message, onConfirm) {
