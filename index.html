@@ -9,7 +9,6 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
 <style>
     :root {
         --primary-blue: #373C82;
@@ -181,23 +180,10 @@ body::before {
 #balance .balance-display span:first-child { color: var(--light-text); }
 #balance .balance-display span:last-child { font-size: 2rem; margin-left: 0.5rem; color: var(--medium-text); }
 .card-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2rem; max-width: 900px; margin: 0 auto; }
-.card { background: var(--dark-card); padding: 2rem; border-radius: var(--border-radius); backdrop-filter: blur(15px); border: 1px solid var(--dark-card-border); box-shadow: 0 8px 32px rgba(0,0,0,0.3); position: relative; overflow: hidden; }
-.card:hover::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient( 800px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.06), transparent 40% ); opacity: 1; transition: opacity 0.5s; pointer-events: none; }
-.card h3 { margin-bottom: 1.5rem; font-weight: 600; font-size: 1.25rem; color: var(--light-text); }
-.input-group { display: flex; gap: 0.5rem; }
-input[type="number"], input[type="text"] { flex: 1; background-color: #1c1c1e; border: 1px solid #38383a; color: var(--light-text); padding: 0.8rem 1rem; border-radius: 10px; font-family: var(--font-family); font-size: 1rem; outline: none; transition: border-color 0.3s ease, box-shadow 0.3s ease; min-width: 0; }
-input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { appearance: none; margin: 0; }
-input[type="number"] { -moz-appearance: textfield; }
-input[type="number"]:focus, input[type="text"]:focus { border-color: var(--primary-blue); box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.3); }
-button { color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 10px; font-family: var(--font-family); font-weight: 600; font-size: 1rem; cursor: pointer; transition: all 0.3s ease; }
-button:disabled { cursor: not-allowed; filter: grayscale(60%); opacity: 0.7; }
-#balance .input-group button { flex-shrink: 0; }
-#balance button { background: linear-gradient(45deg, #007aff, var(--primary-blue)); }
-#balance button:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(10, 132, 255, 0.4); }
-#generated-codes { margin-top: 1.5rem; max-height: 200px; overflow-y: auto; padding-right: 10px; }
-.generated-code-item { background-color: #1c1c1e; padding: 0.8rem 1rem; border-radius: 8px; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border: 1px solid #38383a; transition: all 0.2s ease-in-out; }
-.generated-code-item:hover { background-color: #3a3a3c; border-color: var(--primary-blue); transform: translateX(5px); }
-.generated-code-item .code-text { font-family: 'Courier New', Courier, monospace; font-weight: bold; color: var(--primary-blue); }
+.card { background: var(--dark-card); padding: 2rem; border-radius: var(--border-radius); backdrop-filter: blur(15px); border: 1px solid var(--dark-card-border); box-shadow: 0 8px 32px rgba(0,0,0,0.3); position: relative; overflow: hidden; text-align: center;}
+.card h3 { margin-bottom: 1rem; font-weight: 600; font-size: 1.25rem; color: var(--light-text); }
+.card p { color: var(--medium-text); font-size: 0.9rem; }
+
 
 /* Gambling Tab */
 #gambling .header h2 { color: var(--secondary-purple); margin: 0 auto; }
@@ -205,7 +191,8 @@ button:disabled { cursor: not-allowed; filter: grayscale(60%); opacity: 0.7; }
 #wheel-canvas-container { position: relative; width: 450px; height: 450px; }
 #wheel-canvas { width: 100%; height: 100%; }
 #wheel-pointer { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 20px solid transparent; border-right: 20px solid transparent; border-top: 30px solid var(--gold); filter: drop-shadow(0 -2px 3px rgba(0,0,0,0.5)); z-index: 10; }
-#gambling .betting-controls { display: flex; gap: 1rem; align-items: center; }
+#gambling .betting-controls { display: flex; flex-direction:column; gap: 1rem; align-items: center; }
+#gambling .betting-controls p { font-size: 0.9rem; color: var(--medium-text); }
 #bet-amount-input { font-size: 1.5rem; padding: 0.6rem 1rem; width: 200px; text-align: center; font-weight: 600; }
 #bet-amount-input:focus { border-color: var(--secondary-purple); box-shadow: 0 0 0 4px rgba(191, 90, 242, 0.3); }
 #spin-btn { width: 150px; height: auto; background: linear-gradient(45deg, var(--secondary-purple), #9b59b6); font-size: 1.5rem; padding: 0.6rem 1rem; border-radius: 12px; font-weight: 700; box-shadow: 0 5px 15px rgba(0,0,0,0.4); }
@@ -236,22 +223,22 @@ button:disabled { cursor: not-allowed; filter: grayscale(60%); opacity: 0.7; }
 #blackjack-controls { display: flex; justify-content: center; align-items: center; gap: 1rem; }
 #blackjack-controls button { background-color: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.3); min-width: 120px; font-size: 1.1rem; }
 #blackjack-controls button:hover:not(:disabled) { background-color: rgba(255,255,255,0.2); }
+#blackjack-bet-controls { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+#blackjack-bet-controls p { font-size: 0.9rem; color: var(--medium-text); }
 #blackjack-bet-controls input { font-size: 1.2rem; padding: 0.8rem; width: 150px; text-align: center; font-weight: 600; }
-#blackjack-bet-controls input:focus { border-color: var(--blackjack-green); box-shadow: 0 0 0 4px rgba(16, 124, 65, 0.4); }
 
 /* Linus Hub Tab */
 #linus-hub { justify-content: center; align-items: center; width: 100%; height: 100%; padding: 0; position: relative; }
 #game-area { width: 100%; height: 100%; background-color: #0d0d0d; border-radius: var(--border-radius); border: 2px solid var(--primary-blue); box-shadow: 0 0 25px rgba(10, 132, 255, 0.3); position: relative; overflow: hidden; }
 .player-character {
     position: absolute;
-    /* Speed is now controlled by constants in JS, not a spoofable value */
     transition: top 0.1s linear, left 0.1s linear;
     user-select: none;
     display: flex;
     flex-direction: column;
     align-items: center;
     cursor: pointer;
-    /* Size is now controlled by constants in JS, not a spoofable value */
+    /* Size is now fixed and cannot be spoofed */
     width: 50px; 
     height: 50px;
 }
@@ -381,17 +368,10 @@ button:disabled { cursor: not-allowed; filter: grayscale(60%); opacity: 0.7; }
 }
 
 #user-interaction-panel .gift-controls {
-    display: flex;
-    gap: 1rem;
+    text-align: center;
+    color: var(--medium-text);
 }
 
-#user-interaction-panel #gift-btn {
-    background: linear-gradient(45deg, var(--success), #28a745);
-}
-#user-interaction-panel #gift-btn:hover:not(:disabled) {
-    box-shadow: 0 4px 15px rgba(48, 209, 88, 0.4);
-    transform: translateY(-2px);
-}
 
 /* Toast Notifications */
 #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 3000; display: flex; flex-direction: column; gap: 10px; }
@@ -457,31 +437,18 @@ button:disabled { cursor: not-allowed; filter: grayscale(60%); opacity: 0.7; }
         </div>
     </div>
     
-<div class="card-container">
-    <div class="card">
-        <h3>Create Code</h3>
-        <p style="font-size: 0.9rem; color: var(--medium-text); margin-bottom: 1rem;">This feature is disabled for security reasons. Gifting is now handled in the Linus Hub.</p>
-        <div class="input-group">
-            <input type="number" id="create-code-amount" placeholder="Amount" disabled>
-            <button id="create-code-btn" disabled>Create</button>
+    <div class="card-container">
+        <div class="card">
+            <h3>Info</h3>
+            <p>Your BUX balance is a persistent score. Games are played for fun and do not affect your main balance. Interact with users in the Linus Hub!</p>
         </div>
     </div>
-
-    <div class="card">
-        <h3>Redeem Code</h3>
-        <p style="font-size: 0.9rem; color: var(--medium-text); margin-bottom: 1rem;">This feature is disabled for security reasons.</p>
-        <div class="input-group">
-            <input type="text" id="redeem-code-input" placeholder="Enter Code" disabled>
-            <button id="redeem-code-btn" disabled>Redeem</button>
-        </div>
-    </div>
-</div>
 
 </div>
 <!-- Gambling Tab -->
 <div id="gambling" class="tab-content">
      <div class="header">
-        <h2>Gambling</h2>
+        <h2>Gambling (For Fun)</h2>
     </div>
     <div class="gambling-container">
         <div id="wheel-canvas-container">
@@ -489,7 +456,8 @@ button:disabled { cursor: not-allowed; filter: grayscale(60%); opacity: 0.7; }
             <div id="wheel-pointer"></div>
         </div>
         <div class="betting-controls">
-            <input type="number" id="bet-amount-input" value="10" placeholder="Bet Amount">
+            <p>Winnings do not affect your main BUX balance.</p>
+            <input type="number" id="bet-amount-input" value="10" placeholder="Place a fun bet">
             <button id="spin-btn">SPIN</button>
         </div>
     </div>
@@ -519,9 +487,10 @@ button:disabled { cursor: not-allowed; filter: grayscale(60%); opacity: 0.7; }
  </div>
  
  <div class="blackjack-footer">
-    <h2>Blackjack</h2>
+    <h2>Blackjack (For Fun)</h2>
     <div id="blackjack-controls">
         <div id="blackjack-bet-controls">
+            <p>Bets do not use your real BUX.</p>
              <input type="number" id="blackjack-bet-input" value="10">
              <button id="deal-button">Deal</button>
         </div>
@@ -566,13 +535,13 @@ button:disabled { cursor: not-allowed; filter: grayscale(60%); opacity: 0.7; }
         <h3 id="panel-user-name"></h3>
         <p>Balance: <span id="panel-user-balance">...</span> BUX</p>
         <div class="gift-controls">
-            <input type="number" id="gift-amount-input" placeholder="Amount to gift">
-            <button id="gift-btn">Gift</button>
+            <p>Gifting is unavailable.</p>
         </div>
     </div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
 <script>
+// --- START OF SCRIPT ---
 const firebaseConfig = {
     apiKey: "AIzaSyC-aZNBPQz2y4e-9DZ9hvz-puEan47li-4",
     authDomain: "linusbux-fab58.firebaseapp.com",
@@ -584,22 +553,24 @@ const firebaseConfig = {
     measurementId: "G-EZWXN01SZT"
 };
 
-
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
-const functions = firebase.functions(); // Initialize Cloud Functions
 
-// For local testing, you might want to point functions to the emulator
-// functions.useEmulator("localhost", 5001);
+// These functions need to be accessible globally for the auth listeners
+let enterHub, leaveHub;
 
 document.addEventListener('DOMContentLoaded', () => {
     
 // --- App State ---
-let localBalance = 0; // Local balance, will be synced with Firebase
+let balance = 0;
 let currentUser = null;
 let balanceRef = null;
+let playerRef = null;
+let hubListenersActive = false;
+let otherPlayerElements = {}; 
+let gameLoopId = null;
 
 // --- UI Elements ---
 const mainBalanceElement = document.getElementById('main-balance-amount');
@@ -615,15 +586,11 @@ const loginBtn = document.getElementById('login-btn');
 const signupBtn = document.getElementById('signup-btn');
 const logoutBtn = document.getElementById('logout-btn');
 
-// --- User Interaction Panel Elements ---
 const userInteractionPanel = document.getElementById('user-interaction-panel');
 const panelUserName = document.getElementById('panel-user-name');
 const panelUserBalance = document.getElementById('panel-user-balance');
-const giftAmountInput = document.getElementById('gift-amount-input');
-const giftBtn = document.getElementById('gift-btn');
 const closePanelBtn = document.querySelector('.close-panel-btn');
 
-// --- Toast Notification System ---
 const toastContainer = document.getElementById('toast-container');
 function showToast(message, type = 'info') {
     const toast = document.createElement('div');
@@ -643,50 +610,35 @@ function showToast(message, type = 'info') {
 auth.onAuthStateChanged(user => {
     if (user) {
         currentUser = user;
-        // The user object is now available. We can initialize callable functions.
-        // NOTE: The actual function definitions are on the server.
-        // This just sets up the client-side stubs to call them.
-        window.playBlackjack = functions.httpsCallable('playBlackjack');
-        window.spinGambleWheel = functions.httpsCallable('spinGambleWheel');
-        window.giftBux = functions.httpsCallable('giftBux');
-
-        balanceRef = db.ref(`users/${currentUser.uid}/balance`);
+        balanceRef = db.ref(`users/${currentUser.uid}`);
         
-        balanceRef.on('value', (snapshot) => {
-            const serverBalance = snapshot.val();
-            if (serverBalance !== null) {
-                localBalance = serverBalance;
-                updateAllBalanceDisplays(localBalance);
-            }
-        }, (error) => {
-            console.error("Firebase read failed: " + error.code);
-            showToast("Could not sync balance. Please refresh.", "error");
+        balanceRef.child('balance').on('value', (snapshot) => {
+            balance = snapshot.val() || 0;
+            updateAllBalanceDisplays(balance);
         });
-
-        // This listener ensures that if a new account is created,
-        // our Cloud Function will set an initial balance, and we just need to listen.
-        db.ref(`users/${currentUser.uid}`).once('value', snapshot => {
+        
+        balanceRef.once('value', snapshot => {
             if (!snapshot.exists()) {
-                // The 'newUserSetup' cloud function handles creating the user record.
-                const newUserSetup = functions.httpsCallable('newUserSetup');
-                newUserSetup().then(() => {
-                    showToast('Welcome! Your account and balance have been set up.', 'success');
-                }).catch(err => {
-                    showToast(err.message, 'error');
-                });
+                balanceRef.set({ balance: 100, email: user.email });
             }
         });
 
         appContainer.classList.add('visible');
         authContainer.style.display = 'none';
 
+        if (document.getElementById('linus-hub').classList.contains('active')) {
+            enterHub();
+        }
+
     } else {
         if (currentUser) {
-           db.ref(`linusHub/players/${currentUser.uid}`).remove();
+            // Ensure any active hub session is cleaned up on auth state change.
+            leaveHub();
         }
         currentUser = null;
-        if(balanceRef) balanceRef.off(); 
-        localBalance = 0;
+        if (balanceRef) balanceRef.child('balance').off();
+        balanceRef = null;
+        balance = 0;
         updateAllBalanceDisplays(0);
 
         appContainer.classList.remove('visible');
@@ -697,54 +649,24 @@ auth.onAuthStateChanged(user => {
 signupBtn.addEventListener('click', () => {
     const email = emailInput.value;
     const password = passwordInput.value;
-    if (!email || !password) {
-        showToast('Please enter email and password.', 'error');
-        return;
-    }
+    if (!email || !password) return showToast('Please enter email and password.', 'error');
     auth.createUserWithEmailAndPassword(email, password)
-        .then((userCredential) => {
-            // The onAuthStateChanged listener will handle the rest of the setup.
-            showToast(`Account created for ${userCredential.user.email}!`, 'success');
-        })
-        .catch((error) => {
-            showToast(error.message, 'error');
-        });
+        .then(cred => showToast(`Account created for ${cred.user.email}!`, 'success'))
+        .catch(err => showToast(err.message, 'error'));
 });
 
 loginBtn.addEventListener('click', () => {
     const email = emailInput.value;
     const password = passwordInput.value;
-     if (!email || !password) {
-        showToast('Please enter email and password.', 'error');
-        return;
-    }
+    if (!email || !password) return showToast('Please enter email and password.', 'error');
     auth.signInWithEmailAndPassword(email, password)
-        .then((userCredential) => {
-             showToast(`Welcome back, ${userCredential.user.email}!`, 'success');
-        })
-        .catch((error) => {
-            showToast(error.message, 'error');
-        });
+        .then(cred => showToast(`Welcome back, ${cred.user.email}!`, 'success'))
+        .catch(err => showToast(err.message, 'error'));
 });
 
 logoutBtn.addEventListener('click', () => {
-    auth.signOut().then(() => {
-        showToast('You have been logged out.', 'info');
-    });
-});
-
-// --- HELPER FUNCTION REMOVED ---
-// The function `updateUserBalance` has been removed. The client can no longer write to its balance.
-
-// --- Mouse-tracking for Card Glow Effect ---
-document.querySelectorAll('.card').forEach(card => {
-    card.addEventListener('mousemove', e => {
-        const rect = card.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        card.style.setProperty('--mouse-x', `${x}px`);
-        card.style.setProperty('--mouse-y', `${y}px`);
-    });
+    // Explicitly leave the hub *before* signing out to prevent ghosts.
+    leaveHub(auth.signOut);
 });
 
 // --- Tab Switching ---
@@ -752,6 +674,11 @@ navLinks.forEach(link => {
     link.addEventListener('click', (e) => {
         e.preventDefault();
         const tabId = e.currentTarget.getAttribute('data-tab');
+        const activeTab = document.querySelector('.tab-content.active');
+        
+        if (activeTab && activeTab.id === 'linus-hub' && tabId !== 'linus-hub') {
+            leaveHub();
+        }
 
         navLinks.forEach(l => l.classList.remove('active'));
         tabContents.forEach(content => content.classList.remove('active'));
@@ -759,38 +686,25 @@ navLinks.forEach(link => {
         e.currentTarget.classList.add('active');
         document.getElementById(tabId).classList.add('active');
         
-        if (tabId === 'balance') {
-            headerBalanceContainer.classList.remove('visible');
-        } else {
-            headerBalanceContainer.classList.add('visible');
+        headerBalanceContainer.classList.toggle('visible', tabId !== 'balance');
+        
+        if (tabId === 'linus-hub' && currentUser) {
+            enterHub();
         }
     });
 });
 
-// --- Balance Display Logic ---
 function updateAllBalanceDisplays(targetBalance) {
-    const elementsToUpdate = [mainBalanceElement, headerBalanceElement];
-    elementsToUpdate.forEach(el => {
-         gsap.to(el, {
-            duration: 1,
-            innerHTML: Math.floor(targetBalance),
-            roundProps: "innerHTML",
-            onUpdate: function() {
-                this.targets()[0].innerHTML = parseInt(this.targets()[0].innerHTML).toLocaleString();
-            },
-            ease: "power3.out"
-        });
+    gsap.to([mainBalanceElement, headerBalanceElement], {
+        duration: 1,
+        innerHTML: Math.floor(targetBalance),
+        roundProps: "innerHTML",
+        onUpdate: function() { this.targets().forEach(el => el.innerHTML = parseInt(el.innerHTML).toLocaleString()); },
+        ease: "power3.out"
     });
 }
 
-// --- Balance Tab: Codes are now disabled for security ---
-(function setupBalanceTab() {
-    // All functionality is disabled as it's insecure.
-    // Gifting is the secure alternative.
-})();
-
-
-// --- Gambling Tab Logic (Server-Authoritative) ---
+// --- Gambling Tab Logic (For Fun) ---
 (function setupGamblingTab() {
     const canvas = document.getElementById('wheel-canvas');
     const ctx = canvas.getContext('2d');
@@ -799,14 +713,10 @@ function updateAllBalanceDisplays(targetBalance) {
     let wheelSpinning = false;
 
     const segments = [
-        { color: '#d81b60', label: 'x3 BET'},
-        { color: '#e53935', label: 'LOSE BET'},
-        { color: '#43a047', label: 'x1.5 BET'},
-        { color: '#c2185b', label: 'BANKRUPT'},
-        { color: '#7e57c2', label: 'x2 BET'},
-        { color: '#fb8c00', label: '÷3 BET'},
-        { color: '#00acc1', label: 'SAFE'},
-        { color: '#e53935', label: 'LOSE BET'}
+        { color: '#d81b60', label: 'x3 BET', multiplier: 3 }, { color: '#e53935', label: 'LOSE', multiplier: 0 },
+        { color: '#43a047', label: 'x1.5 BET', multiplier: 1.5 }, { color: '#c2185b', label: 'JACKPOT', multiplier: 10 },
+        { color: '#7e57c2', label: 'x2 BET', multiplier: 2 }, { color: '#fb8c00', label: '÷2 BET', multiplier: 0.5 },
+        { color: '#00acc1', label: 'SAFE', multiplier: 1 }, { color: '#e53935',label: 'LOSE', multiplier: 0 }
     ];
     const segCount = segments.length;
     const radius = canvas.width / 2;
@@ -816,7 +726,6 @@ function updateAllBalanceDisplays(targetBalance) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.save();
         ctx.translate(radius, radius);
-        
         for (let i = 0; i < segCount; i++) {
             const angle = i * segAngleRad;
             ctx.beginPath();
@@ -837,57 +746,41 @@ function updateAllBalanceDisplays(targetBalance) {
         ctx.restore();
     }
 
-    spinButton.addEventListener('click', async () => {
-        if (wheelSpinning || !window.spinGambleWheel) return;
+    spinButton.addEventListener('click', () => {
+        if (wheelSpinning) return;
         const bet = parseInt(betAmountInput.value, 10);
-        
-        // Client-side validation for quick feedback
-        if (isNaN(bet) || bet <= 0) { showToast('Please enter a valid positive bet.', 'error'); return; }
-        if (bet > localBalance) { showToast('You cannot bet more than your balance.', 'error'); return; }
+        if (isNaN(bet) || bet <= 0) return showToast('Please enter a valid bet.', 'error');
         
         wheelSpinning = true;
         spinButton.disabled = true;
-        betAmountInput.disabled = true;
+        const totalRotation = (8 + Math.random() * 4) * 360 + Math.random() * 360;
 
-        try {
-            // Call the Cloud Function. The server handles ALL logic from here.
-            const result = await window.spinGambleWheel({ bet: bet });
-
-            const { winningIndex, message, outcomeType } = result.data;
-
-            // Animate the wheel to the server-decided outcome
-            const segAngleDeg = 360 / segments.length;
-            const targetAngle = 270 - (winningIndex * segAngleDeg) - (segAngleDeg / 2);
-            const randomSpins = (8 + Math.random() * 2) * 360;
-            const totalRotation = randomSpins + targetAngle - (gsap.getProperty(canvas, "rotation") % 360);
-
-            gsap.to(canvas, {
-                rotation: `+=${totalRotation}`,
-                duration: 7,
-                ease: 'power3.out',
-                onComplete: () => {
-                    showToast(message, outcomeType); // Display the server's message
-                    spinButton.disabled = false;
-                    betAmountInput.disabled = false;
-                    wheelSpinning = false;
-                }
-            });
-
-        } catch (error) {
-            console.error('Gambling function error:', error);
-            showToast(error.message, 'error');
-            spinButton.disabled = false;
-            betAmountInput.disabled = false;
-            wheelSpinning = false;
-        }
+        gsap.to(canvas, {
+            rotation: `+=${totalRotation}`, duration: 7, ease: 'power3.out',
+            onComplete: () => {
+                const finalRotation = gsap.getProperty(canvas, "rotation");
+                const normalizedAngle = ((finalRotation % 360) + 360) % 360;
+                const angleToPointer = (270 - normalizedAngle + 360) % 360;
+                const winningIndex = Math.floor(angleToPointer / (360 / segCount));
+                const { multiplier } = segments[winningIndex];
+                const winnings = Math.floor(bet * multiplier);
+                
+                if (winnings > bet) showToast(`You won ${winnings.toLocaleString()} fun points!`, 'success');
+                else if (winnings === 0) showToast(`You lost the bet. Better luck next time!`, 'error');
+                else showToast(`You got ${winnings.toLocaleString()} back.`, 'info');
+                
+                wheelSpinning = false;
+                spinButton.disabled = false;
+            }
+        });
     });
     drawWheel();
 })();
 
-
-// --- Blackjack Tab Logic (Server-Authoritative) ---
+// --- Blackjack Tab Logic (For Fun) ---
 (function setupBlackjackTab() {
-    let gameState = {}; // Will hold the secure state from the server
+    const suits = ['♥', '♦', '♠', '♣'], ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+    let deck = [], playerHand, dealerHand, currentBetBJ = 0;
     
     const betControls = document.getElementById('blackjack-bet-controls');
     const gameActions = document.getElementById('blackjack-game-actions');
@@ -896,406 +789,266 @@ function updateAllBalanceDisplays(targetBalance) {
     const hitButton = document.getElementById('hit-button');
     const standButton = document.getElementById('stand-button');
     const doubleDownButton = document.getElementById('double-down-button');
-    
-    const playerHandEl = document.getElementById('player-hand');
-    const dealerHandEl = document.getElementById('dealer-hand');
-    const playerScoreEl = document.getElementById('player-score');
-    const dealerScoreEl = document.getElementById('dealer-score');
+    const playerHandEl = document.getElementById('player-hand'), dealerHandEl = document.getElementById('dealer-hand');
+    const playerScoreEl = document.getElementById('player-score'), dealerScoreEl = document.getElementById('dealer-score');
     const gameStatusEl = document.getElementById('game-status');
 
+    function createDeck() {
+        deck = [];
+        for(let i=0; i<6; i++) for (const suit of suits) for (const rank of ranks) deck.push({ suit, rank, value: getCardValue(rank) });
+        shuffleDeck();
+    }
+    function shuffleDeck() { for (let i = deck.length - 1; i > 0; i--) [deck[i], deck[j]] = [deck[j], deck[i]]; }
+    function getCardValue(rank) { return ['J', 'Q', 'K'].includes(rank) ? 10 : rank === 'A' ? 11 : parseInt(rank); }
+    function calculateScore(hand) {
+        let score = hand.reduce((s, c) => s + c.value, 0);
+        let aces = hand.filter(c => c.rank === 'A').length;
+        while (score > 21 && aces-- > 0) score -= 10;
+        return score;
+    }
     function renderCard(card, targetEl, isFaceDown = false) {
         const cardEl = document.createElement('div');
         cardEl.className = 'bj-card';
-        if (isFaceDown) {
-            cardEl.classList.add('facedown');
-        } else {
-            const colorClass = ['♥', '♦'].includes(card.suit) ? 'red' : 'black';
-            cardEl.innerHTML = `
-                <span class="rank-top">${card.rank}${card.suit}</span>
-                <span class="center-suit">${card.suit}</span>
-                <span class="rank-bottom">${card.rank}${card.suit}</span>`;
-            cardEl.classList.add(colorClass);
+        if (isFaceDown) cardEl.classList.add('facedown');
+        else {
+            const color = ['♥', '♦'].includes(card.suit) ? 'red' : 'black';
+            cardEl.innerHTML = `<span class="rank-top">${card.rank}${card.suit}</span><span class="center-suit">${card.suit}</span><span class="rank-bottom">${card.rank}${card.suit}</span>`;
+            cardEl.classList.add(color);
         }
         targetEl.appendChild(cardEl);
         gsap.from(cardEl, { duration: 0.5, y: -100, opacity: 0, ease: 'power3.out' });
     }
-
-    function renderState(state) {
-        playerHandEl.innerHTML = '';
-        dealerHandEl.innerHTML = '';
-        
-        state.playerHand.forEach(card => renderCard(card, playerHandEl));
-        state.dealerHand.forEach((card, index) => {
-            // Hide dealer's second card if the game is still active
-            const isHoleCard = index === 1 && state.status === 'in-progress';
-            renderCard(card, dealerHandEl, isHoleCard);
-        });
-
-        playerScoreEl.textContent = state.playerScore;
-        dealerScoreEl.textContent = state.dealerScore;
-        gameStatusEl.textContent = state.message;
-        
-        // Update UI controls based on game status
-        const inProgress = state.status === 'in-progress';
-        betControls.style.display = inProgress ? 'none' : 'flex';
-        gameActions.style.display = inProgress ? 'flex' : 'none';
-
-        if (inProgress) {
-            hitButton.disabled = false;
-            standButton.disabled = false;
-            // Server determines if double down is possible
-            doubleDownButton.disabled = !state.canDoubleDown; 
-        }
-
-        if(state.status === 'finished') {
-             setTimeout(() => {
-                gameStatusEl.textContent = 'Place your bet!';
-             }, 2500);
-        }
+    function updateScores(isDealerHidden = false) {
+        playerScoreEl.textContent = calculateScore(playerHand);
+        dealerScoreEl.textContent = isDealerHidden ? `${dealerHand[0].value} + ?` : calculateScore(dealerHand);
     }
-    
-    async function performAction(action, bet = 0) {
-        if (!window.playBlackjack) return;
+    function endGame(message, payoutMultiplier) {
+        gameStatusEl.textContent = message;
+        if(payoutMultiplier > 0) showToast(`You win the hand!`, 'success');
+        else if(payoutMultiplier === 0) showToast(`Dealer wins.`, 'error');
+        else showToast(`Push! It's a tie.`, 'info');
         
-        dealButton.disabled = true;
-        hitButton.disabled = true;
-        standButton.disabled = true;
-        doubleDownButton.disabled = true;
-
-        try {
-            const result = await window.playBlackjack({ action, bet });
-            gameState = result.data;
-            renderState(gameState);
-        } catch (error) {
-            console.error("Blackjack Error:", error);
-            showToast(error.message, 'error');
-            // Re-enable deal button on error to allow starting a new game
-            dealButton.disabled = false; 
-        }
+        setActionsState(false, false);
+        setTimeout(() => {
+            gameActions.style.display = 'none';
+            dealButton.textContent = 'Play Again';
+            betControls.style.display = 'flex';
+            gameStatusEl.textContent = 'Place your bet!';
+        }, 2500);
+    }
+    function dealerTurn() {
+        const holeCard = dealerHandEl.children[1];
+        gsap.to(holeCard, {rotationY: 90, duration: 0.3, ease: 'power1.in', onComplete: () => {
+            holeCard.classList.remove('facedown');
+            const cardData = dealerHand[1];
+            const color = ['♥', '♦'].includes(cardData.suit) ? 'red' : 'black';
+            holeCard.innerHTML = `<span class="rank-top">${cardData.rank}${cardData.suit}</span><span class="center-suit">${cardData.suit}</span><span class="rank-bottom">${cardData.rank}${cardData.suit}</span>`;
+            holeCard.classList.add(color);
+            gsap.to(holeCard, {rotationY: 0, duration: 0.3, ease: 'power1.out'});
+            
+            updateScores(false);
+            const dealerHitLoop = () => {
+                if (calculateScore(dealerHand) < 17) {
+                    dealerHand.push(deck.pop());
+                    renderCard(dealerHand[dealerHand.length - 1], dealerHandEl);
+                    updateScores(false);
+                    setTimeout(dealerHitLoop, 800);
+                } else {
+                    const finalDealerScore = calculateScore(dealerHand), finalPlayerScore = calculateScore(playerHand);
+                    if(finalDealerScore > 21) endGame("Dealer Busts! You Win!", 2);
+                    else if (finalPlayerScore > finalDealerScore) endGame("You Win!", 2);
+                    else if (finalDealerScore > finalPlayerScore) endGame("Dealer Wins!", 0);
+                    else endGame("Push!", 1);
+                }
+            };
+            setTimeout(dealerHitLoop, 800);
+        }});
+    }
+    function setActionsState(enabled, canDouble) {
+        hitButton.disabled = !enabled;
+        standButton.disabled = !enabled;
+        doubleDownButton.disabled = !enabled || !canDouble;
     }
 
     dealButton.addEventListener('click', () => {
         const bet = parseInt(betInput.value, 10);
-        if (isNaN(bet) || bet <= 0) { showToast('Please enter a valid bet.', 'error'); return; }
-        if (bet > localBalance) { showToast('Bet exceeds your balance.', 'error'); return; }
-        performAction('deal', bet);
+        if (isNaN(bet) || bet <= 0) return showToast('Please enter a valid bet.', 'error');
+        
+        currentBetBJ = bet;
+        if (deck.length < 52) createDeck();
+        playerHand = [deck.pop(), deck.pop()];
+        dealerHand = [deck.pop(), deck.pop()];
+        playerHandEl.innerHTML = ''; dealerHandEl.innerHTML = '';
+        playerHand.forEach(c => renderCard(c, playerHandEl));
+        renderCard(dealerHand[0], dealerHandEl);
+        renderCard(dealerHand[1], dealerHandEl, true);
+        updateScores(true);
+        betControls.style.display = 'none';
+        gameActions.style.display = 'flex';
+        setActionsState(true, true);
+        gameStatusEl.textContent = '';
+        if (calculateScore(playerHand) === 21) { setActionsState(false, false); dealerTurn(); }
     });
-    
-    hitButton.addEventListener('click', () => performAction('hit'));
-    standButton.addEventListener('click', () => performAction('stand'));
-    doubleDownButton.addEventListener('click', () => performAction('doubleDown'));
+    hitButton.addEventListener('click', () => {
+        playerHand.push(deck.pop());
+        renderCard(playerHand[playerHand.length - 1], playerHandEl);
+        updateScores(true);
+        setActionsState(true, false);
+        if (calculateScore(playerHand) > 21) endGame("You Busted!", 0);
+    });
+    standButton.addEventListener('click', () => { setActionsState(false, false); dealerTurn(); });
+    doubleDownButton.addEventListener('click', () => {
+        currentBetBJ *= 2; setActionsState(false, false);
+        playerHand.push(deck.pop());
+        renderCard(playerHand[playerHand.length - 1], playerHandEl);
+        updateScores(true);
+        setTimeout(() => {
+            if (calculateScore(playerHand) > 21) endGame("Busted on Double Down!", 0);
+            else dealerTurn();
+        }, 800);
+    });
+    createDeck();
 })();
 
+// --- Linus Hub Logic ---
+const hubRef = db.ref('linusHub/players');
+const keys = { w: false, a: false, s: false, d: false };
+const playerState = { x: 400, y: 300, direction: 1, animation: 'idle' };
+const PLAYER_SPEED = 4, PLAYER_WIDTH = 50, PLAYER_HEIGHT = 50;
 
-// --- Linus Hub 2D Game Logic (Secure Version) ---
-(function setupLinusHubTab() {
+enterHub = function() {
+    if (!currentUser || hubListenersActive) return;
+    playerRef = hubRef.child(currentUser.uid);
+    playerRef.set({
+        x: playerState.x, y: playerState.y, direction: 1, animation: 'idle',
+        email: currentUser.email || 'guest'
+    });
+    playerRef.onDisconnect().remove();
+    document.addEventListener('keydown', handleGlobalKeyDown);
+    document.addEventListener('keyup', handleGlobalKeyUp);
+    if (!gameLoopId) gameLoop();
+    hubRef.on('child_added', handlePlayerAdded);
+    hubRef.on('child_changed', handlePlayerChanged);
+    hubRef.on('child_removed', handlePlayerRemoved);
+    hubListenersActive = true;
+};
+
+leaveHub = function(callback) {
+    if (!hubListenersActive && !playerRef) {
+        if (callback) callback();
+        return;
+    }
+    document.removeEventListener('keydown', handleGlobalKeyDown);
+    document.removeEventListener('keyup', handleGlobalKeyUp);
+    if (gameLoopId) { cancelAnimationFrame(gameLoopId); gameLoopId = null; }
+    hubRef.off('child_added', handlePlayerAdded);
+    hubRef.off('child_changed', handlePlayerChanged);
+    hubRef.off('child_removed', handlePlayerRemoved);
+    for(const uid in otherPlayerElements) otherPlayerElements[uid].container.remove();
+    otherPlayerElements = {};
+    hubListenersActive = false;
+    if (playerRef) {
+        playerRef.remove().then(() => { if(callback) callback(); });
+        playerRef = null;
+    } else if (callback) {
+        callback();
+    }
+};
+
+function gameLoop() {
+    updateLocalPlayerPosition();
+    gameLoopId = requestAnimationFrame(gameLoop);
+}
+
+function updateLocalPlayerPosition() {
     const gameArea = document.getElementById('game-area');
     if (!gameArea) return;
+    let dataChanged = false;
+    if (keys.w && playerState.y > 0) { playerState.y -= PLAYER_SPEED; dataChanged = true; }
+    if (keys.s && playerState.y < gameArea.offsetHeight - PLAYER_HEIGHT) { playerState.y += PLAYER_SPEED; dataChanged = true; }
+    if (keys.a && playerState.x > 0) { playerState.x -= PLAYER_SPEED; if(playerState.direction !== -1){ playerState.direction = -1; dataChanged = true;} }
+    if (keys.d && playerState.x < gameArea.offsetWidth - PLAYER_WIDTH) { playerState.x += PLAYER_SPEED; if(playerState.direction !== 1){ playerState.direction = 1; dataChanged = true;} }
+    const newAnimation = (keys.w || keys.a || keys.s || keys.d) ? 'walk' : 'idle';
+    if(playerState.animation !== newAnimation) { playerState.animation = newAnimation; dataChanged = true; }
+
+    const playerEl = document.getElementById('local-player-container'), playerImg = document.getElementById('player-character-img');
+    playerEl.style.left = `${playerState.x}px`; playerEl.style.top = `${playerState.y}px`;
+    const newSrc = (playerState.animation === 'walk') ? 'WALK.gif' : 'IDLE.gif';
+    if (!playerImg.src.endsWith(newSrc)) playerImg.src = newSrc;
+    playerImg.style.transform = `scaleX(${playerState.direction})`;
     
-    const hubRef = db.ref('linusHub/players');
-    let playerRef = null;
+    if (dataChanged && playerRef) playerRef.update({ x: playerState.x, y: playerState.y, direction: playerState.direction, animation: playerState.animation });
+}
 
-    const chatInputContainer = document.getElementById('chat-input-container');
-    const chatForm = document.getElementById('chat-form');
-    const chatInput = document.getElementById('chat-input');
-
-    const playerContainer = document.getElementById('local-player-container');
-    const playerImage = document.getElementById('player-character-img');
-
-    // These values are now constants and cannot be spoofed.
-    const PLAYER_WIDTH = 50;
-    const PLAYER_HEIGHT = 50;
-    const PLAYER_SPEED = 4;
-
-    const playerState = {
-        element: playerContainer,
-        imgElement: playerImage,
-        x: gameArea.offsetWidth / 2 - (PLAYER_WIDTH / 2),
-        y: gameArea.offsetHeight / 2 - (PLAYER_HEIGHT / 2),
-        direction: 1,
-        animation: 'idle'
-    };
-    
-    const keys = { w: false, a: false, s: false, d: false };
-    let isChatting = false;
-    let gameLoopId = null;
-    let otherPlayerElements = {}; 
-
-    // --- User Gifting Panel Logic (Server-Authoritative) ---
-    function openUserPanel(targetUid, targetEmail) {
-        if (!targetUid || !targetEmail) return;
-        
-        panelUserName.textContent = targetEmail.split('@')[0];
-        panelUserBalance.textContent = '...'; // Show loading state
-        giftAmountInput.value = '';
-        userInteractionPanel.dataset.targetUid = targetUid;
+function handlePlayerAdded(snapshot) {
+    const pData = snapshot.val(), uid = snapshot.key, gameArea = document.getElementById('game-area');
+    if (uid === (currentUser && currentUser.uid) || otherPlayerElements[uid] || !gameArea) return;
+    const container = document.createElement('div');
+    container.className = 'player-character';
+    container.style.left = `${pData.x}px`; container.style.top = `${pData.y}px`;
+    container.innerHTML = `<div class="player-ui-container"><div class="chat-bubble"></div><div class="player-nametag">${pData.email.split('@')[0]}</div></div><img src="IDLE.gif" style="transform: scaleX(${pData.direction})">`;
+    otherPlayerElements[uid] = { container, img: container.querySelector('img'), bubble: container.querySelector('.chat-bubble'), bubbleTimeout: null };
+    container.addEventListener('click', () => {
+        panelUserName.textContent = pData.email.split('@')[0];
+        panelUserBalance.textContent = '...';
         userInteractionPanel.classList.add('visible');
-    
-        // Read the target's balance just for display purposes. The server holds the real value.
-        db.ref(`users/${targetUid}/balance`).once('value', (snapshot) => {
-            panelUserBalance.textContent = (snapshot.val() || 0).toLocaleString();
-        });
-    }
-
-    async function handleGift() {
-        if (!window.giftBux) return;
-        const recipientUid = userInteractionPanel.dataset.targetUid;
-        const amount = parseInt(giftAmountInput.value, 10);
-
-        if (!recipientUid) return;
-        if (isNaN(amount) || amount <= 0) {
-            showToast('Please enter a valid amount.', 'error');
-            return;
-        }
-        if (currentUser.uid === recipientUid) {
-            showToast("You can't gift to yourself!", 'error');
-            return;
-        }
-
-        giftBtn.disabled = true;
-
-        try {
-            // Call the secure Cloud Function
-            const result = await window.giftBux({ recipientUid, amount });
-            showToast(result.data.message, 'success');
-            userInteractionPanel.classList.remove('visible');
-
-        } catch (error) {
-            console.error('Gift function failed:', error);
-            showToast(error.message, 'error');
-        } finally {
-            giftBtn.disabled = false;
-            delete userInteractionPanel.dataset.targetUid;
-        }
-    }
-    
-    giftBtn.addEventListener('click', handleGift);
-    closePanelBtn.addEventListener('click', () => userInteractionPanel.classList.remove('visible'));
-    userInteractionPanel.addEventListener('click', (e) => {
-        if (e.target === userInteractionPanel) userInteractionPanel.classList.remove('visible');
+        db.ref(`users/${uid}/balance`).once('value', s => panelUserBalance.textContent = (s.val() || 0).toLocaleString());
     });
+    gameArea.appendChild(container);
+}
 
-    function handlePlayerChat(playerEl, chatMessage) {
-        const bubble = playerEl.querySelector('.chat-bubble');
-        if (!bubble) return;
-    
-        if (playerEl.bubbleTimeout) clearTimeout(playerEl.bubbleTimeout);
+function handlePlayerChanged(snapshot) {
+    const pData = snapshot.val(), uid = snapshot.key;
+    if (uid === (currentUser && currentUser.uid)) return;
+    const otherPlayer = otherPlayerElements[uid];
+    if (!otherPlayer) return;
+    gsap.to(otherPlayer.container, { left: pData.x, top: pData.y, duration: 0.1 });
+    otherPlayer.img.style.transform = `scaleX(${pData.direction})`;
+    const newSrc = (pData.animation === 'walk' ? 'WALK.gif' : 'IDLE.gif');
+    if (!otherPlayer.img.src.endsWith(newSrc)) otherPlayer.img.src = newSrc;
+    if (pData.chatMessage) handlePlayerChat(otherPlayer, pData.chatMessage);
+}
 
-        bubble.textContent = chatMessage;
-        bubble.classList.add('visible');
-
-        playerEl.bubbleTimeout = setTimeout(() => {
-            bubble.classList.remove('visible');
-        }, 5000);
+function handlePlayerRemoved(snapshot) {
+    const uid = snapshot.key;
+    if (otherPlayerElements[uid]) {
+        if (otherPlayerElements[uid].bubbleTimeout) clearTimeout(otherPlayerElements[uid].bubbleTimeout);
+        otherPlayerElements[uid].container.remove();
+        delete otherPlayerElements[uid];
     }
-    
-    function updateLocalPlayerPosition() {
-        const isMoving = (keys.w || keys.a || keys.s || keys.d);
-        let dataChanged = false;
+}
 
-        // Position is updated using the secure SPEED constant
-        if (keys.w && playerState.y > 0) { playerState.y -= PLAYER_SPEED; dataChanged = true; }
-        if (keys.s && playerState.y < gameArea.offsetHeight - PLAYER_HEIGHT) { playerState.y += PLAYER_SPEED; dataChanged = true; }
-        if (keys.a && playerState.x > 0) { playerState.x -= PLAYER_SPEED; if(playerState.direction !== -1){ playerState.direction = -1; dataChanged = true;} }
-        if (keys.d && playerState.x < gameArea.offsetWidth - PLAYER_WIDTH) { playerState.x += PLAYER_SPEED; if(playerState.direction !== 1){ playerState.direction = 1; dataChanged = true;} }
+function handlePlayerChat(player, message) {
+    if (player.bubbleTimeout) clearTimeout(player.bubbleTimeout);
+    player.bubble.textContent = message; player.bubble.classList.add('visible');
+    player.bubbleTimeout = setTimeout(() => player.bubble.classList.remove('visible'), 5000);
+}
 
-        const newAnimation = isMoving ? 'walk' : 'idle';
-        if(playerState.animation !== newAnimation) {
-             playerState.animation = newAnimation;
-             dataChanged = true;
-        }
-
-        playerState.element.style.left = `${playerState.x}px`;
-        playerState.element.style.top = `${playerState.y}px`;
-        playerState.imgElement.style.transform = `scaleX(${playerState.direction})`;
-        const newSrc = (playerState.animation === 'walk') ? 'WALK.gif' : 'IDLE.gif';
-        if (playerState.imgElement.src.indexOf(newSrc) === -1) {
-            playerState.imgElement.src = newSrc;
-        }
-        
-        // The data sent to Firebase no longer contains size or speed.
-        // The server-side rules will validate this.
-        if (dataChanged && playerRef) {
-             playerRef.update({
-                x: playerState.x,
-                y: playerState.y,
-                direction: playerState.direction,
-                animation: playerState.animation
-            });
-        }
-    }
-    
-    function gameLoop() {
-        if(!isChatting) updateLocalPlayerPosition();
-        gameLoopId = requestAnimationFrame(gameLoop);
-    }
-    
-    function handleGlobalKeyDown(e) {
-        if (userInteractionPanel.classList.contains('visible')) return;
-
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            if (isChatting) {
-                 chatForm.dispatchEvent(new Event('submit'));
-            } else {
-                isChatting = true;
-                chatInputContainer.style.display = 'block';
-                chatInput.focus();
-            }
-        } else if (e.key.toLowerCase() in keys && !isChatting) {
-            keys[e.key.toLowerCase()] = true;
-        }
-    }
-
-    function handleGlobalKeyUp(e) {
-        if (e.key.toLowerCase() in keys) {
-            keys[e.key.toLowerCase()] = false;
-        }
-    }
-    
-    chatForm.addEventListener('submit', (e) => {
+let isChatting = false;
+function handleGlobalKeyDown(e) {
+    if (userInteractionPanel.classList.contains('visible')) return;
+    const chatInputContainer = document.getElementById('chat-input-container'), chatInput = document.getElementById('chat-input');
+    if (e.key === 'Enter' && !isChatting) {
         e.preventDefault();
-        const message = chatInput.value.trim();
-        // The `chatMessage` is an allowed, temporary field in our rules.
-        if(message && playerRef) playerRef.child('chatMessage').set(message);
-        chatInput.value = '';
-        chatInputContainer.style.display = 'none';
-        isChatting = false;
-    });
-    
-    function enterHub() {
-        if (!currentUser) return;
-        playerRef = hubRef.child(currentUser.uid);
-        
-        // This initial data is secure. It does not contain spoofable size/speed.
-        // It sets the player's position and appearance.
-        // Opening another browser tab will just overwrite this data, ensuring only one
-        // player instance per user ID.
-        const initialData = {
-            x: playerState.x,
-            y: playerState.y,
-            direction: 1,
-            animation: 'idle',
-            email: currentUser.email || 'guest'
-        };
-        playerRef.set(initialData);
-        playerRef.onDisconnect().remove();
-
-        hubRef.on('child_added', (snapshot) => {
-            const pData = snapshot.val();
-            const uid = snapshot.key;
-
-            if (uid === currentUser.uid || otherPlayerElements[uid]) return;
-            
-            const container = document.createElement('div');
-            container.className = 'player-character';
-            // Size is set from the constant, not from the database
-            container.style.width = `${PLAYER_WIDTH}px`;
-            container.style.height = `${PLAYER_HEIGHT}px`;
-            container.style.left = `${pData.x}px`;
-            container.style.top = `${pData.y}px`;
-
-            const uiContainer = document.createElement('div');
-            uiContainer.className = 'player-ui-container';
-            const bubble = document.createElement('div');
-            bubble.className = 'chat-bubble';
-            const nametag = document.createElement('div');
-            nametag.className = 'player-nametag';
-            nametag.textContent = pData.email.split('@')[0];
-            const img = document.createElement('img');
-            img.src = 'IDLE.gif';
-            img.style.transform = `scaleX(${pData.direction})`;
-            
-            uiContainer.append(bubble, nametag);
-            container.append(uiContainer, img);
-            
-            otherPlayerElements[uid] = { container, img, bubble, bubbleTimeout: null };
-            gameArea.appendChild(container);
-
-            container.addEventListener('click', () => {
-                openUserPanel(uid, pData.email);
-            });
-        });
-
-        hubRef.on('child_changed', (snapshot) => {
-            const pData = snapshot.val();
-            const uid = snapshot.key;
-
-            if (uid === currentUser.uid) {
-                // Handle local player's chat bubble appearing for themselves.
-                if (pData.chatMessage) {
-                   handlePlayerChat(playerState.element, pData.chatMessage);
-                   // The server should clear this field after reading it.
-                   playerRef.child('chatMessage').remove(); 
-                }
-                return;
-            }
-
-            const otherPlayer = otherPlayerElements[uid];
-            if (!otherPlayer) return;
-
-            gsap.to(otherPlayer.container, { left: pData.x, top: pData.y, duration: 0.1 });
-            otherPlayer.img.style.transform = `scaleX(${pData.direction})`;
-            const newSrc = (pData.animation === 'walk' ? 'WALK.gif' : 'IDLE.gif');
-            if (otherPlayer.img.src.indexOf(newSrc) === -1) otherPlayer.img.src = newSrc;
-            
-            if (pData.chatMessage) {
-                handlePlayerChat(otherPlayer.container, pData.chatMessage);
-            }
-        });
-
-        hubRef.on('child_removed', (snapshot) => {
-            const uid = snapshot.key;
-            const otherPlayer = otherPlayerElements[uid];
-            if (otherPlayer) {
-                if (otherPlayer.bubbleTimeout) clearTimeout(otherPlayer.bubbleTimeout);
-                otherPlayer.container.remove();
-                delete otherPlayerElements[uid];
-            }
-        });
-
-        document.addEventListener('keydown', handleGlobalKeyDown);
-        document.addEventListener('keyup', handleGlobalKeyUp);
-        if (!gameLoopId) gameLoop();
+        isChatting = true; chatInputContainer.style.display = 'block'; chatInput.focus();
+    } else if (e.key.toLowerCase() in keys && !isChatting) {
+        keys[e.key.toLowerCase()] = true;
     }
+}
+function handleGlobalKeyUp(e) { if (e.key.toLowerCase() in keys) keys[e.key.toLowerCase()] = false; }
+document.getElementById('chat-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const chatInput = document.getElementById('chat-input'), message = chatInput.value.trim();
+    if(message && playerRef) playerRef.child('chatMessage').set(message).then(() => playerRef.child('chatMessage').remove());
+    handlePlayerChat({bubble: document.querySelector('#local-player-container .chat-bubble')}, message);
+    chatInput.value = ''; document.getElementById('chat-input-container').style.display = 'none'; isChatting = false;
+});
 
-    function leaveHub() {
-        if (playerRef) playerRef.remove();
-        hubRef.off(); 
-        document.removeEventListener('keydown', handleGlobalKeyDown);
-        document.removeEventListener('keyup', handleGlobalKeyUp);
-        
-        for(let key in keys) { keys[key] = false; }
-        if(gameLoopId) { 
-            cancelAnimationFrame(gameLoopId);
-            gameLoopId = null; 
-        }
-
-        for(const uid in otherPlayerElements) {
-            if(otherPlayerElements[uid].bubbleTimeout) clearTimeout(otherPlayerElements[uid].bubbleTimeout);
-            otherPlayerElements[uid].container.remove();
-        }
-        otherPlayerElements = {};
-        isChatting = false;
-        chatInputContainer.style.display = 'none';
-    }
-
-    const linusHubTab = document.getElementById('linus-hub');
-    const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-            if (mutation.attributeName === 'class') {
-                if (linusHubTab.classList.contains('active')) {
-                    enterHub();
-                } else {
-                    leaveHub();
-                }
-            }
-        });
-    });
-    observer.observe(linusHubTab, { attributes: true });
-})();
+closePanelBtn.addEventListener('click', () => userInteractionPanel.classList.remove('visible'));
+userInteractionPanel.addEventListener('click', (e) => { if(e.target === userInteractionPanel) userInteractionPanel.classList.remove('visible'); });
 
 });
+// --- END OF SCRIPT ---
 </script>
 </body>
 </html>
