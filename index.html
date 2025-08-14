@@ -256,11 +256,7 @@
         height: 300%;
         top: -100%;
         left: -100%;
-        background-image:
-            linear-gradient(rgba(34, 139, 34, 0.2) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(34, 139, 34, 0.2) 1px, transparent 1px);
-        background-color: #0A2208;
-        background-size: 20px 20px;
+        background-color: #1A472A; /* Dark green grass color */
         z-index: 0;
     }
     #world-container {
@@ -270,12 +266,25 @@
         width: 100%;
         height: 100%;
         transform-style: preserve-3d;
+        z-index: 5;
     }
     .building {
         position: absolute;
-        background-color: #333;
-        border: 2px solid #555;
+        border-radius: 8px;
         box-shadow: 5px 5px 15px rgba(0,0,0,0.5);
+    }
+    .building-label {
+        position: absolute;
+        top: -40px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,0.6);
+        color: white;
+        padding: 5px 15px;
+        border-radius: 8px;
+        font-weight: 600;
+        white-space: nowrap;
+        text-shadow: 0 1px 2px black;
     }
     .player-character {
         position: absolute;
@@ -293,6 +302,8 @@
         object-fit: contain;
         transition: transform 0.1s linear;
         pointer-events: none;
+        /* Add a subtle drop shadow to make the player pop */
+        filter: drop-shadow(0 4px 6px rgba(0,0,0,0.4));
     }
     .player-ui-container { position: absolute; bottom: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 5px; pointer-events: none; }
     .player-nametag {
@@ -658,8 +669,8 @@ const closePanelBtn = document.querySelector('.close-panel-btn');
 
 
 // --- Toast Notification System ---
-const toastContainer = document.getElementById('toast-container');
 function showToast(message, type = 'info') {
+    const toastContainer = document.getElementById('toast-container');
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
     toast.textContent = message;
@@ -1207,7 +1218,7 @@ function updateAllBalanceDisplays(targetBalance) {
     createDeck();
 })();
 
-// --- Linus Hub 2D Game Logic (Infinite Map) ---
+// --- Linus Hub 2D Game Logic (Static Buildings & Collision) ---
 (function setupLinusHubTab() {
     // --- Elements ---
     const gameArea = document.getElementById('game-area');
@@ -1226,20 +1237,21 @@ function updateAllBalanceDisplays(targetBalance) {
     let isChatting = false;
     const keys = { w: false, a: false, s: false, d: false };
     let otherPlayerElements = {};
-    let generatedChunks = new Set();
     
-    // --- Game Constants ---
-    const CHUNK_SIZE = 500; // The size of one map cell
-    const BUILDING_DENSITY = 0.4; // 40% chance of a building in a chunk
-    const WORLD_SEED = 'linus'; // A seed to make the random world consistent for everyone
+    // --- Game Constants & World Data ---
+    const BUILDINGS = [
+        { id: 'bank', x: -200, y: -400, width: 400, height: 250, label: 'The Bux Bank', color: '#8d6e63' },
+        { id: 'arcade', x: 600, y: 0, width: 350, height: 500, label: 'Arcade', color: '#6a1b9a' },
+        { id: 'chill', x: -750, y: 150, width: 450, height: 300, label: 'Chill Zone', color: '#0277bd' }
+    ];
 
     const playerState = {
         element: playerContainer,
         imgElement: playerImage,
         worldX: 0, // Player's position in the infinite world
         worldY: 0,
-        width: 75,  // Increased player size
-        height: 75, // Increased player size
+        width: 150,  // Bigger player
+        height: 150, // Bigger player
         speed: 5,
         direction: 1,
         animation: 'idle'
@@ -1249,6 +1261,9 @@ function updateAllBalanceDisplays(targetBalance) {
     function enterHub() {
         if (!currentUser) return;
         playerRef = hubRef.child(currentUser.uid);
+
+        // Initialize world
+        createStaticWorld();
 
         // Center the local player on the screen
         playerState.element.style.left = `calc(50% - ${playerState.width / 2}px)`;
@@ -1266,10 +1281,7 @@ function updateAllBalanceDisplays(targetBalance) {
         playerRef.set(initialData);
         playerRef.onDisconnect().remove();
 
-        // Start listening to Firebase events
         setupFirebaseListeners();
-
-        // Add keyboard listeners and start the game loop
         document.addEventListener('keydown', handleGlobalKeyDown);
         document.addEventListener('keyup', handleGlobalKeyUp);
         if (!gameLoopId) gameLoopId = requestAnimationFrame(gameLoop);
@@ -1290,7 +1302,6 @@ function updateAllBalanceDisplays(targetBalance) {
 
         // Clear the world
         worldContainer.innerHTML = '';
-        generatedChunks.clear();
         for(const uid in otherPlayerElements) {
             otherPlayerElements[uid].container.remove();
         }
@@ -1303,22 +1314,102 @@ function updateAllBalanceDisplays(targetBalance) {
         if (!isChatting) {
             updateLocalPlayerPosition();
         }
-
         updateCamera();
-        updateVisibleChunks();
-        
         gameLoopId = requestAnimationFrame(gameLoop);
     }
 
+    // --- World & Collision ---
+    function createStaticWorld() {
+        BUILDINGS.forEach(b => {
+            const buildingEl = document.createElement('div');
+            buildingEl.className = 'building';
+            buildingEl.style.left = `${b.x}px`;
+            buildingEl.style.top = `${b.y}px`;
+            buildingEl.style.width = `${b.width}px`;
+            buildingEl.style.height = `${b.height}px`;
+            buildingEl.style.backgroundColor = b.color;
+            buildingEl.style.border = `3px solid ${gsap.utils.interpolate(b.color, "black", 0.3)}`;
+
+            const labelEl = document.createElement('div');
+            labelEl.className = 'building-label';
+            labelEl.textContent = b.label;
+            
+            buildingEl.appendChild(labelEl);
+            worldContainer.appendChild(buildingEl);
+        });
+    }
+    
+    function checkCollision(rect1, rect2) {
+        return (
+            rect1.x < rect2.x + rect2.width &&
+            rect1.x + rect1.width > rect2.x &&
+            rect1.y < rect2.y + rect2.height &&
+            rect1.y + rect1.height > rect2.y
+        );
+    }
+
     function updateLocalPlayerPosition() {
+        let proposedX = playerState.worldX;
+        let proposedY = playerState.worldY;
         const isMoving = (keys.w || keys.a || keys.s || keys.d);
         let dataChanged = false;
 
-        if (keys.w) { playerState.worldY -= playerState.speed; dataChanged = true; }
-        if (keys.s) { playerState.worldY += playerState.speed; dataChanged = true; }
-        if (keys.a) { playerState.worldX -= playerState.speed; if (playerState.direction !== -1) { playerState.direction = -1; dataChanged = true; } }
-        if (keys.d) { playerState.worldX += playerState.speed; if (playerState.direction !== 1) { playerState.direction = 1; dataChanged = true; } }
+        if (keys.w) { proposedY -= playerState.speed; dataChanged = true; }
+        if (keys.s) { proposedY += playerState.speed; dataChanged = true; }
+        if (keys.a) { proposedX -= playerState.speed; if (playerState.direction !== -1) { playerState.direction = -1; dataChanged = true; } }
+        if (keys.d) { proposedX += playerState.speed; if (playerState.direction !== 1) { playerState.direction = 1; dataChanged = true; } }
+
+        // --- Collision Detection ---
+        const playerRect = {
+            x: proposedX,
+            y: proposedY,
+            width: playerState.width - 40, // Make hitbox slightly smaller than visual
+            height: playerState.height - 40
+        };
+
+        let collisionDetected = false;
+        for (const building of BUILDINGS) {
+            if (checkCollision(playerRect, building)) {
+                collisionDetected = true;
+                break;
+            }
+        }
         
+        // A simple but effective way to handle sliding:
+        // Try moving on X axis only, then Y axis only.
+        if (collisionDetected) {
+            // Try X-axis move only
+            const playerRectX = { ...playerRect, y: playerState.worldY };
+            let collisionX = false;
+            for (const building of BUILDINGS) {
+                if (checkCollision(playerRectX, building)) {
+                    collisionX = true;
+                    break;
+                }
+            }
+            if (!collisionX) {
+                playerState.worldX = proposedX;
+            }
+
+            // Try Y-axis move only
+            const playerRectY = { ...playerRect, x: playerState.worldX };
+             let collisionY = false;
+            for (const building of BUILDINGS) {
+                if (checkCollision(playerRectY, building)) {
+                    collisionY = true;
+                    break;
+                }
+            }
+            if (!collisionY) {
+                playerState.worldY = proposedY;
+            }
+
+        } else {
+            // No collision, move freely
+            playerState.worldX = proposedX;
+            playerState.worldY = proposedY;
+        }
+
         const newAnimation = isMoving ? 'walk' : 'idle';
         if(playerState.animation !== newAnimation) {
              playerState.animation = newAnimation;
@@ -1331,7 +1422,6 @@ function updateAllBalanceDisplays(targetBalance) {
             playerState.imgElement.src = newSrc;
         }
         
-        // Send updates to Firebase, but not on every single frame to reduce traffic
         if (dataChanged && playerRef) {
             playerRef.update({
                 worldX: playerState.worldX,
@@ -1343,70 +1433,11 @@ function updateAllBalanceDisplays(targetBalance) {
     }
     
     function updateCamera() {
-        // The world moves opposite to the player to keep the player centered
         const cameraX = -playerState.worldX + (gameArea.offsetWidth / 2);
         const cameraY = -playerState.worldY + (gameArea.offsetHeight / 2);
         
-        // Use transform for smoother animation
         worldContainer.style.transform = `translate3d(${cameraX}px, ${cameraY}px, 0)`;
-        backgroundLayer.style.transform = `translate3d(${cameraX * 0.8}px, ${cameraY * 0.8}px, 0)`; // Parallax
-    }
-
-    // --- World Generation ---
-    function seededRandom(seed) {
-        // Simple pseudo-random number generator for consistent results
-        let x = Math.sin(seed) * 10000;
-        return x - Math.floor(x);
-    }
-
-    function updateVisibleChunks() {
-        const viewWidth = gameArea.offsetWidth;
-        const viewHeight = gameArea.offsetHeight;
-
-        // Calculate which chunks are visible in the camera
-        const startChunkX = Math.floor((playerState.worldX - viewWidth / 2) / CHUNK_SIZE);
-        const endChunkX = Math.floor((playerState.worldX + viewWidth / 2) / CHUNK_SIZE);
-        const startChunkY = Math.floor((playerState.worldY - viewHeight / 2) / CHUNK_SIZE);
-        const endChunkY = Math.floor((playerState.worldY + viewHeight / 2) / CHUNK_SIZE);
-        
-        for (let y = startChunkY; y <= endChunkY; y++) {
-            for (let x = startChunkX; x <= endChunkX; x++) {
-                const chunkId = `${x},${y}`;
-                if (!generatedChunks.has(chunkId)) {
-                    generateChunkContent(x, y);
-                    generatedChunks.add(chunkId);
-                }
-            }
-        }
-    }
-
-    function generateChunkContent(chunkX, chunkY) {
-        // Use a seed based on world seed and chunk coordinates for consistency
-        const chunkSeed = chunkX * 10000 + chunkY + WORLD_SEED.length;
-        const randomVal = seededRandom(chunkSeed);
-
-        if (randomVal < BUILDING_DENSITY) {
-            const building = document.createElement('div');
-            building.className = 'building';
-            
-            // Randomize building properties based on the consistent seed
-            const sizeSeed = seededRandom(chunkSeed * 2);
-            const colorSeed = seededRandom(chunkSeed * 3);
-            const posSeedX = seededRandom(chunkSeed * 4);
-            const posSeedY = seededRandom(chunkSeed * 5);
-            
-            const width = 80 + (sizeSeed * 120);
-            const height = 100 + (sizeSeed * 200);
-            const color = `hsl(${colorSeed * 360}, 10%, ${20 + (colorSeed * 15)}%)`;
-            
-            building.style.width = `${width}px`;
-            building.style.height = `${height}px`;
-            building.style.backgroundColor = color;
-            building.style.left = `${(chunkX * CHUNK_SIZE) + (posSeedX * (CHUNK_SIZE - width))}px`;
-            building.style.top = `${(chunkY * CHUNK_SIZE) + (posSeedY * (CHUNK_SIZE - height))}px`;
-            
-            worldContainer.appendChild(building);
-        }
+        backgroundLayer.style.backgroundPosition = `${cameraX}px ${cameraY}px`;
     }
 
     // --- Event Handlers & Firebase ---
@@ -1437,7 +1468,7 @@ function updateAllBalanceDisplays(targetBalance) {
                 bubble: container.querySelector('.chat-bubble'),
                 bubbleTimeout: null
             };
-            worldContainer.appendChild(container); // Add to world, not game area
+            worldContainer.appendChild(container);
 
             container.addEventListener('click', () => openUserPanel(uid, pData.email));
         });
@@ -1454,7 +1485,6 @@ function updateAllBalanceDisplays(targetBalance) {
             const otherPlayer = otherPlayerElements[uid];
             if (!otherPlayer) return;
             
-            // Use GSAP for smooth interpolation of other players' positions
             gsap.to(otherPlayer.container, {
                 duration: 0.1,
                 x: pData.worldX,
@@ -1523,7 +1553,6 @@ function updateAllBalanceDisplays(targetBalance) {
     
     function openUserPanel(uid, email) { /* ... implementation from before ... */ }
     
-    // Observer to start/stop the game when the tab becomes visible/hidden
     const observer = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
             if (mutation.attributeName === 'class') {
