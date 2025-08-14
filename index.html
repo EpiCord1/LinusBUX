@@ -269,7 +269,9 @@
         transition: transform 0.1s linear; pointer-events: none;
     }
     #local-player-container {
-        top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 11;
+        top: 50%; left: 50%; z-index: 11;
+        /* Start centered in hub mode */
+        transform: translate(-50%, -50%);
     }
     .player-ui-container { position: absolute; bottom: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 5px; pointer-events: none; }
     .player-nametag {
@@ -1208,7 +1210,8 @@ function updateAllBalanceDisplays(targetBalance) {
     const playerState = {
         element: localPlayerContainer, imgElement: localPlayerImage,
         x: 0, y: 0, width: 80, height: 80, speed: 250, direction: 1, animation: 'idle',
-        inHouseId: null
+        inHouseId: null,
+        hubX: 0, hubY: 0 // Store hub position
     };
     localPlayerContainer.style.width = `${playerState.width}px`;
     localPlayerContainer.style.height = `${playerState.height}px`;
@@ -1248,23 +1251,32 @@ function updateAllBalanceDisplays(targetBalance) {
     }
 
     function enterHouse(houseId) {
+        // Save current hub coordinates before entering
+        playerState.hubX = playerState.x;
+        playerState.hubY = playerState.y;
+
         playerState.inHouseId = houseId;
+        // Set player position to the "door" of the room
         playerState.x = interiorRoom.offsetWidth / 2;
-        playerState.y = interiorRoom.offsetHeight - playerState.height;
+        playerState.y = interiorRoom.offsetHeight - playerState.height - 20;
 
         const isOwner = allHouses[houseId]?.ownerUid === currentUser.uid;
 
         editHouseBtn.style.display = isOwner ? 'flex' : 'none';
         sellHouseBtn.style.display = isOwner ? 'flex' : 'none';
         toggleHouseLockBtn.style.display = isOwner ? 'flex' : 'none';
-        leaveHouseBtn.style.display = 'flex';
         
         const isOpen = allHouses[houseId]?.isOpen || false;
         toggleHouseLockBtn.textContent = isOpen ? 'Close House' : 'Open House';
 
         worldContainer.style.display = 'none';
         interiorContainer.style.display = 'block';
-        localPlayerContainer.style.transform = '';
+        
+        // Switch player to interior mode rendering
+        localPlayerContainer.style.transform = ''; // Remove centering
+        localPlayerContainer.style.left = `${playerState.x}px`;
+        localPlayerContainer.style.top = `${playerState.y}px`;
+
         if(playerRef) playerRef.update({ inHouseId: houseId });
         decorationListener = decorationsRef.child(houseId);
         decorationListener.on('value', snapshot => {
@@ -1281,11 +1293,23 @@ function updateAllBalanceDisplays(targetBalance) {
         if (decorationListener) decorationListener.off();
         if(playerRef) playerRef.update({ inHouseId: null });
         decorationListener = null;
+
         playerState.inHouseId = null;
+        // Restore previous hub coordinates
+        playerState.x = playerState.hubX;
+        playerState.y = playerState.hubY;
+
         interiorContainer.style.display = 'none';
         worldContainer.style.display = 'block';
-        localPlayerContainer.style.transform = 'translate(-50%, -50%)';
+
+        // Switch player to hub mode rendering
+        localPlayerContainer.style.left = '';
+        localPlayerContainer.style.top = '';
+        localPlayerContainer.style.transform = 'translate(-50%, -50%)'; // Re-center
+
         if (isEditingHouse) toggleEditMode();
+        // Immediately update camera to prevent visual jump
+        updateLocalPlayerPosition(); 
     }
 
     function toggleEditMode() {
@@ -1385,11 +1409,9 @@ function updateAllBalanceDisplays(targetBalance) {
         const ownerUid = houseData ? houseData.ownerUid : null;
         
         if (ownerUid) {
-            if (ownerUid === currentUser.uid) { // Owner clicks their own house
+            if (ownerUid === currentUser.uid || houseData.isOpen) { 
                 enterHouse(houseId);
-            } else if (houseData.isOpen) { // Visitor clicks an open house
-                enterHouse(houseId);
-            } else { // Visitor clicks a closed house
+            } else {
                 showToast('This house is closed to visitors.', 'info');
             }
         } else {
@@ -1521,7 +1543,7 @@ function updateAllBalanceDisplays(targetBalance) {
                      houseEl.classList.remove('open-for-visits');
                 }
             });
-            // Update lock button text if user is currently inside a house
+            // Update lock button text if user is currently inside their house
             if (playerState.inHouseId && allHouses[playerState.inHouseId]) {
                  toggleHouseLockBtn.textContent = allHouses[playerState.inHouseId].isOpen ? 'Close House' : 'Open House';
             }
