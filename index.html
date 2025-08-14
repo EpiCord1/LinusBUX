@@ -5,229 +5,255 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>linusbux</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    <style>
-        :root {
-            --primary-blue: #0a84ff;
-            --secondary-purple: #bf5af2;
-            --gold: #ffd60a;
-            --danger: #ff453a;
-            --success: #30d158;
-            --dark-bg: #121212;
-            --dark-card: rgba(44, 44, 46, 0.6);
-            --dark-card-border: rgba(255, 255, 255, 0.1);
-            --light-text: #f2f2f7;
-            --medium-text: #8e8e93;
-            --font-family: 'Poppins', sans-serif;
-            --border-radius: 16px;
-        }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: var(--font-family);
-            background: var(--dark-bg);
-            color: var(--light-text);
-            overflow: hidden;
-            position: relative;
-        }
-        body::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle at 10% 10%, var(--primary-blue), transparent 40%), radial-gradient(circle at 90% 80%, var(--secondary-purple), transparent 40%), radial-gradient(circle at 50% 50%, rgba(16, 124, 65, 0.5), transparent 40%);
-            opacity: 0.1;
-            animation: moveGradient 20s linear infinite;
-            z-index: -1;
-        }
-        @keyframes moveGradient {
-            0% { background-position: 0% 0%; }
-            50% { background-position: 100% 100%; }
-            100% { background-position: 0% 0%; }
-        }
-        #auth-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100vw;
-            height: 100vh;
-            position: fixed;
-            top: 0;
-            left: 0;
-            z-index: 2000;
-        }
-        .auth-box {
-            background: var(--dark-card);
-            padding: 2.5rem;
-            border-radius: var(--border-radius);
-            backdrop-filter: blur(15px);
-            border: 1px solid var(--dark-card-border);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-            width: 100%;
-            max-width: 400px;
-            text-align: center;
-        }
-        .auth-box h2 {
-            font-size: 2rem;
-            margin-bottom: 2rem;
-            color: white;
-            text-shadow: 0 0 10px var(--primary-blue);
-        }
-        .auth-form input {
-            display: block;
-            width: 100%;
-            margin-bottom: 1rem;
-            background-color: #1c1c1e;
-            border: 1px solid #38383a;
-            color: var(--light-text);
-            padding: 0.8rem 1rem;
-            border-radius: 10px;
-            font-family: var(--font-family);
-            font-size: 1rem;
-            outline: none;
-            transition: border-color 0.3s ease, box-shadow 0.3s ease;
-        }
-        .auth-form input:focus {
-            border-color: var(--primary-blue);
-            box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.3);
-        }
-        .auth-buttons { display: flex; gap: 1rem; }
-        .auth-buttons button {
-            flex: 1;
-            color: white;
-            border: none;
-            padding: 0.8rem 1.5rem;
-            border-radius: 10px;
-            font-family: var(--font-family);
-            font-weight: 600;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        #login-btn { background: linear-gradient(45deg, #007aff, var(--primary-blue)); }
-        #signup-btn { background: linear-gradient(45deg, #30d158, #28a745); }
-        .auth-buttons button:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-        #app {
-            display: none;
-            height: 100vh;
-        }
-        #app.visible {
-            display: flex;
-        }
-        .sidebar {
-            width: 240px;
-            background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(10px);
-            padding: 2rem 1rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            border-right: 1px solid var(--dark-card-border);
-            z-index: 10;
-        }
-        .logo { font-size: 2rem; font-weight: 700; color: white; margin-bottom: 3rem; text-shadow: 0 0 10px var(--primary-blue); }
-        .sidebar ul { list-style: none; width: 100%; flex-grow: 1; }
-        .sidebar ul li a { display: flex; align-items: center; gap: 1rem; color: var(--medium-text); text-decoration: none; padding: 1rem 1.5rem; margin-bottom: 1rem; border-radius: 12px; font-weight: 600; transition: all 0.3s ease; }
-        .sidebar ul li a svg { width: 24px; height: 24px; transition: fill 0.3s ease; }
-        .sidebar ul li a.active, .sidebar ul li a:hover { background-color: var(--primary-blue); color: white; box-shadow: 0 4px 20px rgba(10, 132, 255, 0.4); }
-        .sidebar ul li a.active svg, .sidebar ul li a:hover svg { fill: white; }
-        #logout-btn {
-            background: none;
-            border: 1px solid var(--danger);
-            color: var(--danger);
-            width: 100%;
-            padding: 0.8rem;
-            font-weight: 600;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        #logout-btn:hover { background: var(--danger); color: white; box-shadow: 0 4px 15px rgba(255, 69, 58, 0.4); }
-        .content { flex: 1; padding: 2rem 3rem; overflow-y: auto; position: relative; }
-        .tab-content { display: none; animation: fadeIn 0.7s cubic-bezier(0.25, 1, 0.5, 1); }
-        .tab-content.active { display: block; }
-        #blackjack.tab-content.active, #linus-hub.tab-content.active { display: flex; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        .header-balance { position: absolute; top: 2rem; right: 3rem; background: var(--dark-card); padding: 0.6rem 1.2rem; border-radius: var(--border-radius); font-size: 1.2rem; font-weight: 600; display: none; align-items: center; border: 1px solid var(--dark-card-border); backdrop-filter: blur(10px); z-index: 20; animation: fadeIn 0.5s; }
-        .header-balance.visible { display: flex; }
-        .header-balance span:first-child { color: var(--primary-blue); margin-right: 0.7rem; }
-        #balance .header { text-align: center; margin-bottom: 2rem; display: flex; flex-direction: column; align-items: center; }
-        #balance .header h2 { font-size: 1.5rem; font-weight: 400; color: var(--medium-text); margin-bottom: 0.5rem; }
-        #balance .balance-display { background: none; padding: 0; font-size: 3.5rem; font-weight: 700; border: none; }
-        #balance .balance-display span:first-child { color: var(--light-text); }
-        #balance .balance-display span:last-child { font-size: 2rem; margin-left: 0.5rem; color: var(--medium-text); }
-        .card-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2rem; max-width: 900px; margin: 0 auto; }
-        .card { background: var(--dark-card); padding: 2rem; border-radius: var(--border-radius); backdrop-filter: blur(15px); border: 1px solid var(--dark-card-border); box-shadow: 0 8px 32px rgba(0,0,0,0.3); position: relative; overflow: hidden; }
-        .card:hover::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient( 800px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.06), transparent 40% ); opacity: 1; transition: opacity 0.5s; pointer-events: none; }
-        .card h3 { margin-bottom: 1.5rem; font-weight: 600; font-size: 1.25rem; color: var(--light-text); }
-        .input-group { display: flex; gap: 0.5rem; }
-        input[type="number"], input[type="text"] { flex: 1; background-color: #1c1c1e; border: 1px solid #38383a; color: var(--light-text); padding: 0.8rem 1rem; border-radius: 10px; font-family: var(--font-family); font-size: 1rem; outline: none; transition: border-color 0.3s ease, box-shadow 0.3s ease; min-width: 0; }
-        input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { appearance: none; margin: 0; }
-        input[type="number"] { -moz-appearance: textfield; }
-        input[type="number"]:focus, input[type="text"]:focus { border-color: var(--primary-blue); box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.3); }
-        button { color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 10px; font-family: var(--font-family); font-weight: 600; font-size: 1rem; cursor: pointer; transition: all 0.3s ease; }
-        button:disabled { cursor: not-allowed; filter: grayscale(60%); opacity: 0.7; }
-        #balance .input-group button { flex-shrink: 0; }
-        #balance button { background: linear-gradient(45deg, #007aff, var(--primary-blue)); }
-        #balance button:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(10, 132, 255, 0.4); }
-        #generated-codes { margin-top: 1.5rem; max-height: 200px; overflow-y: auto; padding-right: 10px; }
-        .generated-code-item { background-color: #1c1c1e; padding: 0.8rem 1rem; border-radius: 8px; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border: 1px solid #38383a; transition: all 0.2s ease-in-out; }
-        .generated-code-item:hover { background-color: #3a3a3c; border-color: var(--primary-blue); transform: translateX(5px); }
-        .generated-code-item .code-text { font-family: 'Courier New', Courier, monospace; font-weight: bold; color: var(--primary-blue); }
-        #gambling .header h2 { color: var(--secondary-purple); margin: 0 auto; }
-        .gambling-container { display: flex; justify-content: center; align-items: center; padding-top: 1rem; flex-direction: column; gap: 1.5rem; }
-        #wheel-canvas-container { position: relative; width: 450px; height: 450px; }
-        #wheel-canvas { width: 100%; height: 100%; transition: transform 7s cubic-bezier(0.25, 1, 0.5, 1); }
-        #wheel-pointer { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 20px solid transparent; border-right: 20px solid transparent; border-top: 30px solid var(--gold); filter: drop-shadow(0 -2px 3px rgba(0,0,0,0.5)); z-index: 10; }
-        #gambling .betting-controls { display: flex; gap: 1rem; align-items: center; }
-        #bet-amount-input { font-size: 1.5rem; padding: 0.6rem 1rem; width: 200px; text-align: center; font-weight: 600; }
-        #bet-amount-input:focus { border-color: var(--secondary-purple); box-shadow: 0 0 0 4px rgba(191, 90, 242, 0.3); }
-        #spin-btn { width: 150px; height: auto; background: linear-gradient(45deg, var(--secondary-purple), #9b59b6); font-size: 1.5rem; padding: 0.6rem 1rem; border-radius: 12px; font-weight: 700; box-shadow: 0 5px 15px rgba(0,0,0,0.4); }
-        #spin-btn:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(191, 90, 242, 0.5); }
-        #spin-btn:active:not(:disabled) { transform: translateY(1px); box-shadow: 0 2px 10px rgba(191, 90, 242, 0.5); }
-        #blackjack { padding: 0; align-items: center; justify-content: space-between; position: relative; height: 100%; }
-        .dealer-character { width: 300px; height: 300px; display: flex; justify-content: center; align-items: center; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1; }
-        .dealer-character img { width: 100%; height: 100%; object-fit: contain; }
-        .hand-area { display: flex; flex-direction: column; align-items: center; gap: 1rem; min-height: 150px; width: 100%; position: absolute; left: 50%; transform: translateX(-50%); }
-        #dealer-area { top: 220px; z-index: 2; }
-        #player-area { bottom: 120px; }
-        .hand-label { display: flex; gap: 1rem; align-items: center; font-size: 1.2rem; font-weight: 600; color: rgba(255,255,255,0.8); text-shadow: 0 1px 3px rgba(0,0,0,0.4); }
-        .hand-score { background: rgba(0,0,0,0.3); padding: 0.2rem 0.8rem; border-radius: 8px; font-size: 1.1rem; }
-        .hand-cards { display: flex; justify-content: center; gap: 1rem; perspective: 1000px; }
-        .bj-card { width: 90px; height: 130px; background: white; border-radius: 8px; border: 1px solid #ccc; position: relative; color: black; font-family: 'Poppins', sans-serif; font-size: 2rem; font-weight: 600; box-shadow: 0 4px 8px rgba(0,0,0,0.3); display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 5px; transform-style: preserve-3d; }
-        .bj-card .rank-top, .bj-card .rank-bottom { position: absolute; font-size: 1rem; line-height: 1; }
-        .bj-card .rank-top { top: 5px; left: 8px; }
-        .bj-card .rank-bottom { bottom: 5px; right: 8px; transform: rotate(180deg); }
-        .bj-card .center-suit { font-size: 2.5rem; }
-        .bj-card.red { color: var(--danger); }
-        .bj-card.black { color: #333; }
-        .bj-card.facedown { background: linear-gradient(135deg, var(--primary-blue), #0056b3); }
-        .bj-card.facedown span { display: none; }
-        #game-status { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 2rem; font-weight: 700; text-align: center; height: auto; color: var(--gold); text-shadow: 0 0 15px rgba(255, 214, 10, 0.7), 0 0 5px rgba(255, 214, 10, 0.5); pointer-events: none; z-index: 3; }
-        .blackjack-footer { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 1rem; width: 100%; }
-        .blackjack-footer h2 { font-size: 1.5rem; font-weight: 600; color: rgba(255,255,255,0.7); text-shadow: 0 1px 3px #000; }
-        #blackjack-controls { display: flex; justify-content: center; align-items: center; gap: 1rem; }
-        #blackjack-controls button { background-color: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.3); min-width: 120px; font-size: 1.1rem; }
-        #blackjack-controls button:hover:not(:disabled) { background-color: rgba(255,255,255,0.2); }
-        #blackjack-bet-controls input { font-size: 1.2rem; padding: 0.8rem; width: 150px; text-align: center; font-weight: 600; }
-        #blackjack-bet-controls input:focus { border-color: var(--blackjack-green); box-shadow: 0 0 0 4px rgba(16, 124, 65, 0.4); }
-        #linus-hub { justify-content: center; align-items: center; width: 100%; height: 100%; padding: 0; position: relative; }
-        #game-area { width: 100%; height: 100%; background-color: #0d0d0d; border-radius: var(--border-radius); border: 2px solid var(--primary-blue); box-shadow: 0 0 25px rgba(10, 132, 255, 0.3); position: relative; overflow: hidden; }
-        #player-character { position: absolute; transition: transform 0.1s linear; }
-        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
-        .toast { background-color: #2c2c2e; color: #f2f2f7; padding: 12px 20px; border-radius: 10px; border: 1px solid #38383a; border-left: 5px solid; box-shadow: 0 4px 12px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 10px; animation: slideUp 0.5s cubic-bezier(0.25, 1, 0.5, 1); }
-        @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        .toast.toast-success { border-left-color: var(--success); }
-        .toast.toast-error { border-left-color: var(--danger); }
-        .toast.toast-info { border-left-color: var(--primary-blue); }
-    </style>
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<style>
+    :root {
+        --primary-blue: #0a84ff;
+        --secondary-purple: #bf5af2;
+        --gold: #ffd60a;
+        --danger: #ff453a;
+        --success: #30d158;
+
+        --dark-bg: #121212;
+        --dark-card: rgba(44, 44, 46, 0.6);
+        --dark-card-border: rgba(255, 255, 255, 0.1);
+        --light-text: #f2f2f7;
+        --medium-text: #8e8e93;
+        --font-family: 'Poppins', sans-serif;
+        --border-radius: 16px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: var(--font-family);
+        background: var(--dark-bg);
+        color: var(--light-text);
+        overflow: hidden;
+        position: relative;
+    }
+    
+    body::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(circle at 10% 10%, var(--primary-blue), transparent 40%),
+                    radial-gradient(circle at 90% 80%, var(--secondary-purple), transparent 40%),
+                    radial-gradient(circle at 50% 50%, rgba(16, 124, 65, 0.5), transparent 40%);
+        opacity: 0.1;
+        animation: moveGradient 20s linear infinite;
+        z-index: -1;
+    }
+
+    @keyframes moveGradient {
+        0% { background-position: 0% 0%; }
+        50% { background-position: 100% 100%; }
+        100% { background-position: 0% 0%; }
+    }
+
+    /* --- AUTHENTICATION STYLES --- */
+    #auth-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100vw;
+        height: 100vh;
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 2000;
+    }
+    .auth-box {
+        background: var(--dark-card);
+        padding: 2.5rem;
+        border-radius: var(--border-radius);
+        backdrop-filter: blur(15px);
+        border: 1px solid var(--dark-card-border);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        width: 100%;
+        max-width: 400px;
+        text-align: center;
+    }
+    .auth-box h2 {
+        font-size: 2rem;
+        margin-bottom: 2rem;
+        color: white;
+        text-shadow: 0 0 10px var(--primary-blue);
+    }
+    .auth-form input {
+        display: block;
+        width: 100%;
+        margin-bottom: 1rem;
+        background-color: #1c1c1e;
+        border: 1px solid #38383a;
+        color: var(--light-text);
+        padding: 0.8rem 1rem;
+        border-radius: 10px;
+        font-family: var(--font-family);
+        font-size: 1rem;
+        outline: none;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    .auth-form input:focus {
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.3);
+    }
+    .auth-buttons { display: flex; gap: 1rem; }
+    .auth-buttons button {
+        flex: 1;
+        color: white;
+        border: none;
+        padding: 0.8rem 1.5rem;
+        border-radius: 10px;
+        font-family: var(--font-family);
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    #login-btn { background: linear-gradient(45deg, #007aff, var(--primary-blue)); }
+    #signup-btn { background: linear-gradient(45deg, #30d158, #28a745); }
+    .auth-buttons button:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+
+    #app {
+        display: none; /* Hidden by default */
+        height: 100vh;
+    }
+
+    #app.visible {
+        display: flex; /* Shown via JS after login */
+    }
+    
+    /* --- SIDEBAR AND MAIN CONTENT --- */
+    .sidebar {
+        width: 240px;
+        background: rgba(0,0,0,0.5);
+        backdrop-filter: blur(10px);
+        padding: 2rem 1rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        border-right: 1px solid var(--dark-card-border);
+        z-index: 10;
+    }
+    .logo { font-size: 2rem; font-weight: 700; color: white; margin-bottom: 3rem; text-shadow: 0 0 10px var(--primary-blue); }
+    .sidebar ul { list-style: none; width: 100%; flex-grow: 1; }
+    .sidebar ul li a { display: flex; align-items: center; gap: 1rem; color: var(--medium-text); text-decoration: none; padding: 1rem 1.5rem; margin-bottom: 1rem; border-radius: 12px; font-weight: 600; transition: all 0.3s ease; }
+    .sidebar ul li a svg { width: 24px; height: 24px; transition: fill 0.3s ease; }
+    .sidebar ul li a.active, .sidebar ul li a:hover { background-color: var(--primary-blue); color: white; box-shadow: 0 4px 20px rgba(10, 132, 255, 0.4); }
+    .sidebar ul li a.active svg, .sidebar ul li a:hover svg { fill: white; }
+    
+    #logout-btn {
+        background: none;
+        border: 1px solid var(--danger);
+        color: var(--danger);
+        width: 100%;
+        padding: 0.8rem;
+        font-weight: 600;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    #logout-btn:hover { background: var(--danger); color: white; box-shadow: 0 4px 15px rgba(255, 69, 58, 0.4); }
+
+    /* Main Content */
+    .content { flex: 1; padding: 2rem 3rem; overflow-y: auto; position: relative; }
+    .tab-content { display: none; animation: fadeIn 0.7s cubic-bezier(0.25, 1, 0.5, 1); }
+    .tab-content.active { display: block; }
+    #blackjack.tab-content.active, #linus-hub.tab-content.active { display: flex; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    
+    /* Persistent Corner Balance */
+    .header-balance { position: absolute; top: 2rem; right: 3rem; background: var(--dark-card); padding: 0.6rem 1.2rem; border-radius: var(--border-radius); font-size: 1.2rem; font-weight: 600; display: none; align-items: center; border: 1px solid var(--dark-card-border); backdrop-filter: blur(10px); z-index: 20; animation: fadeIn 0.5s; }
+    .header-balance.visible { display: flex; }
+    .header-balance span:first-child { color: var(--primary-blue); margin-right: 0.7rem; }
+    
+    /* Balance Page */
+    #balance .header { text-align: center; margin-bottom: 2rem; display: flex; flex-direction: column; align-items: center; }
+    #balance .header h2 { font-size: 1.5rem; font-weight: 400; color: var(--medium-text); margin-bottom: 0.5rem; }
+    #balance .balance-display { background: none; padding: 0; font-size: 3.5rem; font-weight: 700; border: none; }
+    #balance .balance-display span:first-child { color: var(--light-text); }
+    #balance .balance-display span:last-child { font-size: 2rem; margin-left: 0.5rem; color: var(--medium-text); }
+    .card-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2rem; max-width: 900px; margin: 0 auto; }
+    .card { background: var(--dark-card); padding: 2rem; border-radius: var(--border-radius); backdrop-filter: blur(15px); border: 1px solid var(--dark-card-border); box-shadow: 0 8px 32px rgba(0,0,0,0.3); position: relative; overflow: hidden; }
+    .card:hover::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient( 800px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.06), transparent 40% ); opacity: 1; transition: opacity 0.5s; pointer-events: none; }
+    .card h3 { margin-bottom: 1.5rem; font-weight: 600; font-size: 1.25rem; color: var(--light-text); }
+    .input-group { display: flex; gap: 0.5rem; }
+    input[type="number"], input[type="text"] { flex: 1; background-color: #1c1c1e; border: 1px solid #38383a; color: var(--light-text); padding: 0.8rem 1rem; border-radius: 10px; font-family: var(--font-family); font-size: 1rem; outline: none; transition: border-color 0.3s ease, box-shadow 0.3s ease; min-width: 0; }
+    input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { appearance: none; margin: 0; }
+    input[type="number"] { -moz-appearance: textfield; }
+    input[type="number"]:focus, input[type="text"]:focus { border-color: var(--primary-blue); box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.3); }
+    button { color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 10px; font-family: var(--font-family); font-weight: 600; font-size: 1rem; cursor: pointer; transition: all 0.3s ease; }
+    button:disabled { cursor: not-allowed; filter: grayscale(60%); opacity: 0.7; }
+    #balance .input-group button { flex-shrink: 0; }
+    #balance button { background: linear-gradient(45deg, #007aff, var(--primary-blue)); }
+    #balance button:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(10, 132, 255, 0.4); }
+    #generated-codes { margin-top: 1.5rem; max-height: 200px; overflow-y: auto; padding-right: 10px; }
+    .generated-code-item { background-color: #1c1c1e; padding: 0.8rem 1rem; border-radius: 8px; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border: 1px solid #38383a; transition: all 0.2s ease-in-out; }
+    .generated-code-item:hover { background-color: #3a3a3c; border-color: var(--primary-blue); transform: translateX(5px); }
+    .generated-code-item .code-text { font-family: 'Courier New', Courier, monospace; font-weight: bold; color: var(--primary-blue); }
+
+    /* Gambling Tab */
+    #gambling .header h2 { color: var(--secondary-purple); margin: 0 auto; }
+    .gambling-container { display: flex; justify-content: center; align-items: center; padding-top: 1rem; flex-direction: column; gap: 1.5rem; }
+    #wheel-canvas-container { position: relative; width: 450px; height: 450px; }
+    #wheel-canvas { width: 100%; height: 100%; }
+    #wheel-pointer { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 20px solid transparent; border-right: 20px solid transparent; border-top: 30px solid var(--gold); filter: drop-shadow(0 -2px 3px rgba(0,0,0,0.5)); z-index: 10; }
+    #gambling .betting-controls { display: flex; gap: 1rem; align-items: center; }
+    #bet-amount-input { font-size: 1.5rem; padding: 0.6rem 1rem; width: 200px; text-align: center; font-weight: 600; }
+    #bet-amount-input:focus { border-color: var(--secondary-purple); box-shadow: 0 0 0 4px rgba(191, 90, 242, 0.3); }
+    #spin-btn { width: 150px; height: auto; background: linear-gradient(45deg, var(--secondary-purple), #9b59b6); font-size: 1.5rem; padding: 0.6rem 1rem; border-radius: 12px; font-weight: 700; box-shadow: 0 5px 15px rgba(0,0,0,0.4); }
+    #spin-btn:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(191, 90, 242, 0.5); }
+    #spin-btn:active:not(:disabled) { transform: translateY(1px); box-shadow: 0 2px 10px rgba(191, 90, 242, 0.5); }
+    
+    /* Blackjack Tab */
+    #blackjack { padding: 0; align-items: center; justify-content: space-between; position: relative; height: 100%; }
+    .dealer-character { width: 300px; height: 300px; display: flex; justify-content: center; align-items: center; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1; }
+    .dealer-character img { width: 100%; height: 100%; object-fit: contain; }
+    .hand-area { display: flex; flex-direction: column; align-items: center; gap: 1rem; min-height: 150px; width: 100%; position: absolute; left: 50%; transform: translateX(-50%); }
+    #dealer-area { top: 220px; z-index: 2; }
+    #player-area { bottom: 120px; }
+    .hand-label { display: flex; gap: 1rem; align-items: center; font-size: 1.2rem; font-weight: 600; color: rgba(255,255,255,0.8); text-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+    .hand-score { background: rgba(0,0,0,0.3); padding: 0.2rem 0.8rem; border-radius: 8px; font-size: 1.1rem; }
+    .hand-cards { display: flex; justify-content: center; gap: 1rem; perspective: 1000px; }
+    .bj-card { width: 90px; height: 130px; background: white; border-radius: 8px; border: 1px solid #ccc; position: relative; color: black; font-family: 'Poppins', sans-serif; font-size: 2rem; font-weight: 600; box-shadow: 0 4px 8px rgba(0,0,0,0.3); display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 5px; transform-style: preserve-3d; }
+    .bj-card .rank-top, .bj-card .rank-bottom { position: absolute; font-size: 1rem; line-height: 1; }
+    .bj-card .rank-top { top: 5px; left: 8px; }
+    .bj-card .rank-bottom { bottom: 5px; right: 8px; transform: rotate(180deg); }
+    .bj-card .center-suit { font-size: 2.5rem; }
+    .bj-card.red { color: var(--danger); }
+    .bj-card.black { color: #333; }
+    .bj-card.facedown { background: linear-gradient(135deg, var(--primary-blue), #0056b3); }
+    #game-status { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 2rem; font-weight: 700; text-align: center; height: auto; color: var(--gold); text-shadow: 0 0 15px rgba(255, 214, 10, 0.7), 0 0 5px rgba(255, 214, 10, 0.5); pointer-events: none; z-index: 3; }
+    .blackjack-footer { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 1rem; width: 100%; }
+    .blackjack-footer h2 { font-size: 1.5rem; font-weight: 600; color: rgba(255,255,255,0.7); text-shadow: 0 1px 3px #000; }
+    #blackjack-controls { display: flex; justify-content: center; align-items: center; gap: 1rem; }
+    #blackjack-controls button { background-color: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.3); min-width: 120px; font-size: 1.1rem; }
+    #blackjack-controls button:hover:not(:disabled) { background-color: rgba(255,255,255,0.2); }
+    #blackjack-bet-controls input { font-size: 1.2rem; padding: 0.8rem; width: 150px; text-align: center; font-weight: 600; }
+    #blackjack-bet-controls input:focus { border-color: var(--blackjack-green); box-shadow: 0 0 0 4px rgba(16, 124, 65, 0.4); }
+
+    /* Linus Hub Tab */
+    #linus-hub { justify-content: center; align-items: center; width: 100%; height: 100%; padding: 0; position: relative; }
+    #game-area { width: 100%; height: 100%; background-color: #0d0d0d; border-radius: var(--border-radius); border: 2px solid var(--primary-blue); box-shadow: 0 0 25px rgba(10, 132, 255, 0.3); position: relative; overflow: hidden; }
+    #player-character { position: absolute; transition: transform 0.1s linear; }
+
+    /* Toast Notifications */
+    #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
+    .toast { background-color: #2c2c2e; color: #f2f2f7; padding: 12px 20px; border-radius: 10px; border: 1px solid #38383a; border-left: 5px solid; box-shadow: 0 4px 12px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 10px; animation: slideUp 0.5s cubic-bezier(0.25, 1, 0.5, 1); }
+    @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .toast.toast-success { border-left-color: var(--success); }
+    .toast.toast-error { border-left-color: var(--danger); }
+    .toast.toast-info { border-left-color: var(--primary-blue); }
+</style>
 </head>
 <body>
-
 <!-- Authentication Container -->
 <div id="auth-container">
     <div class="auth-box">
@@ -242,7 +268,6 @@
         </form>
     </div>
 </div>
-
 <!-- Main Application Container -->
 <div id="app">
     <nav class="sidebar">
@@ -254,141 +279,165 @@
             </a></li>
             <li><a href="#" class="nav-link" data-tab="gambling">
                  <svg fill="#8e8e93" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
-                <span>Wheel</span>
+                <span>Gambling</span>
             </a></li>
             <li><a href="#" class="nav-link" data-tab="blackjack">
                  <svg fill="#8e8e93" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM9.5 17.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5zm6-5c-1.93 0-3.5-1.57-3.5-3.5S13.57 5.5 15.5 5.5s3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
                 <span>Blackjack</span>
             </a></li>
+             <li><a href="#" class="nav-link" data-tab="linus-hub">
+                <svg fill="#8e8e93" viewBox="0 0 24 24"><path d="M21 16.5c0 .83-.67 1.5-1.5 1.5h-15c-.83 0-1.5-.67-1.5-1.5v-12c0-.83.67-1.5 1.5-1.5h15c.83 0 1.5.67 1.5 1.5v12zm-3-9.5h-12v9h12v-9z"/></svg>
+                <span>Linus Hub</span>
+            </a></li>
         </ul>
          <button id="logout-btn">Logout</button>
-    </nav>
+    </nav>    
+<main class="content">
+     <div class="header-balance">
+        <span id="header-balance-amount">0</span>
+        <span>BUX</span>
+    </div>
 
-    <main class="content">
-         <div class="header-balance">
-            <span id="header-balance-amount">0</span>
-            <span>BUX</span>
-        </div>
-
-        <!-- Balance Tab -->
-        <div id="balance" class="tab-content active">
-            <div class="header">
-                <h2>YOUR BALANCE</h2>
-                <div class="balance-display">
-                    <span id="main-balance-amount">0</span>
-                    <span>BUX</span>
-                </div>
-            </div>
-            <div class="card-container">
-                <div class="card">
-                    <h3>Create Code</h3>
-                    <div class="input-group">
-                        <input type="number" id="create-code-amount" placeholder="Amount">
-                        <button id="create-code-btn">Create</button>
-                    </div>
-                    <div id="generated-codes"></div>
-                </div>
-                <div class="card">
-                    <h3>Redeem Code</h3>
-                    <div class="input-group">
-                        <input type="text" id="redeem-code-input" placeholder="Enter Code">
-                        <button id="redeem-code-btn">Redeem</button>
-                    </div>
-                </div>
+    <!-- Balance Tab -->
+    <div id="balance" class="tab-content active">
+        <div class="header">
+            <h2>YOUR BALANCE</h2>
+            <div class="balance-display">
+                <span id="main-balance-amount">0</span>
+                <span>BUX</span>
             </div>
         </div>
 
-        <!-- Gambling Tab -->
-        <div id="gambling" class="tab-content">
-             <div class="header">
-                <h2>Wheel of Fortune</h2>
-            </div>
-            <div class="gambling-container">
-                <div id="wheel-canvas-container">
-                    <canvas id="wheel-canvas" width="500" height="500"></canvas>
-                    <div id="wheel-pointer"></div>
+        <div class="card-container">
+            <div class="card">
+                <h3>Create Code</h3>
+                <div class="input-group">
+                    <input type="number" id="create-code-amount" placeholder="Amount">
+                    <button id="create-code-btn">Create</button>
                 </div>
-                <div class="betting-controls">
-                    <input type="number" id="bet-amount-input" value="10" placeholder="Bet Amount">
-                    <button id="spin-btn">SPIN</button>
+                <div id="generated-codes"></div>
+            </div>
+
+            <div class="card">
+                <h3>Redeem Code</h3>
+                <div class="input-group">
+                    <input type="text" id="redeem-code-input" placeholder="Enter Code">
+                    <button id="redeem-code-btn">Redeem</button>
                 </div>
             </div>
         </div>
-        
-        <!-- Blackjack Tab -->
-        <div id="blackjack" class="tab-content">
-             <div class="dealer-character">
-                <img src="https://i.imgur.com/8QoWydP.gif" alt="Dealer Mascot">
-             </div>
-             <div id="game-status">Place your bet to start!</div>
-             <div class="hand-area" id="dealer-area">
-                 <div class="hand-label">
-                     <span>DEALER'S HAND</span>
-                     <span class="hand-score" id="dealer-score">?</span>
-                 </div>
-                 <div class="hand-cards" id="dealer-hand"></div>
-             </div>
-             <div class="hand-area" id="player-area">
-                 <div class="hand-label">
-                     <span>YOUR HAND</span>
-                     <span class="hand-score" id="player-score">0</span>
-                 </div>
-                 <div class="hand-cards" id="player-hand"></div>
-             </div>
-             <div class="blackjack-footer">
-                <h2>Blackjack</h2>
-                <div id="blackjack-controls">
-                    <div id="blackjack-bet-controls">
-                         <input type="number" id="blackjack-bet-input" value="10">
-                         <button id="deal-button">Deal</button>
-                    </div>
-                    <div id="blackjack-game-actions" style="display: none;">
-                         <button id="hit-button">Hit</button>
-                         <button id="stand-button">Stand</button>
-                    </div>
-                </div>
-             </div>
+    </div>
+
+    <!-- Gambling Tab -->
+    <div id="gambling" class="tab-content">
+         <div class="header">
+            <h2>Gambling</h2>
         </div>
-        
-    </main>
+        <div class="gambling-container">
+            <div id="wheel-canvas-container">
+                <canvas id="wheel-canvas" width="500" height="500"></canvas>
+                <div id="wheel-pointer"></div>
+            </div>
+            <div class="betting-controls">
+                <input type="number" id="bet-amount-input" value="10" placeholder="Bet Amount">
+                <button id="spin-btn">SPIN</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Blackjack Tab -->
+    <div id="blackjack" class="tab-content">
+         <div class="dealer-character">
+            <img src="IDLE.gif" alt="Dealer Mascot">
+         </div>
+         
+         <div id="game-status">Place your bet to start!</div>
+
+         <div class="hand-area" id="dealer-area">
+             <div class="hand-label">
+                 <span>DEALER'S HAND</span>
+                 <span class="hand-score" id="dealer-score">?</span>
+             </div>
+             <div class="hand-cards" id="dealer-hand"></div>
+         </div>
+
+         <div class="hand-area" id="player-area">
+             <div class="hand-label">
+                 <span>YOUR HAND</span>
+                 <span class="hand-score" id="player-score">0</span>
+             </div>
+             <div class="hand-cards" id="player-hand"></div>
+         </div>
+         
+         <div class="blackjack-footer">
+            <h2>Blackjack</h2>
+            <div id="blackjack-controls">
+                <div id="blackjack-bet-controls">
+                     <input type="number" id="blackjack-bet-input" value="10">
+                     <button id="deal-button">Deal</button>
+                </div>
+                <div id="blackjack-game-actions" style="display: none;">
+                     <button id="hit-button">Hit</button>
+                     <button id="stand-button">Stand</button>
+                     <button id="double-down-button">Double Down</button>
+                </div>
+            </div>
+         </div>
+    </div>
+
+    <!-- Linus Hub Tab -->
+    <div id="linus-hub" class="tab-content">
+        <div id="game-area">
+            <img id="player-character" src="IDLE.gif" alt="Player">
+        </div>
+    </div>
+    
+</main>
+
+  
+
 </div>
-
 <div id="toast-container"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
 <script>
 const firebaseConfig = {
 
-  apiKey: "AIzaSyC-aZNBPQz2y4e-9DZ9hvz-puEan47li-4",
+apiKey: "AIzaSyC-aZNBPQz2y4e-9DZ9hvz-puEan47li-4",
 
-  authDomain: "linusbux-fab58.firebaseapp.com",
+authDomain: "linusbux-fab58.firebaseapp.com",
 
-  databaseURL: "https://linusbux-fab58-default-rtdb.firebaseio.com",
+databaseURL: "https://linusbux-fab58-default-rtdb.firebaseio.com",
 
-  projectId: "linusbux-fab58",
+projectId: "linusbux-fab58",
 
-  storageBucket: "linusbux-fab58.firebasestorage.app",
+storageBucket: "linusbux-fab58.firebasestorage.app",
 
-  messagingSenderId: "714906159220",
+messagingSenderId: "714906159220",
 
-  appId: "1:714906159220:web:4de6a1d3c27f39e0bca921",
+appId: "1:714906159220:web:4de6a1d3c27f39e0bca921",
 
-  measurementId: "G-EZWXN01SZT"
+measurementId: "G-EZWXN01SZT"
 
 };
+code Code
+IGNORE_WHEN_COPYING_START
+IGNORE_WHEN_COPYING_END
 
-
-// **IMPORTANT**: Replace with the URL of your deployed server (e.g., "https://your-app.onrender.com")
-const API_BASE_URL = 'http://localhost:3000'; 
+    
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
 
 document.addEventListener('DOMContentLoaded', () => {
-    // --- Firebase Initialization ---
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.database();
 
-    // --- App State & UI Elements ---
+    // --- App State ---
+    let balance = 0; // Local balance, will be synced with Firebase
     let currentUser = null;
     let balanceRef = null;
+    const generatedCodes = {}; // These will remain local to the session
+    
+    // --- UI Elements ---
     const mainBalanceElement = document.getElementById('main-balance-amount');
     const headerBalanceElement = document.getElementById('header-balance-amount');
     const headerBalanceContainer = document.querySelector('.header-balance');
@@ -409,50 +458,46 @@ document.addEventListener('DOMContentLoaded', () => {
         toast.className = `toast toast-${type}`;
         toast.textContent = message;
         toastContainer.appendChild(toast);
-        setTimeout(() => toast.remove(), 4000);
-    }
-
-    // --- Secure API Fetcher ---
-    async function fetchAPI(endpoint, options = {}) {
-        if (!currentUser) throw new Error("User not authenticated.");
-        
-        const idToken = await currentUser.getIdToken(true);
-        const headers = {
-            'Authorization': `Bearer ${idToken}`,
-            'Content-Type': 'application/json',
-            ...options.headers,
-        };
-        
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers });
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error || 'An unknown error occurred.');
-        }
-        return data;
+        gsap.to(toast, {
+            opacity: 0,
+            y: 20,
+            delay: 3.5,
+            duration: 0.5,
+            onComplete: () => toast.remove()
+        });
     }
     
     // --- Firebase Auth Logic ---
+    
     auth.onAuthStateChanged(user => {
         if (user) {
+            // User is signed in.
             currentUser = user;
-            balanceRef = db.ref(`users/${user.uid}`);
+            balanceRef = db.ref(`users/${currentUser.uid}`);
+            
+            // Listen for balance changes in real-time
             balanceRef.on('value', (snapshot) => {
                 const data = snapshot.val();
-                let balance = 0;
                 if (data && data.balance !== undefined) {
                     balance = data.balance;
                 } else {
-                    balanceRef.set({ balance: 100 });
+                    // First time login, set initial balance
+                    balance = 100;
+                    balanceRef.set({ balance: balance });
                 }
                 updateAllBalanceDisplays(balance);
             });
+
             appContainer.classList.add('visible');
             authContainer.style.display = 'none';
+
         } else {
+            // User is signed out.
             currentUser = null;
-            if (balanceRef) balanceRef.off();
+            if(balanceRef) balanceRef.off(); // Stop listening to old user's balance
+            balance = 0;
             updateAllBalanceDisplays(0);
+
             appContainer.classList.remove('visible');
             authContainer.style.display = 'flex';
         }
@@ -461,174 +506,272 @@ document.addEventListener('DOMContentLoaded', () => {
     signupBtn.addEventListener('click', () => {
         const email = emailInput.value;
         const password = passwordInput.value;
-        if (!email || !password) return showToast('Please enter email and password.', 'error');
+        if (!email || !password) {
+            showToast('Please enter email and password.', 'error');
+            return;
+        }
         auth.createUserWithEmailAndPassword(email, password)
-            .then(cred => showToast(`Account created for ${cred.user.email}!`, 'success'))
-            .catch(err => showToast(err.message, 'error'));
+            .then((userCredential) => {
+                showToast(`Account created for ${userCredential.user.email}! Welcome!`, 'success');
+                // The onAuthStateChanged observer will handle the rest.
+                // Initial balance is set there.
+            })
+            .catch((error) => {
+                showToast(error.message, 'error');
+            });
     });
 
     loginBtn.addEventListener('click', () => {
         const email = emailInput.value;
         const password = passwordInput.value;
-        if (!email || !password) return showToast('Please enter email and password.', 'error');
+         if (!email || !password) {
+            showToast('Please enter email and password.', 'error');
+            return;
+        }
         auth.signInWithEmailAndPassword(email, password)
-            .then(cred => showToast(`Welcome back, ${cred.user.email}!`, 'success'))
-            .catch(err => showToast(err.message, 'error'));
+            .then((userCredential) => {
+                 showToast(`Welcome back, ${userCredential.user.email}!`, 'success');
+                 // The onAuthStateChanged observer handles UI changes.
+            })
+            .catch((error) => {
+                showToast(error.message, 'error');
+            });
     });
 
     logoutBtn.addEventListener('click', () => {
-        auth.signOut().then(() => showToast('You have been logged out.', 'info'));
+        auth.signOut().then(() => {
+            showToast('You have been logged out.', 'info');
+        });
     });
 
-    // --- UI & Navigation Logic ---
+
+    // --- Helper function to update balance in Firebase ---
+    function updateUserBalance(newBalance) {
+        if (currentUser && balanceRef) {
+            balanceRef.child('balance').set(Math.floor(newBalance));
+        }
+    }
+    
+    // --- Mouse-tracking for Card Glow Effect ---
+    document.querySelectorAll('.card').forEach(card => {
+        card.addEventListener('mousemove', e => {
+            const rect = card.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            card.style.setProperty('--mouse-x', `${x}px`);
+            card.style.setProperty('--mouse-y', `${y}px`);
+        });
+    });
+
+    // --- Tab Switching ---
     navLinks.forEach(link => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
             const tabId = e.currentTarget.getAttribute('data-tab');
+
             navLinks.forEach(l => l.classList.remove('active'));
             tabContents.forEach(content => content.classList.remove('active'));
+
             e.currentTarget.classList.add('active');
             document.getElementById(tabId).classList.add('active');
-            headerBalanceContainer.classList.toggle('visible', tabId !== 'balance');
+            
+            if (tabId === 'balance') {
+                headerBalanceContainer.classList.remove('visible');
+            } else {
+                headerBalanceContainer.classList.add('visible');
+            }
         });
     });
 
+    // --- Balance Display Logic ---
     function updateAllBalanceDisplays(targetBalance) {
-        gsap.to([mainBalanceElement, headerBalanceElement], {
-            duration: 1, innerHTML: Math.floor(targetBalance), roundProps: "innerHTML",
-            onUpdate: function() { this.targets().forEach(el => el.innerHTML = parseInt(el.innerHTML).toLocaleString()); },
-            ease: "power3.out"
+        const elementsToUpdate = [mainBalanceElement, headerBalanceElement];
+        elementsToUpdate.forEach(el => {
+             gsap.to(el, {
+                duration: 1,
+                innerHTML: Math.floor(targetBalance),
+                roundProps: "innerHTML",
+                onUpdate: function() {
+                    this.targets()[0].innerHTML = parseInt(this.targets()[0].innerHTML).toLocaleString();
+                },
+                ease: "power3.out"
+            });
         });
     }
 
-    document.querySelectorAll('.card').forEach(card => {
-        card.addEventListener('mousemove', e => {
-            const rect = card.getBoundingClientRect();
-            card.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
-            card.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
-        });
-    });
-
-    // --- SECURE: Balance Tab ---
+    // --- Balance Tab: Code Creation/Redemption ---
     (function setupBalanceTab() {
-        const createBtn = document.getElementById('create-code-btn');
-        const createInput = document.getElementById('create-code-amount');
-        const redeemBtn = document.getElementById('redeem-code-btn');
-        const redeemInput = document.getElementById('redeem-code-input');
-        const codesContainer = document.getElementById('generated-codes');
+        const createCodeAmountInput = document.getElementById('create-code-amount');
+        const createCodeBtn = document.getElementById('create-code-btn');
+        const redeemCodeInput = document.getElementById('redeem-code-input');
+        const redeemCodeBtn = document.getElementById('redeem-code-btn');
+        const generatedCodesContainer = document.getElementById('generated-codes');
 
-        createBtn.addEventListener('click', async () => {
-            const amount = parseInt(createInput.value);
-            if (isNaN(amount) || amount <= 0) return showToast('Please enter a valid amount.', 'error');
+        function generateRandomCode() {
+            return 'LBX-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+        }
+
+        createCodeBtn.addEventListener('click', () => {
+            const amount = parseInt(createCodeAmountInput.value, 10);
+            if (isNaN(amount) || amount <= 0) { showToast('Please enter a valid amount.', 'error'); return; }
+            if (amount > balance) { showToast('Insufficient balance.', 'error'); return; }
             
-            createBtn.disabled = true;
-            try {
-                const result = await fetchAPI('/api/create-code', {
-                    method: 'POST',
-                    body: JSON.stringify({ amount })
-                });
-                const codeElement = document.createElement('div');
-                codeElement.className = 'generated-code-item';
-                codeElement.innerHTML = `<span class="code-text">${result.code}</span><span>${amount.toLocaleString()} BUX</span>`;
-                codeElement.addEventListener('click', () => navigator.clipboard.writeText(result.code).then(() => showToast(`Copied!`, 'success')));
-                codesContainer.prepend(codeElement);
-                createInput.value = '';
-                showToast(`Code created successfully.`, 'success');
-            } catch (error) {
-                showToast(error.message, 'error');
-            } finally {
-                createBtn.disabled = false;
-            }
+            updateUserBalance(balance - amount);
+
+            const code = generateRandomCode();
+            generatedCodes[code] = amount; // Codes are still session-local
+            const codeElement = document.createElement('div');
+            codeElement.classList.add('generated-code-item');
+            codeElement.innerHTML = `<span class="code-text">${code}</span><span>${amount.toLocaleString()} BUX</span>`;
+            codeElement.addEventListener('click', () => navigator.clipboard.writeText(code).then(() => showToast(`Code ${code} copied!`, 'success')));
+            generatedCodesContainer.prepend(codeElement);
+            gsap.from(codeElement, { duration: 0.5, opacity: 0, x: -30, ease: 'power3.out' });
+            createCodeAmountInput.value = '';
+            showToast(`Code for ${amount.toLocaleString()} BUX created.`, 'success');
         });
 
-        redeemBtn.addEventListener('click', async () => {
-            const code = redeemInput.value.trim();
-            if (!code) return showToast('Please enter a code.', 'error');
-            
-            redeemBtn.disabled = true;
-            try {
-                const result = await fetchAPI('/api/redeem-code', {
-                    method: 'POST',
-                    body: JSON.stringify({ code })
+        redeemCodeBtn.addEventListener('click', () => {
+            const code = redeemCodeInput.value.trim().toUpperCase();
+            if (generatedCodes[code]) {
+                const amount = generatedCodes[code];
+                updateUserBalance(balance + amount);
+                delete generatedCodes[code];
+                document.querySelectorAll('.generated-code-item .code-text').forEach(el => {
+                    if (el.textContent === code) {
+                        gsap.to(el.parentElement, { duration: 0.5, opacity: 0, x: 30, ease: 'power3.in', onComplete: () => el.parentElement.remove() });
+                    }
                 });
-                showToast(result.message, 'success');
-                redeemInput.value = '';
-            } catch (error) {
-                showToast(error.message, 'error');
-            } finally {
-                redeemBtn.disabled = false;
+                showToast(`Redeemed ${amount.toLocaleString()} BUX!`, 'success');
+                redeemCodeInput.value = '';
+            } else {
+                showToast('Invalid or already used code.', 'error');
             }
         });
     })();
     
-    // --- SECURE: Gambling Tab (Wheel) ---
+    // --- Gambling Tab Logic ---
     (function setupGamblingTab() {
         const canvas = document.getElementById('wheel-canvas');
         const ctx = canvas.getContext('2d');
         const spinButton = document.getElementById('spin-btn');
-        const betInput = document.getElementById('bet-amount-input');
-        let currentRotation = 0;
+        const betAmountInput = document.getElementById('bet-amount-input');
+        let wheelSpinning = false;
+        let currentBet = 0;
 
-        const segments = [ // This is now for DISPLAY only
-            { color: '#d81b60', label: 'x3 BET' }, { color: '#e53935', label: 'LOSE BET' },
-            { color: '#43a047', label: 'x1.5 BET' }, { color: '#c2185b', label: 'BANKRUPT' },
-            { color: '#7e57c2', label: 'x2 BET' }, { color: '#fb8c00', label: '÷3 BET' },
-            { color: '#00acc1', label: 'SAFE' }, { color: '#e53935', label: 'LOSE BET' }
+        const segments = [
+            { color: '#d81b60', label: 'x3 BET', multiplier: 3 },
+            { color: '#e53935', label: 'LOSE BET', multiplier: 0 },
+            { color: '#43a047', label: 'x1.5 BET', multiplier: 1.5 },
+            { color: '#c2185b', label: 'BANKRUPT', multiplier: -1 },
+            { color: '#7e57c2', label: 'x2 BET', multiplier: 2 },
+            { color: '#fb8c00', label: '÷3 BET', multiplier: 1/3 },
+            { color: '#00acc1', label: 'SAFE', multiplier: 1 },
+            { color: '#e53935', label: 'LOSE BET', multiplier: 0 }
         ];
-
-        function drawWheel() { /* ... (drawing logic as before) ... */ }
-        // (Copied from your original script for brevity - it can remain the same)
-        const segCount = segments.length; const radius = canvas.width / 2;
-        function drawWheel() {const segAngleRad = 2 * Math.PI / segCount; ctx.clearRect(0, 0, canvas.width, canvas.height);ctx.save();ctx.translate(radius, radius);for (let i = 0; i < segCount; i++) {const angle = i * segAngleRad; ctx.beginPath(); ctx.fillStyle = segments[i].color; ctx.moveTo(0, 0); ctx.arc(0, 0, radius - 10, angle, angle + segAngleRad); ctx.lineTo(0,0); ctx.fill(); ctx.save(); ctx.fillStyle = 'white'; ctx.font = 'bold 18px Poppins'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.rotate(angle + segAngleRad / 2); ctx.fillText(segments[i].label, radius * 0.65, 0); ctx.restore(); } ctx.restore();}
-
-        spinButton.addEventListener('click', async () => {
-            const bet = parseInt(betInput.value);
-            if (isNaN(bet) || bet <= 0) return showToast('Please enter a valid bet.', 'error');
-
-            spinButton.disabled = true;
-            betInput.disabled = true;
-
-            try {
-                const result = await fetchAPI('/api/spin-wheel', {
-                    method: 'POST',
-                    body: JSON.stringify({ bet })
-                });
-                
-                // Animate the wheel to the server-determined position
-                const segAngle = 360 / segments.length;
-                const randomSpins = 8 * 360;
-                const targetAngle = (360 - (result.winningIndex * segAngle)) - (segAngle / 2); // Center the pointer
-                const finalRotation = currentRotation + randomSpins + targetAngle;
-                
-                gsap.to(canvas, {
-                    rotation: finalRotation,
-                    duration: 7,
-                    ease: 'power3.out',
-                    onComplete: () => {
-                        showToast(result.message, result.message.includes("WON") ? 'success' : 'info');
-                        spinButton.disabled = false;
-                        betInput.disabled = false;
-                    }
-                });
-                currentRotation = finalRotation % 360; // Keep track for next spin
-
-            } catch (error) {
-                showToast(error.message, 'error');
-                spinButton.disabled = false;
-                betInput.disabled = false;
+        const segCount = segments.length;
+        const radius = canvas.width / 2;
+        
+        function drawWheel() {
+            const segAngleRad = 2 * Math.PI / segCount;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(radius, radius);
+            
+            for (let i = 0; i < segCount; i++) {
+                const angle = i * segAngleRad;
+                ctx.beginPath();
+                ctx.fillStyle = segments[i].color;
+                ctx.moveTo(0, 0);
+                ctx.arc(0, 0, radius - 10, angle, angle + segAngleRad);
+                ctx.lineTo(0,0);
+                ctx.fill();
+                ctx.save();
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 18px Poppins';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.rotate(angle + segAngleRad / 2);
+                ctx.fillText(segments[i].label, radius * 0.65, 0);
+                ctx.restore();
             }
+            ctx.restore();
+        }
+
+        function handlePrize(winningSegment) {
+            const multiplier = winningSegment.multiplier;
+            let newBalance = balance;
+
+            if (multiplier === -1) {
+                const amountLost = balance;
+                newBalance = 0;
+                showToast(`BANKRUPT! You lost all ${amountLost.toLocaleString()} BUX!`, 'error');
+            } else if (multiplier > 0) {
+                const winnings = Math.floor(currentBet * multiplier);
+                newBalance += winnings;
+                if (multiplier > 1) { showToast(`YOU WON ${winnings.toLocaleString()} BUX!`, 'success'); }
+                else if (multiplier === 1) { showToast(`Safe! Your bet of ${currentBet.toLocaleString()} was returned.`, 'info'); }
+                else { showToast(`You got back ${winnings.toLocaleString()} BUX.`, 'info'); }
+            } else {
+                showToast(`You lost your bet of ${currentBet.toLocaleString()} BUX.`, 'error');
+            }
+            
+            updateUserBalance(newBalance);
+            spinButton.disabled = false;
+            betAmountInput.disabled = false;
+            wheelSpinning = false;
+        }
+
+        spinButton.addEventListener('click', () => {
+            if (wheelSpinning) return;
+            const bet = parseInt(betAmountInput.value, 10);
+            if (isNaN(bet) || bet <= 0) { showToast('Please enter a valid positive bet.', 'error'); return; }
+            if (bet > balance) { showToast('You cannot bet more than your balance.', 'error'); return; }
+            
+            currentBet = bet;
+            updateUserBalance(balance - currentBet);
+            
+            spinButton.disabled = true;
+            betAmountInput.disabled = true;
+            wheelSpinning = true;
+
+            const randomSpins = (8 + Math.random() * 4) * 360;
+            const randomExtraDegrees = Math.random() * 360;
+            const totalRotation = randomSpins + randomExtraDegrees;
+
+            gsap.to(canvas, {
+                rotation: `+=${totalRotation}`,
+                duration: 7,
+                ease: 'power3.out',
+                onComplete: () => {
+                    const finalRotation = gsap.getProperty(canvas, "rotation");
+                    const normalizedAngle = finalRotation % 360;
+                    const angleToPointer = ( ( (270 - normalizedAngle) % 360 ) + 360 ) % 360;
+                    const segAngleDeg = 360 / segments.length;
+                    const winningIndex = Math.floor(angleToPointer / segAngleDeg);
+                    const winningSegment = segments[winningIndex];
+                    
+                    handlePrize(winningSegment);
+                }
+            });
         });
         drawWheel();
     })();
     
-    // --- SECURE: Blackjack Tab ---
+    // --- Blackjack Tab Logic ---
     (function setupBlackjackTab() {
+        const suits = ['♥', '♦', '♠', '♣'];
+        const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+        let deck = [];
+        let playerHand, dealerHand;
+        let currentBetBJ = 0;
+        
         const betControls = document.getElementById('blackjack-bet-controls');
         const gameActions = document.getElementById('blackjack-game-actions');
         const betInput = document.getElementById('blackjack-bet-input');
         const dealButton = document.getElementById('deal-button');
         const hitButton = document.getElementById('hit-button');
         const standButton = document.getElementById('stand-button');
+        const doubleDownButton = document.getElementById('double-down-button');
         
         const playerHandEl = document.getElementById('player-hand');
         const dealerHandEl = document.getElementById('dealer-hand');
@@ -636,107 +779,298 @@ document.addEventListener('DOMContentLoaded', () => {
         const dealerScoreEl = document.getElementById('dealer-score');
         const gameStatusEl = document.getElementById('game-status');
 
+        function createDeck() {
+            deck = [];
+            for(let i=0; i<6; i++) {
+                for (const suit of suits) {
+                    for (const rank of ranks) {
+                        deck.push({ suit, rank, value: getCardValue(rank) });
+                    }
+                }
+            }
+            shuffleDeck();
+        }
+
+        function shuffleDeck() {
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
+        }
+
+        function getCardValue(rank) {
+            if (['J', 'Q', 'K'].includes(rank)) return 10;
+            if (rank === 'A') return 11;
+            return parseInt(rank);
+        }
+
+        function calculateScore(hand) {
+            let score = hand.reduce((sum, card) => sum + card.value, 0);
+            let numAces = hand.filter(card => card.rank === 'A').length;
+            while (score > 21 && numAces > 0) {
+                score -= 10;
+                numAces--;
+            }
+            return score;
+        }
+
         function renderCard(card, targetEl, isFaceDown = false) {
             const cardEl = document.createElement('div');
             cardEl.className = 'bj-card';
-            if (isFaceDown) {
-                cardEl.classList.add('facedown');
-            } else {
+            if (!isFaceDown) {
                 const colorClass = ['♥', '♦'].includes(card.suit) ? 'red' : 'black';
+                cardEl.innerHTML = `
+                    <span class="rank-top">${card.rank}${card.suit}</span>
+                    <span class="center-suit">${card.suit}</span>
+                    <span class="rank-bottom">${card.rank}${card.suit}</span>`;
                 cardEl.classList.add(colorClass);
-                cardEl.innerHTML = `<span class="rank-top">${card.rank}${card.suit}</span><span class="center-suit">${card.suit}</span><span class="rank-bottom">${card.rank}${card.suit}</span>`;
+            } else {
+                cardEl.classList.add('facedown');
             }
             targetEl.appendChild(cardEl);
-            gsap.from(cardEl, { duration: 0.5, y: -50, opacity: 0, ease: 'power2.out' });
+            gsap.from(cardEl, { duration: 0.5, y: -100, opacity: 0, ease: 'power3.out' });
         }
 
-        function renderHand(hand, targetEl) {
-            targetEl.innerHTML = '';
-            hand.forEach(card => renderCard(card, targetEl, card.rank === '?'));
+        function updateScores(isDealerHidden = false) {
+            const playerScore = calculateScore(playerHand);
+            playerScoreEl.textContent = playerScore;
+            if (isDealerHidden) {
+                 const visibleDealerScore = dealerHand[0].rank === 'A' ? 11 : dealerHand[0].value;
+                 dealerScoreEl.textContent = `${visibleDealerScore} + ?`;
+            } else {
+                const dealerScore = calculateScore(dealerHand);
+                dealerScoreEl.textContent = dealerScore;
+            }
+        }
+        
+        function checkInitialBlackjack() {
+             if (calculateScore(playerHand) === 21) {
+                 const dealerScoreCheck = calculateScore(dealerHand);
+                 revealDealerCard();
+                 if (dealerScoreCheck === 21) {
+                    endGame("Push! Both have Blackjack.", 1);
+                 } else {
+                    endGame("Blackjack!", 2.5);
+                 }
+                 return true;
+             }
+             return false;
         }
 
-        function resetBoard() {
+        dealButton.addEventListener('click', () => {
+            const bet = parseInt(betInput.value, 10);
+            if (isNaN(bet) || bet <= 0) { showToast('Please enter a valid bet.', 'error'); return; }
+            if (bet > balance) { showToast('Bet exceeds your balance.', 'error'); return; }
+            
+            currentBetBJ = bet;
+            updateUserBalance(balance - currentBetBJ);
+            
+            if (deck.length < 52) createDeck();
+            
+            playerHand = [deck.pop(), deck.pop()];
+            dealerHand = [deck.pop(), deck.pop()];
+            
             playerHandEl.innerHTML = '';
             dealerHandEl.innerHTML = '';
-            playerScoreEl.textContent = '0';
-            dealerScoreEl.textContent = '?';
-            gameStatusEl.textContent = 'Place your bet to start!';
-            betControls.style.display = 'flex';
-            gameActions.style.display = 'none';
-            dealButton.disabled = false;
+            
+            renderCard(playerHand[0], playerHandEl);
+            renderCard(dealerHand[0], dealerHandEl);
+            renderCard(playerHand[1], playerHandEl);
+            renderCard(dealerHand[1], dealerHandEl, true);
+
+            updateScores(true);
+            
+            betControls.style.display = 'none';
+            gameActions.style.display = 'flex';
+            setActionsState(true, balance >= currentBetBJ);
+            gameStatusEl.textContent = '';
+            
+            if (checkInitialBlackjack()) {
+               setActionsState(false, false);
+            }
+        });
+        
+        function setActionsState(enabled, canDouble) {
+            hitButton.disabled = !enabled;
+            standButton.disabled = !enabled;
+            doubleDownButton.disabled = !enabled || !canDouble || playerHand.length > 2;
         }
 
-        dealButton.addEventListener('click', async () => {
-            const bet = parseInt(betInput.value);
-            if (isNaN(bet) || bet <= 0) return showToast('Invalid bet.', 'error');
+        hitButton.addEventListener('click', () => {
+            playerHand.push(deck.pop());
+            renderCard(playerHand[playerHand.length - 1], playerHandEl);
+            updateScores(true);
+            setActionsState(true, false);
+            if (calculateScore(playerHand) > 21) {
+                endGame("You Busted!", 0);
+            }
+        });
+        
+        standButton.addEventListener('click', () => {
+            setActionsState(false, false);
+            dealerTurn();
+        });
+        
+        doubleDownButton.addEventListener('click', () => {
+            if (balance < currentBetBJ) { showToast("Not enough Bux to double down!", "error"); return; }
             
-            dealButton.disabled = true;
-            gameStatusEl.textContent = 'Dealing...';
-            try {
-                const state = await fetchAPI('/api/blackjack/deal', {
-                    method: 'POST',
-                    body: JSON.stringify({ bet })
-                });
-                
-                renderHand(state.playerHand, playerHandEl);
-                renderHand(state.dealerHand, dealerHandEl);
-                playerScoreEl.textContent = state.playerScore;
-                dealerScoreEl.textContent = state.dealerHand[0].value;
-                gameStatusEl.textContent = '';
-                betControls.style.display = 'none';
-                gameActions.style.display = 'flex';
-                hitButton.disabled = false;
-                standButton.disabled = false;
-
-            } catch (error) {
-                showToast(error.message, 'error');
-                dealButton.disabled = false;
-                gameStatusEl.textContent = 'Place your bet to start!';
-            }
-        });
-
-        hitButton.addEventListener('click', async () => {
-            hitButton.disabled = true;
-            standButton.disabled = true;
-            try {
-                const state = await fetchAPI('/api/blackjack/hit', { method: 'POST' });
-                renderHand(state.playerHand, playerHandEl);
-                playerScoreEl.textContent = state.playerScore;
-
-                if (state.status === 'busted') {
-                    gameStatusEl.textContent = state.message;
-                    setTimeout(resetBoard, 2500);
+            updateUserBalance(balance - currentBetBJ);
+            currentBetBJ *= 2;
+            
+            setActionsState(false, false);
+            playerHand.push(deck.pop());
+            renderCard(playerHand[playerHand.length-1], playerHandEl);
+            
+            setTimeout(() => {
+                updateScores(true);
+                 if (calculateScore(playerHand) > 21) {
+                    endGame("You Busted on Double Down!", 0);
                 } else {
-                    hitButton.disabled = false;
-                    standButton.disabled = false;
+                    dealerTurn();
                 }
-            } catch (error) {
-                showToast(error.message, 'error');
-                setTimeout(resetBoard, 2500);
-            }
+            }, 800);
         });
+        
+        function revealDealerCard() {
+            const holeCard = dealerHandEl.children[1];
+            const cardData = dealerHand[1];
+            if (!holeCard || !holeCard.classList.contains('facedown')) return;
+            
+            gsap.to(holeCard, {rotationY: 90, duration: 0.3, ease: 'power1.in', onComplete: () => {
+                holeCard.classList.remove('facedown');
+                const colorClass = ['♥', '♦'].includes(cardData.suit) ? 'red' : 'black';
+                
+                holeCard.innerHTML = `
+                    <span class="rank-top">${cardData.rank}${cardData.suit}</span>
+                    <span class="center-suit">${cardData.suit}</span>
+                    <span class="rank-bottom">${cardData.rank}${cardData.suit}</span>`;
+                holeCard.classList.add(colorClass);
 
-        standButton.addEventListener('click', async () => {
-            hitButton.disabled = true;
-            standButton.disabled = true;
-            gameStatusEl.textContent = 'Dealer is playing...';
-            try {
-                const state = await fetchAPI('/api/blackjack/stand', { method: 'POST' });
-                renderHand(state.dealerHand, dealerHandEl);
-                dealerScoreEl.textContent = state.dealerScore;
-                gameStatusEl.textContent = state.message;
-                showToast(state.message, 'info');
-                setTimeout(resetBoard, 2500);
-            } catch (error) {
-                showToast(error.message, 'error');
-                setTimeout(resetBoard, 2500);
+                gsap.to(holeCard, {rotationY: 0, duration: 0.3, ease: 'power1.out'});
+            }});
+        }
+
+        function dealerTurn() {
+            revealDealerCard();
+            setTimeout(() => {
+                updateScores(false);
+                const dealerHitLoop = () => {
+                    if (calculateScore(dealerHand) < 17) {
+                        dealerHand.push(deck.pop());
+                        renderCard(dealerHand[dealerHand.length - 1], dealerHandEl);
+                        updateScores(false);
+                        setTimeout(dealerHitLoop, 800);
+                    } else {
+                        determineWinner();
+                    }
+                };
+                setTimeout(dealerHitLoop, 800);
+            }, 500);
+        }
+
+        function determineWinner() {
+            const finalDealerScore = calculateScore(dealerHand);
+            const finalPlayerScore = calculateScore(playerHand);
+            
+            if(finalDealerScore > 21) { endGame("Dealer Busts! You Win!", 2); }
+            else if (finalPlayerScore > finalDealerScore) { endGame("You Win!", 2); }
+            else if (finalDealerScore > finalPlayerScore) { endGame("Dealer Wins!", 0); }
+            else { endGame("Push!", 1); }
+        }
+        
+        function endGame(message, payoutMultiplier) {
+            gameStatusEl.textContent = message;
+            const finalBalance = balance + (currentBetBJ * payoutMultiplier);
+            updateUserBalance(finalBalance);
+            
+            setActionsState(false, false);
+            setTimeout(() => {
+                gameActions.style.display = 'none';
+                dealButton.textContent = 'Play Again';
+                betControls.style.display = 'flex';
+                gameStatusEl.textContent = 'Place your bet!';
+            }, 2500);
+        }
+
+        createDeck();
+    })();
+
+    // --- Linus Hub 2D Game Logic ---
+    (function setupLinusHubTab() {
+        const gameArea = document.getElementById('game-area');
+        if (!gameArea) return;
+        
+        const player = {
+            element: document.getElementById('player-character'),
+            x: gameArea.offsetWidth / 2 - 100,
+            y: gameArea.offsetHeight / 2 - 100,
+            width: 200,
+            height: 200,
+            speed: 5,
+            direction: 1
+        };
+
+        player.element.style.width = `${player.width}px`;
+        player.element.style.height = `${player.height}px`;
+        player.element.style.left = `${player.x}px`;
+        player.element.style.top = `${player.y}px`;
+
+        const keys = { w: false, a: false, s: false, d: false };
+        let currentAnimation = 'idle';
+        let gameLoopId = null;
+
+        function updatePlayerPosition() {
+            const isMoving = (keys.w || keys.a || keys.s || keys.d);
+            
+            if (keys.w && player.y > 0) player.y -= player.speed;
+            if (keys.s && player.y < gameArea.offsetHeight - player.height) player.y += player.speed;
+            if (keys.a && player.x > 0) { player.x -= player.speed; player.direction = -1; }
+            if (keys.d && player.x < gameArea.offsetWidth - player.width) { player.x += player.speed; player.direction = 1; }
+
+            player.element.style.left = `${player.x}px`;
+            player.element.style.top = `${player.y}px`;
+            player.element.style.transform = `scaleX(${player.direction})`;
+
+            const newAnimation = isMoving ? 'walk' : 'idle';
+            if (currentAnimation !== newAnimation) {
+                currentAnimation = newAnimation;
+                player.element.src = (newAnimation === 'walk') ? 'WALK.gif' : 'IDLE.gif';
             }
-        });
+        }
+        
+        function gameLoop() {
+            updatePlayerPosition();
+            gameLoopId = requestAnimationFrame(gameLoop);
+        }
 
-        resetBoard();
+        function handleKeyDown(e) { if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = true; }
+        function handleKeyUp(e) { if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false; }
+        
+        const linusHubTab = document.getElementById('linus-hub');
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.attributeName === 'class') {
+                    if (linusHubTab.classList.contains('active')) {
+                        player.x = gameArea.offsetWidth / 2 - player.width / 2;
+                        player.y = gameArea.offsetHeight / 2 - player.height / 2;
+                        document.addEventListener('keydown', handleKeyDown);
+                        document.addEventListener('keyup', handleKeyUp);
+                        if (!gameLoopId) gameLoop();
+                    } else {
+                        document.removeEventListener('keydown', handleKeyDown);
+                        document.removeEventListener('keyup', handleKeyUp);
+                        for(let key in keys) { keys[key] = false; }
+                        if(gameLoopId) { cancelAnimationFrame(gameLoopId); gameLoopId = null; }
+                    }
+                }
+            });
+        });
+        observer.observe(linusHubTab, { attributes: true });
     })();
 });
-</script>
 
+  
+
+</script>
 </body>
 </html>
