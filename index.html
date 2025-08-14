@@ -241,19 +241,60 @@
     /* Linus Hub Tab */
     #linus-hub { justify-content: center; align-items: center; width: 100%; height: 100%; padding: 0; position: relative; }
     #game-area { width: 100%; height: 100%; background-color: #0d0d0d; border-radius: var(--border-radius); border: 2px solid var(--primary-blue); box-shadow: 0 0 25px rgba(10, 132, 255, 0.3); position: relative; overflow: hidden; }
-    .player-character { position: absolute; transition: transform 0.1s linear, top 0.1s linear, left 0.1s linear; user-select: none; }
+    .player-character { position: absolute; transition: top 0.1s linear, left 0.1s linear; user-select: none; display: flex; flex-direction: column; align-items: center; }
+    .player-character img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        transition: transform 0.1s linear;
+    }
+    .player-ui-container { position: absolute; bottom: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 4px; }
     .player-nametag {
-        position: absolute;
-        bottom: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(0, 0, 0, 0.5);
+        background: rgba(0, 0, 0, 0.6);
         color: white;
         padding: 2px 8px;
         border-radius: 4px;
-        font-size: 12px;
+        font-size: 10px;
         font-weight: 600;
         white-space: nowrap;
+    }
+    .chat-bubble {
+        background: white;
+        color: #121212;
+        padding: 6px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+        white-space: nowrap;
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    .chat-bubble.visible { opacity: 1; }
+    
+    #chat-input-container {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80%;
+        max-width: 600px;
+        z-index: 100;
+    }
+     #chat-input-container input {
+        width: 100%;
+        background-color: rgba(0,0,0,0.7);
+        backdrop-filter: blur(5px);
+        border: 1px solid var(--primary-blue);
+        color: var(--light-text);
+        padding: 0.8rem 1rem;
+        border-radius: 10px;
+        font-family: var(--font-family);
+        font-size: 1rem;
+        outline: none;
+        box-shadow: 0 0 15px rgba(10, 132, 255, 0.5);
     }
 
 
@@ -402,8 +443,18 @@
     <div id="game-area">
         <!-- Local player character -->
         <div id="local-player-container" class="player-character">
+             <div class="player-ui-container">
+                <div class="chat-bubble"></div>
+                <div class="player-nametag">You</div>
+            </div>
             <img id="player-character-img" src="IDLE.gif" alt="Player">
-            <div id="player-nametag" class="player-nametag">You</div>
+        </div>
+
+        <!-- Chat Input -->
+        <div id="chat-input-container" style="display: none;">
+            <form id="chat-form">
+                <input type="text" id="chat-input" placeholder="Say something..." maxlength="50" autocomplete="off">
+            </form>
         </div>
         <!-- Other players will be added here by JS -->
     </div>
@@ -1008,7 +1059,7 @@ function updateAllBalanceDisplays(targetBalance) {
     createDeck();
 })();
 
-// --- Linus Hub 2D Game Logic (MULTIPLAYER UPDATE) ---
+// --- Linus Hub 2D Game Logic (MULTIPLAYER + CHAT UPDATE) ---
 (function setupLinusHubTab() {
     const gameArea = document.getElementById('game-area');
     if (!gameArea) return;
@@ -1017,73 +1068,115 @@ function updateAllBalanceDisplays(targetBalance) {
     const hubRef = db.ref('linusHub/players');
     let playerRef = null;
 
+    // Chat elements
+    const chatInputContainer = document.getElementById('chat-input-container');
+    const chatForm = document.getElementById('chat-form');
+    const chatInput = document.getElementById('chat-input');
+
     // Local player state
     const playerContainer = document.getElementById('local-player-container');
     const playerImage = document.getElementById('player-character-img');
-    const playerNametag = document.getElementById('player-nametag');
     const playerState = {
         element: playerContainer,
         imgElement: playerImage,
-        x: gameArea.offsetWidth / 2 - 100,
-        y: gameArea.offsetHeight / 2 - 100,
-        width: 100,
-        height: 100,
-        speed: 5,
+        x: gameArea.offsetWidth / 2 - 15,
+        y: gameArea.offsetHeight / 2 - 15,
+        width: 30,
+        height: 30,
+        speed: 4,
         direction: 1,
         animation: 'idle'
     };
+    
+    playerState.element.style.width = `${playerState.width}px`;
+    playerState.element.style.height = `${playerState.height}px`;
 
     const keys = { w: false, a: false, s: false, d: false };
+    let isChatting = false;
     let gameLoopId = null;
-    let otherPlayerElements = {}; // Stores DOM elements for other players {uid: element}
+    let otherPlayerElements = {}; // {uid: {container: el, img: el, bubble: el, bubbleTimeout: id}}
 
-    // Main update function from Firebase
+    function handlePlayerChat(playerEl, pData) {
+        const bubble = playerEl.querySelector('.chat-bubble');
+        if (!bubble) return;
+    
+        // Clear any existing timeout to reset the timer for a new message
+        if (playerEl.bubbleTimeout) {
+            clearTimeout(playerEl.bubbleTimeout);
+        }
+
+        bubble.textContent = pData.chatMessage;
+        bubble.classList.add('visible');
+
+        // Set a timer to hide this specific bubble
+        playerEl.bubbleTimeout = setTimeout(() => {
+            bubble.classList.remove('visible');
+        }, 5000); // Messages last for 5 seconds
+    }
+
     function updateAllPlayers(playersData) {
         if (!playersData) playersData = {};
         const uidsInSnapshot = Object.keys(playersData);
 
-        // Update/Create other players
         for (const uid in playersData) {
-            if (uid === currentUser.uid) continue; // Skip local player
+            if (uid === currentUser.uid) { // Handle local player's chat echo
+                const pData = playersData[uid];
+                 if(pData.chatMessage && pData.chatTimestamp && (Date.now() - pData.chatTimestamp < 5100)) {
+                    handlePlayerChat(playerState.element, pData);
+                 }
+                continue;
+            }
 
             const pData = playersData[uid];
-            let otherPlayerEl = otherPlayerElements[uid];
+            let otherPlayer = otherPlayerElements[uid];
 
-            if (!otherPlayerEl) {
-                // Player doesn't exist locally, create them
-                otherPlayerEl = document.createElement('div');
-                otherPlayerEl.className = 'player-character';
+            if (!otherPlayer) {
+                const container = document.createElement('div');
+                container.className = 'player-character';
+                container.style.width = `${pData.width}px`;
+                container.style.height = `${pData.height}px`;
 
-                const img = document.createElement('img');
-                img.src = 'IDLE.gif';
+                const uiContainer = document.createElement('div');
+                uiContainer.className = 'player-ui-container';
                 
+                const bubble = document.createElement('div');
+                bubble.className = 'chat-bubble';
+
                 const nametag = document.createElement('div');
                 nametag.className = 'player-nametag';
                 nametag.textContent = pData.email.split('@')[0];
 
-                otherPlayerEl.appendChild(img);
-                otherPlayerEl.appendChild(nametag);
+                const img = document.createElement('img');
+                img.src = 'IDLE.gif';
                 
-                otherPlayerElements[uid] = otherPlayerEl;
-                gameArea.appendChild(otherPlayerEl);
+                uiContainer.appendChild(bubble);
+                uiContainer.appendChild(nametag);
+                container.appendChild(uiContainer);
+                container.appendChild(img);
+                
+                otherPlayer = { container, img, bubble, bubbleTimeout: null };
+                otherPlayerElements[uid] = otherPlayer;
+                gameArea.appendChild(container);
             }
             
-            // Update position, animation, and direction
-            otherPlayerEl.style.left = `${pData.x}px`;
-            otherPlayerEl.style.top = `${pData.y}px`;
-            otherPlayerEl.style.transform = `scaleX(${pData.direction})`;
+            otherPlayer.container.style.left = `${pData.x}px`;
+            otherPlayer.container.style.top = `${pData.y}px`;
+            otherPlayer.img.style.transform = `scaleX(${pData.direction})`;
             
-            const imgEl = otherPlayerEl.querySelector('img');
             const newSrc = (pData.animation === 'walk' ? 'WALK.gif' : 'IDLE.gif');
-            if (imgEl.src.indexOf(newSrc) === -1) {
-                imgEl.src = newSrc;
+            if (otherPlayer.img.src.indexOf(newSrc) === -1) {
+                otherPlayer.img.src = newSrc;
+            }
+
+            // Check for and display chat messages
+             if(pData.chatMessage && pData.chatTimestamp && (Date.now() - pData.chatTimestamp < 5100)) {
+                handlePlayerChat(otherPlayer.container, pData);
             }
         }
         
-        // Remove players who disconnected
         for (const uid in otherPlayerElements) {
             if (!uidsInSnapshot.includes(uid)) {
-                otherPlayerElements[uid].remove();
+                otherPlayerElements[uid].container.remove();
                 delete otherPlayerElements[uid];
             }
         }
@@ -1102,15 +1195,13 @@ function updateAllBalanceDisplays(targetBalance) {
         const animChanged = playerState.animation !== newAnimation;
         if(animChanged) playerState.animation = newAnimation;
 
-        // Update local DOM immediately for smoothness
         playerState.element.style.left = `${playerState.x}px`;
         playerState.element.style.top = `${playerState.y}px`;
-        playerState.element.style.transform = `scaleX(${playerState.direction})`;
+        playerState.imgElement.style.transform = `scaleX(${playerState.direction})`;
         if (animChanged) {
             playerState.imgElement.src = (newAnimation === 'walk') ? 'WALK.gif' : 'IDLE.gif';
         }
         
-        // If anything changed, send update to Firebase
         if (posChanged || animChanged) {
              if (playerRef) {
                 playerRef.update({
@@ -1124,21 +1215,56 @@ function updateAllBalanceDisplays(targetBalance) {
     }
     
     function gameLoop() {
-        updateLocalPlayerPosition();
+        if(!isChatting) {
+            updateLocalPlayerPosition();
+        }
         gameLoopId = requestAnimationFrame(gameLoop);
     }
-
-    function handleKeyDown(e) { if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = true; }
-    function handleKeyUp(e) { if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false; }
     
+    function handleGlobalKeyDown(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (isChatting) {
+                 chatForm.dispatchEvent(new Event('submit'));
+            } else {
+                isChatting = true;
+                chatInputContainer.style.display = 'block';
+                chatInput.focus();
+            }
+        } else if (e.key.toLowerCase() in keys && !isChatting) {
+            keys[e.key.toLowerCase()] = true;
+        }
+    }
+
+    function handleGlobalKeyUp(e) {
+        if (e.key.toLowerCase() in keys) {
+            keys[e.key.toLowerCase()] = false;
+        }
+    }
+    
+    chatForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const message = chatInput.value.trim();
+        if(message && playerRef) {
+            playerRef.update({
+                chatMessage: message,
+                chatTimestamp: firebase.database.ServerValue.TIMESTAMP
+            });
+        }
+        chatInput.value = '';
+        chatInputContainer.style.display = 'none';
+        isChatting = false;
+    });
+
     function enterHub() {
         if (!currentUser) return;
         playerRef = db.ref(`linusHub/players/${currentUser.uid}`);
         
-        // Set initial data and onDisconnect handler
         const initialData = {
             x: playerState.x,
             y: playerState.y,
+            width: playerState.width,
+            height: playerState.height,
             direction: 1,
             animation: 'idle',
             email: currentUser.email || 'guest'
@@ -1146,38 +1272,34 @@ function updateAllBalanceDisplays(targetBalance) {
         playerRef.set(initialData);
         playerRef.onDisconnect().remove();
 
-        // Start listening for all players
         hubRef.on('value', (snapshot) => {
             updateAllPlayers(snapshot.val());
         });
 
-        playerNametag.textContent = currentUser.email.split('@')[0];
-        document.addEventListener('keydown', handleKeyDown);
-        document.addEventListener('keyup', handleKeyUp);
+        document.addEventListener('keydown', handleGlobalKeyDown);
+        document.addEventListener('keyup', handleGlobalKeyUp);
         if (!gameLoopId) gameLoop();
     }
 
     function leaveHub() {
-        if (playerRef) {
-            playerRef.remove();
-        }
-        hubRef.off(); // Stop listening
-        document.removeEventListener('keydown', handleKeyDown);
-        document.removeEventListener('keyup', handleKeyUp);
+        if (playerRef) playerRef.remove();
+        hubRef.off();
+        document.removeEventListener('keydown', handleGlobalKeyDown);
+        document.removeEventListener('keyup', handleGlobalKeyUp);
         for(let key in keys) { keys[key] = false; }
         if(gameLoopId) { 
             cancelAnimationFrame(gameLoopId);
             gameLoopId = null; 
         }
 
-        // Clean up other player elements
         for(const uid in otherPlayerElements) {
-            otherPlayerElements[uid].remove();
+            otherPlayerElements[uid].container.remove();
         }
         otherPlayerElements = {};
+        isChatting = false;
+        chatInputContainer.style.display = 'none';
     }
 
-    // Observer to start/stop the game when tab is shown/hidden
     const linusHubTab = document.getElementById('linus-hub');
     const observer = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
@@ -1197,4 +1319,3 @@ function updateAllBalanceDisplays(targetBalance) {
 </script>
 </body>
 </html>
-
