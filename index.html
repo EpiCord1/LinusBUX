@@ -248,29 +248,30 @@
         object-fit: contain;
         transition: transform 0.1s linear;
     }
-    .player-ui-container { position: absolute; bottom: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 4px; }
+    .player-ui-container { position: absolute; bottom: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 5px; }
     .player-nametag {
-        background: rgba(0, 0, 0, 0.6);
+        background: rgba(0, 0, 0, 0.7);
         color: white;
-        padding: 2px 8px;
-        border-radius: 4px;
-        font-size: 10px;
+        padding: 3px 9px;
+        border-radius: 5px;
+        font-size: 12px;
         font-weight: 600;
         white-space: nowrap;
     }
     .chat-bubble {
         background: white;
         color: #121212;
-        padding: 6px 10px;
+        padding: 7px 12px;
         border-radius: 12px;
-        font-size: 12px;
+        font-size: 14px;
         font-weight: 500;
         white-space: nowrap;
-        max-width: 200px;
+        max-width: 250px;
         overflow: hidden;
         text-overflow: ellipsis;
         opacity: 0;
         transition: opacity 0.3s ease;
+        pointer-events: none;
     }
     .chat-bubble.visible { opacity: 1; }
     
@@ -1079,10 +1080,10 @@ function updateAllBalanceDisplays(targetBalance) {
     const playerState = {
         element: playerContainer,
         imgElement: playerImage,
-        x: gameArea.offsetWidth / 2 - 15,
-        y: gameArea.offsetHeight / 2 - 15,
-        width: 30,
-        height: 30,
+        x: gameArea.offsetWidth / 2 - 25,
+        y: gameArea.offsetHeight / 2 - 25,
+        width: 50, // Player size updated
+        height: 50, // Player size updated
         speed: 4,
         direction: 1,
         animation: 'idle'
@@ -1100,7 +1101,6 @@ function updateAllBalanceDisplays(targetBalance) {
         const bubble = playerEl.querySelector('.chat-bubble');
         if (!bubble) return;
     
-        // Clear any existing timeout to reset the timer for a new message
         if (playerEl.bubbleTimeout) {
             clearTimeout(playerEl.bubbleTimeout);
         }
@@ -1108,7 +1108,6 @@ function updateAllBalanceDisplays(targetBalance) {
         bubble.textContent = pData.chatMessage;
         bubble.classList.add('visible');
 
-        // Set a timer to hide this specific bubble
         playerEl.bubbleTimeout = setTimeout(() => {
             bubble.classList.remove('visible');
         }, 5000); // Messages last for 5 seconds
@@ -1119,15 +1118,14 @@ function updateAllBalanceDisplays(targetBalance) {
         const uidsInSnapshot = Object.keys(playersData);
 
         for (const uid in playersData) {
-            if (uid === currentUser.uid) { // Handle local player's chat echo
-                const pData = playersData[uid];
+            const pData = playersData[uid];
+            if (uid === currentUser.uid) { 
                  if(pData.chatMessage && pData.chatTimestamp && (Date.now() - pData.chatTimestamp < 5100)) {
                     handlePlayerChat(playerState.element, pData);
                  }
                 continue;
             }
 
-            const pData = playersData[uid];
             let otherPlayer = otherPlayerElements[uid];
 
             if (!otherPlayer) {
@@ -1168,7 +1166,6 @@ function updateAllBalanceDisplays(targetBalance) {
                 otherPlayer.img.src = newSrc;
             }
 
-            // Check for and display chat messages
              if(pData.chatMessage && pData.chatTimestamp && (Date.now() - pData.chatTimestamp < 5100)) {
                 handlePlayerChat(otherPlayer.container, pData);
             }
@@ -1176,6 +1173,7 @@ function updateAllBalanceDisplays(targetBalance) {
         
         for (const uid in otherPlayerElements) {
             if (!uidsInSnapshot.includes(uid)) {
+                if(otherPlayerElements[uid].bubbleTimeout) clearTimeout(otherPlayerElements[uid].bubbleTimeout);
                 otherPlayerElements[uid].container.remove();
                 delete otherPlayerElements[uid];
             }
@@ -1246,10 +1244,17 @@ function updateAllBalanceDisplays(targetBalance) {
         e.preventDefault();
         const message = chatInput.value.trim();
         if(message && playerRef) {
+            // Update the message and add a timestamp for server-side evaluation
             playerRef.update({
                 chatMessage: message,
                 chatTimestamp: firebase.database.ServerValue.TIMESTAMP
             });
+            // After sending, remove the chat message from the database after a delay
+            // This prevents old messages from showing up when a user logs in
+            setTimeout(() => {
+                playerRef.child('chatMessage').remove();
+                playerRef.child('chatTimestamp').remove();
+            }, 500); // Remove slightly after sending
         }
         chatInput.value = '';
         chatInputContainer.style.display = 'none';
@@ -1293,6 +1298,7 @@ function updateAllBalanceDisplays(targetBalance) {
         }
 
         for(const uid in otherPlayerElements) {
+            if(otherPlayerElements[uid].bubbleTimeout) clearTimeout(otherPlayerElements[uid].bubbleTimeout);
             otherPlayerElements[uid].container.remove();
         }
         otherPlayerElements = {};
