@@ -1166,7 +1166,7 @@ function updateAllBalanceDisplays(targetBalance) {
     createDeck();
 })();
 
-// --- Linus Hub 2D Game Logic (Free Plan Version) ---
+// --- Linus Hub 2D Game Logic (FIXED) ---
 (function setupLinusHubTab() {
     const gameArea = document.getElementById('game-area');
     if (!gameArea) return;
@@ -1175,7 +1175,6 @@ function updateAllBalanceDisplays(targetBalance) {
     let playerRef = null;
 
     const chatInputContainer = document.getElementById('chat-input-container');
-    const chatForm = document.getElementById('chat-form');
     const chatInput = document.getElementById('chat-input');
 
     const playerContainer = document.getElementById('local-player-container');
@@ -1220,13 +1219,11 @@ function updateAllBalanceDisplays(targetBalance) {
         });
     }
 
-    // Gifting function using a client-side multi-path update
     async function handleGift() {
         const recipientUid = userInteractionPanel.dataset.targetUid;
         const senderUid = currentUser.uid;
         const amount = parseInt(giftAmountInput.value, 10);
 
-        // --- Client-side validation for immediate user feedback ---
         if (!recipientUid) return;
         if (isNaN(amount) || amount <= 0) {
             showToast('Please enter a valid amount.', 'error');
@@ -1236,7 +1233,7 @@ function updateAllBalanceDisplays(targetBalance) {
             showToast("You can't gift to yourself!", 'error');
             return;
         }
-        if (balance < amount) { // 'balance' is our local, real-time variable
+        if (balance < amount) {
             showToast('You do not have enough BUX.', 'error');
             return;
         }
@@ -1244,8 +1241,6 @@ function updateAllBalanceDisplays(targetBalance) {
         giftBtn.disabled = true;
 
         try {
-            // This is the core logic: a single atomic update request
-            // The security rules on the server will have the final say.
             const updates = {};
             updates[`/users/${senderUid}/balance`] = firebase.database.ServerValue.increment(-amount);
             updates[`/users/${recipientUid}/balance`] = firebase.database.ServerValue.increment(amount);
@@ -1257,7 +1252,7 @@ function updateAllBalanceDisplays(targetBalance) {
 
         } catch (error) {
             console.error('Gift update failed:', error);
-            showToast(error.message, 'error'); // The rules engine will provide a "Permission denied" message on failure.
+            showToast(error.message, 'error');
         } finally {
             giftBtn.disabled = false;
             delete userInteractionPanel.dataset.targetUid;
@@ -1322,13 +1317,24 @@ function updateAllBalanceDisplays(targetBalance) {
         gameLoopId = requestAnimationFrame(gameLoop);
     }
     
+    function sendMessage() {
+        const message = chatInput.value.trim();
+        if (message) {
+            if (playerRef) playerRef.child('chatMessage').set(message);
+            handlePlayerChat(playerState.element, message);
+        }
+        chatInput.value = '';
+        chatInputContainer.style.display = 'none';
+        isChatting = false;
+    }
+
     function handleGlobalKeyDown(e) {
         if (userInteractionPanel.classList.contains('visible')) return;
 
         if (e.key === 'Enter') {
-            e.preventDefault();
+            e.preventDefault(); // This is the crucial fix to prevent page reload
             if (isChatting) {
-                 chatForm.dispatchEvent(new Event('submit'));
+                sendMessage();
             } else {
                 isChatting = true;
                 chatInputContainer.style.display = 'block';
@@ -1344,15 +1350,6 @@ function updateAllBalanceDisplays(targetBalance) {
             keys[e.key.toLowerCase()] = false;
         }
     }
-    
-    chatForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const message = chatInput.value.trim();
-        if(message && playerRef) playerRef.child('chatMessage').set(message);
-        chatInput.value = '';
-        chatInputContainer.style.display = 'none';
-        isChatting = false;
-    });
     
     function enterHub() {
         if (!currentUser) return;
@@ -1410,7 +1407,11 @@ function updateAllBalanceDisplays(targetBalance) {
             const uid = snapshot.key;
 
             if (uid === currentUser.uid) {
-                if (pData.chatMessage) handlePlayerChat(playerState.element, pData.chatMessage);
+                // We've received our own chat message back from Firebase.
+                // We already displayed it locally, so we'll just clear it from the database now.
+                if (pData.chatMessage) {
+                    playerRef.child('chatMessage').remove();
+                }
                 return;
             }
 
@@ -1423,7 +1424,9 @@ function updateAllBalanceDisplays(targetBalance) {
             const newSrc = (pData.animation === 'walk' ? 'WALK.gif' : 'IDLE.gif');
             if (otherPlayer.img.src.indexOf(newSrc) === -1) otherPlayer.img.src = newSrc;
             
-            if (pData.chatMessage) handlePlayerChat(otherPlayer.container, pData.chatMessage);
+            if (pData.chatMessage) {
+                handlePlayerChat(otherPlayer.container, pData.chatMessage);
+            }
         });
 
         hubRef.on('child_removed', (snapshot) => {
