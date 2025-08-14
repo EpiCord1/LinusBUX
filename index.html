@@ -140,7 +140,6 @@
         align-items: center;
         border-right: 1px solid var(--dark-card-border);
         z-index: 10;
-        flex-shrink: 0; /* Prevent sidebar from shrinking */
     }
     .logo { font-size: 2rem; font-weight: 700; color: white; margin-bottom: 3rem; text-shadow: 0 0 10px var(--primary-blue); }
     .sidebar ul { list-style: none; width: 100%; flex-grow: 1; }
@@ -239,44 +238,60 @@
     #blackjack-bet-controls input { font-size: 1.2rem; padding: 0.8rem; width: 150px; text-align: center; font-weight: 600; }
     #blackjack-bet-controls input:focus { border-color: var(--blackjack-green); box-shadow: 0 0 0 4px rgba(16, 124, 65, 0.4); }
 
-    /* --- KEY CHANGES HERE --- */
-
     /* Linus Hub Tab */
     #linus-hub {
-        /* These properties turn the tab into a centered container for our fixed-res game */
         justify-content: center;
         align-items: center;
         width: 100%;
         height: 100%;
         padding: 0;
         position: relative;
+        overflow: auto; /* Added to allow scrolling for oversized game area */
     }
     
     #game-area {
-        /* 1. Define the fixed resolution */
-        width: 1280px;
-        height: 720px;
+        width: 2560px; /* 1440p width */
+        height: 1440px; /* 1440p height */
         
-        /* 2. Set rules for how it should scale */
-        max-width: 100%;
-        max-height: 100%;
-        aspect-ratio: 16 / 9; /* Lock the aspect ratio */
-
-        /* The CSS background from before now works perfectly with the fixed resolution */
+        /* NEW CSS BACKGROUND */
         background:
-            repeating-linear-gradient(90deg, rgba(0,0,0,0.1) 0, rgba(0,0,0,0.1) 1px, transparent 1px, transparent 40px),
-            repeating-linear-gradient(0deg, rgba(0,0,0,0.1) 0, rgba(0,0,0,0.1) 1px, transparent 1px, transparent 40px),
-            radial-gradient(circle at center, #999 0%, #777 400px, transparent 401px),
-            radial-gradient(ellipse at center, #2a8c3c 0%, #1e592a 100%);
+            /* Layer 1: Vertical tile lines */
+            repeating-linear-gradient(
+                90deg,
+                rgba(0,0,0,0.1) 0,
+                rgba(0,0,0,0.1) 1px,
+                transparent 1px,
+                transparent 40px
+            ),
+            /* Layer 2: Horizontal tile lines */
+            repeating-linear-gradient(
+                0deg,
+                rgba(0,0,0,0.1) 0,
+                rgba(0,0,0,0.1) 1px,
+                transparent 1px,
+                transparent 40px
+            ),
+            /* Layer 3: The circular stone plaza */
+            radial-gradient(
+                circle at center,
+                #999 0%,
+                #777 400px,
+                transparent 401px
+            ),
+            /* Layer 4: The grass base layer */
+            radial-gradient(
+                ellipse at center,
+                #2a8c3c 0%,
+                #1e592a 100%
+            );
         
         border-radius: var(--border-radius);
         border: 2px solid var(--primary-blue);
         box-shadow: 0 0 25px rgba(10, 132, 255, 0.3);
         position: relative;
         overflow: hidden;
+        flex-shrink: 0; /* Prevent flex container from shrinking the game area */
     }
-
-    /* --- END OF KEY CHANGES --- */
 
     .player-character {
         position: absolute;
@@ -809,7 +824,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (keys.a) { playerState.x -= playerState.speed; playerState.direction = -1; }
             if (keys.d) { playerState.x += playerState.speed; playerState.direction = 1; }
 
-            // Boundary checks (relative to the scaled game area)
+            // Boundary checks
             playerState.x = Math.max(0, Math.min(gameArea.offsetWidth - playerState.width, playerState.x));
             playerState.y = Math.max(0, Math.min(gameArea.offsetHeight - playerState.height, playerState.y));
 
@@ -824,14 +839,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (playerRef) {
-                // We send coordinates relative to the fixed resolution, not the scaled one.
-                const scale = gameArea.offsetWidth / 1280; // 1280 is our fixed width
-                playerRef.update({ 
-                    x: playerState.x / scale, 
-                    y: playerState.y / scale, 
-                    direction: playerState.direction, 
-                    animation: isMoving ? 'walk' : 'idle' 
-                });
+                playerRef.update({ x: playerState.x, y: playerState.y, direction: playerState.direction, animation: isMoving ? 'walk' : 'idle' });
             }
         }
 
@@ -843,10 +851,8 @@ document.addEventListener('DOMContentLoaded', () => {
         function enterHub() {
             if (!currentUser || playerRef) return;
             playerRef = hubRef.child(currentUser.uid);
-
-            const scale = gameArea.offsetWidth / 1280;
             playerRef.set({
-                x: playerState.x / scale, y: playerState.y / scale, direction: 1, animation: 'idle', email: currentUser.email
+                x: playerState.x, y: playerState.y, direction: 1, animation: 'idle', email: currentUser.email
             });
             playerRef.onDisconnect().remove();
 
@@ -857,9 +863,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const container = document.createElement('div');
                 container.className = 'player-character';
-
-                const scale = gameArea.offsetWidth / 1280;
-                container.style.cssText = `width:${playerState.width}px; height:${playerState.height}px; left:${pData.x * scale}px; top:${pData.y * scale}px;`;
+                container.style.cssText = `width:${playerState.width}px; height:${playerState.height}px; left:${pData.x}px; top:${pData.y}px;`;
                 container.innerHTML = `<div class="player-ui-container"><div class="player-nametag">${pData.email.split('@')[0]}</div></div><img src="IDLE.gif" alt="Player">`;
                 container.addEventListener('click', () => openUserPanel(uid, pData.email));
                 gameArea.appendChild(container);
@@ -873,10 +877,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const otherPlayer = otherPlayerElements[uid];
                 if (!otherPlayer) return;
                 
-                const scale = gameArea.offsetWidth / 1280;
-                otherPlayer.style.left = `${pData.x * scale}px`;
-                otherPlayer.style.top = `${pData.y * scale}px`;
-
+                otherPlayer.style.left = `${pData.x}px`;
+                otherPlayer.style.top = `${pData.y}px`;
                 const img = otherPlayer.querySelector('img');
                 img.style.transform = `scaleX(${pData.direction})`;
                 const anim = pData.animation === 'walk' ? 'WALK.gif' : 'IDLE.gif';
@@ -923,9 +925,6 @@ document.addEventListener('DOMContentLoaded', () => {
         observer.observe(document.getElementById('linus-hub'), { attributes: true, attributeFilter: ['class'] });
 
     })();
-
-    // Omitted other tabs like Gambling, Blackjack, Balance for brevity.
-    // Their original JS code should be included here.
 });
 </script>
 </body>
