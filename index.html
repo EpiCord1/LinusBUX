@@ -9,8 +9,6 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-<!-- ADD FIREBASE FUNCTIONS SDK -->
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
 <style>
     :root {
         --primary-blue: #373C82;
@@ -250,14 +248,14 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        cursor: pointer; /* Added for clickability feedback */
+        cursor: pointer;
     }
     .player-character img {
         width: 100%;
         height: 100%;
         object-fit: contain;
         transition: transform 0.1s linear;
-        pointer-events: none; /* Make sure click goes to the container */
+        pointer-events: none;
     }
     .player-ui-container { position: absolute; bottom: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 5px; pointer-events: none; }
     .player-nametag {
@@ -572,30 +570,20 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
 <script>
 const firebaseConfig = {
-
-apiKey: "AIzaSyC-aZNBPQz2y4e-9DZ9hvz-puEan47li-4",
-
-authDomain: "linusbux-fab58.firebaseapp.com",
-
-databaseURL: "https://linusbux-fab58-default-rtdb.firebaseio.com",
-
-projectId: "linusbux-fab58",
-
-storageBucket: "linusbux-fab58.firebasestorage.app",
-
-messagingSenderId: "714906159220",
-
-appId: "1:714906159220:web:4de6a1d3c27f39e0bca921",
-
-measurementId: "G-EZWXN01SZT"
-
+    apiKey: "AIzaSyC-aZNBPQz2y4e-9DZ9hvz-puEan47li-4",
+    authDomain: "linusbux-fab58.firebaseapp.com",
+    databaseURL: "https://linusbux-fab58-default-rtdb.firebaseio.com",
+    projectId: "linusbux-fab58",
+    storageBucket: "linusbux-fab58.firebasestorage.app",
+    messagingSenderId: "714906159220",
+    appId: "1:714906159220:web:4de6a1d3c27f39e0bca921",
+    measurementId: "G-EZWXN01SZT"
 };
 
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
-const functions = firebase.functions(); // NEW: Initialize Functions
 
 document.addEventListener('DOMContentLoaded', () => {
     
@@ -1124,7 +1112,7 @@ function updateAllBalanceDisplays(targetBalance) {
             
             holeCard.innerHTML = `
                 <span class="rank-top">${cardData.rank}${cardData.suit}</span>
-                <span class="center-suit">${card.suit}</span>
+                <span class="center-suit">${cardData.suit}</span>
                 <span class="rank-bottom">${cardData.rank}${cardData.suit}</span>`;
             holeCard.classList.add(colorClass);
 
@@ -1178,7 +1166,7 @@ function updateAllBalanceDisplays(targetBalance) {
     createDeck();
 })();
 
-// --- Linus Hub 2D Game Logic (MULTIPLAYER - REFACTORED & CORRECTED) ---
+// --- Linus Hub 2D Game Logic (Free Plan Version) ---
 (function setupLinusHubTab() {
     const gameArea = document.getElementById('game-area');
     if (!gameArea) return;
@@ -1212,7 +1200,7 @@ function updateAllBalanceDisplays(targetBalance) {
     let gameLoopId = null;
     let otherPlayerElements = {}; 
 
-    // --- User Gifting Panel Logic (REWRITTEN) ---
+    // --- User Gifting Panel Logic ---
     
     function openUserPanel(targetUid, targetEmail) {
         if (!targetUid || !targetEmail) return;
@@ -1223,10 +1211,7 @@ function updateAllBalanceDisplays(targetBalance) {
             panelUserName.textContent = targetEmail.split('@')[0];
             panelUserBalance.textContent = targetBalance.toLocaleString();
             giftAmountInput.value = '';
-
-            // NEW: Store the target UID on the panel itself
             userInteractionPanel.dataset.targetUid = targetUid;
-            
             userInteractionPanel.classList.add('visible');
     
         }).catch(err => {
@@ -1235,53 +1220,50 @@ function updateAllBalanceDisplays(targetBalance) {
         });
     }
 
-    // NEW: Rewritten handleGift function to call a Cloud Function
+    // Gifting function using a client-side multi-path update
     async function handleGift() {
-        const targetUid = userInteractionPanel.dataset.targetUid;
+        const recipientUid = userInteractionPanel.dataset.targetUid;
+        const senderUid = currentUser.uid;
         const amount = parseInt(giftAmountInput.value, 10);
-        
-        if (!targetUid) {
-            showToast('No user selected.', 'error');
-            return;
-        }
+
+        // --- Client-side validation for immediate user feedback ---
+        if (!recipientUid) return;
         if (isNaN(amount) || amount <= 0) {
-            showToast('Please enter a valid amount to gift.', 'error');
+            showToast('Please enter a valid amount.', 'error');
             return;
         }
-        if (amount > balance) {
-            showToast('You do not have enough BUX to make this gift.', 'error');
+        if (senderUid === recipientUid) {
+            showToast("You can't gift to yourself!", 'error');
             return;
         }
-        if (currentUser.uid === targetUid) {
-            showToast("You can't gift money to yourself!", "error");
+        if (balance < amount) { // 'balance' is our local, real-time variable
+            showToast('You do not have enough BUX.', 'error');
             return;
         }
-    
+
         giftBtn.disabled = true;
 
         try {
-            // Call the cloud function
-            const giftBuxFunction = functions.httpsCallable('giftBux');
-            const result = await giftBuxFunction({ recipientUid: targetUid, amount: amount });
+            // This is the core logic: a single atomic update request
+            // The security rules on the server will have the final say.
+            const updates = {};
+            updates[`/users/${senderUid}/balance`] = firebase.database.ServerValue.increment(-amount);
+            updates[`/users/${recipientUid}/balance`] = firebase.database.ServerValue.increment(amount);
+
+            await db.ref().update(updates);
             
-            // The function will return a success or error message
-            if (result.data.success) {
-                showToast(result.data.message, 'success');
-                userInteractionPanel.classList.remove('visible');
-            } else {
-                showToast(result.data.message || 'An unknown error occurred.', 'error');
-            }
+            showToast(`Successfully gifted ${amount.toLocaleString()} BUX!`, 'success');
+            userInteractionPanel.classList.remove('visible');
 
         } catch (error) {
-            console.error('Error calling giftBux function: ', error);
-            showToast(error.message, 'error');
+            console.error('Gift update failed:', error);
+            showToast(error.message, 'error'); // The rules engine will provide a "Permission denied" message on failure.
         } finally {
             giftBtn.disabled = false;
-            delete userInteractionPanel.dataset.targetUid; // Clean up
+            delete userInteractionPanel.dataset.targetUid;
         }
     }
     
-    // NEW: Attach listeners ONCE
     giftBtn.addEventListener('click', handleGift);
     closePanelBtn.addEventListener('click', () => userInteractionPanel.classList.remove('visible'));
     userInteractionPanel.addEventListener('click', (e) => {
@@ -1292,9 +1274,7 @@ function updateAllBalanceDisplays(targetBalance) {
         const bubble = playerEl.querySelector('.chat-bubble');
         if (!bubble) return;
     
-        if (playerEl.bubbleTimeout) {
-            clearTimeout(playerEl.bubbleTimeout);
-        }
+        if (playerEl.bubbleTimeout) clearTimeout(playerEl.bubbleTimeout);
 
         bubble.textContent = chatMessage;
         bubble.classList.add('visible');
@@ -1319,7 +1299,6 @@ function updateAllBalanceDisplays(targetBalance) {
              dataChanged = true;
         }
 
-        // Update local DOM immediately for smoothness
         playerState.element.style.left = `${playerState.x}px`;
         playerState.element.style.top = `${playerState.y}px`;
         playerState.imgElement.style.transform = `scaleX(${playerState.direction})`;
@@ -1339,14 +1318,12 @@ function updateAllBalanceDisplays(targetBalance) {
     }
     
     function gameLoop() {
-        if(!isChatting) {
-            updateLocalPlayerPosition();
-        }
+        if(!isChatting) updateLocalPlayerPosition();
         gameLoopId = requestAnimationFrame(gameLoop);
     }
     
     function handleGlobalKeyDown(e) {
-        if (userInteractionPanel.classList.contains('visible')) return; // Ignore game input if panel is open
+        if (userInteractionPanel.classList.contains('visible')) return;
 
         if (e.key === 'Enter') {
             e.preventDefault();
@@ -1371,9 +1348,7 @@ function updateAllBalanceDisplays(targetBalance) {
     chatForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const message = chatInput.value.trim();
-        if(message && playerRef) {
-            playerRef.child('chatMessage').set(message);
-        }
+        if(message && playerRef) playerRef.child('chatMessage').set(message);
         chatInput.value = '';
         chatInputContainer.style.display = 'none';
         isChatting = false;
@@ -1394,8 +1369,6 @@ function updateAllBalanceDisplays(targetBalance) {
         };
         playerRef.set(initialData);
         playerRef.onDisconnect().remove();
-
-        // --- ROBUST FIREBASE LISTENERS ---
 
         hubRef.on('child_added', (snapshot) => {
             const pData = snapshot.val();
@@ -1427,7 +1400,6 @@ function updateAllBalanceDisplays(targetBalance) {
             otherPlayerElements[uid] = { container, img, bubble, bubbleTimeout: null };
             gameArea.appendChild(container);
 
-            // Add the click listener to open the interaction panel
             container.addEventListener('click', () => {
                 openUserPanel(uid, pData.email);
             });
