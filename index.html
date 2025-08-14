@@ -269,9 +269,8 @@
         transition: transform 0.1s linear; pointer-events: none;
     }
     #local-player-container {
-        top: 50%; left: 50%; z-index: 11;
-        /* Start centered in hub mode */
-        transform: translate(-50%, -50%);
+        /* This element will be moved between game-area and interior-room */
+        z-index: 11;
     }
     .player-ui-container { position: absolute; bottom: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 5px; pointer-events: none; }
     .player-nametag {
@@ -1195,7 +1194,6 @@ function updateAllBalanceDisplays(targetBalance) {
     const worldContainer = document.getElementById('world-container');
     const interiorContainer = document.getElementById('interior-container');
     const interiorRoom = document.getElementById('interior-room');
-    const interiorUIContainer = document.getElementById('interior-ui-container');
     const editHouseBtn = document.getElementById('edit-house-btn');
     const sellHouseBtn = document.getElementById('sell-house-btn');
     const leaveHouseBtn = document.getElementById('leave-house-btn');
@@ -1235,6 +1233,44 @@ function updateAllBalanceDisplays(targetBalance) {
         { id: 8, x: -900, y: -450 }, { id: 9, x: -550, y: -750 }
     ];
 
+    function updateAllPlayerVisuals() {
+        const localPlayerSceneId = playerState.inHouseId;
+
+        // Handle local player container
+        if (localPlayerSceneId === null) { // In Hub
+            if (localPlayerContainer.parentElement !== gameArea) {
+                gameArea.appendChild(localPlayerContainer);
+                localPlayerContainer.style.left = '';
+                localPlayerContainer.style.top = '';
+                localPlayerContainer.style.transform = 'translate(-50%, -50%)';
+            }
+        } else { // In House
+            if (localPlayerContainer.parentElement !== interiorRoom) {
+                interiorRoom.appendChild(localPlayerContainer);
+                localPlayerContainer.style.transform = '';
+            }
+        }
+
+        // Handle other players
+        for (const uid in otherPlayerElements) {
+            const otherPlayer = otherPlayerElements[uid];
+            const remotePlayerSceneId = otherPlayer.inHouseId;
+
+            if (remotePlayerSceneId === null) { // Player is in the Hub
+                if (otherPlayer.container.parentElement !== worldContainer) {
+                    worldContainer.appendChild(otherPlayer.container);
+                }
+                otherPlayer.container.style.display = 'flex';
+            } else { // Player is in a House
+                if (otherPlayer.container.parentElement !== interiorRoom) {
+                    interiorRoom.appendChild(otherPlayer.container);
+                }
+                // Only show the player if we are in the same house
+                otherPlayer.container.style.display = (remotePlayerSceneId === localPlayerSceneId) ? 'flex' : 'none';
+            }
+        }
+    }
+
     function populateFurniturePanel() {
         furniturePanel.innerHTML = '';
         for (const type in FURNITURE_CATALOG) {
@@ -1254,17 +1290,13 @@ function updateAllBalanceDisplays(targetBalance) {
     }
 
     function enterHouse(houseId) {
-        // Save current hub coordinates before entering
         playerState.hubX = playerState.x;
         playerState.hubY = playerState.y;
-
         playerState.inHouseId = houseId;
-        // Set player position to the "door" of the room
         playerState.x = interiorRoom.offsetWidth / 2;
         playerState.y = interiorRoom.offsetHeight - playerState.height - 20;
 
         const isOwner = allHouses[houseId]?.ownerUid === currentUser.uid;
-
         editHouseBtn.style.display = isOwner ? 'flex' : 'none';
         sellHouseBtn.style.display = isOwner ? 'flex' : 'none';
         toggleHouseLockBtn.style.display = isOwner ? 'flex' : 'none';
@@ -1274,13 +1306,9 @@ function updateAllBalanceDisplays(targetBalance) {
 
         worldContainer.style.display = 'none';
         interiorContainer.style.display = 'block';
-        
-        // Switch player to interior mode rendering
-        localPlayerContainer.style.transform = ''; // Remove centering
-        localPlayerContainer.style.left = `${playerState.x}px`;
-        localPlayerContainer.style.top = `${playerState.y}px`;
 
         if(playerRef) playerRef.update({ inHouseId: houseId });
+        
         decorationListener = decorationsRef.child(houseId);
         decorationListener.on('value', snapshot => {
             interiorRoom.querySelectorAll('.placed-item').forEach(el => el.remove());
@@ -1290,6 +1318,8 @@ function updateAllBalanceDisplays(targetBalance) {
                 renderPlacedItem(itemId, items[itemId]);
             }
         });
+        
+        updateAllPlayerVisuals();
     }
 
     function leaveHouse() {
@@ -1298,20 +1328,14 @@ function updateAllBalanceDisplays(targetBalance) {
         decorationListener = null;
 
         playerState.inHouseId = null;
-        // Restore previous hub coordinates
         playerState.x = playerState.hubX;
         playerState.y = playerState.hubY;
 
         interiorContainer.style.display = 'none';
         worldContainer.style.display = 'block';
-
-        // Switch player to hub mode rendering
-        localPlayerContainer.style.left = '';
-        localPlayerContainer.style.top = '';
-        localPlayerContainer.style.transform = 'translate(-50%, -50%)'; // Re-center
-
+        
         if (isEditingHouse) toggleEditMode();
-        // Immediately update camera to prevent visual jump
+        updateAllPlayerVisuals();
         updateLocalPlayerPosition(); 
     }
 
@@ -1551,7 +1575,6 @@ function updateAllBalanceDisplays(targetBalance) {
                      houseEl.classList.remove('open-for-visits');
                 }
             });
-            // Update lock button text if user is currently inside their house
             if (playerState.inHouseId && allHouses[playerState.inHouseId]) {
                  toggleHouseLockBtn.textContent = allHouses[playerState.inHouseId].isOpen ? 'Close House' : 'Open House';
             }
@@ -1561,14 +1584,12 @@ function updateAllBalanceDisplays(targetBalance) {
             const pData = snapshot.val();
             const uid = snapshot.key;
             if (uid === currentUser.uid || otherPlayerElements[uid]) return;
+            
             const container = document.createElement('div');
             container.className = 'player-character';
             container.style.width = `${pData.width}px`;
             container.style.height = `${pData.height}px`;
-            container.style.left = `${pData.x}px`;
-            container.style.top = `${pData.y}px`;
-            container.style.display = pData.inHouseId ? 'none' : 'flex';
-
+            
             const uiContainer = document.createElement('div');
             uiContainer.className = 'player-ui-container';
             const bubble = document.createElement('div');
@@ -1578,12 +1599,19 @@ function updateAllBalanceDisplays(targetBalance) {
             nametag.textContent = pData.email.split('@')[0];
             const img = document.createElement('img');
             img.src = 'IDLE.gif';
-            img.style.transform = `scaleX(${pData.direction})`;
+            
             uiContainer.append(bubble, nametag);
             container.append(uiContainer, img);
-            otherPlayerElements[uid] = { container, img, bubble, bubbleTimeout: null };
-            worldContainer.appendChild(container);
+            
+            otherPlayerElements[uid] = { container, img, bubble, bubbleTimeout: null, inHouseId: pData.inHouseId };
+            // Add to world temporarily; updateAllPlayerVisuals will move it if needed
+            worldContainer.appendChild(container); 
             container.addEventListener('click', () => { openUserPanel(uid, pData.email); });
+
+            // Immediately update position and then run the visual sorter
+            gsap.to(otherPlayerElements[uid].container, { left: pData.x, top: pData.y, duration: 0 });
+            otherPlayerElements[uid].img.style.transform = `scaleX(${pData.direction})`;
+            updateAllPlayerVisuals();
         });
 
         playersRef.on('child_changed', (snapshot) => {
@@ -1596,8 +1624,8 @@ function updateAllBalanceDisplays(targetBalance) {
             const otherPlayer = otherPlayerElements[uid];
             if (!otherPlayer) return;
             
-            otherPlayer.container.style.display = pData.inHouseId ? 'none' : 'flex';
-            if (pData.inHouseId) return; // Don't need to update position if they are hidden
+            otherPlayer.inHouseId = pData.inHouseId;
+            updateAllPlayerVisuals(); 
 
             gsap.to(otherPlayer.container, { left: pData.x, top: pData.y, duration: 0.1, ease: 'linear' });
             otherPlayer.img.style.transform = `scaleX(${pData.direction})`;
@@ -1734,4 +1762,4 @@ function updateAllBalanceDisplays(targetBalance) {
 });
 </script>
 </body>
-</html>```
+</html>
