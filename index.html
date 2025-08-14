@@ -365,8 +365,8 @@
         box-shadow: 0 0 15px rgba(10, 132, 255, 0.5);
     }
 
-    /* User Interaction Panel */
-    #user-interaction-panel {
+    /* Generic Panel Styles */
+    .panel-overlay {
         position: fixed;
         top: 0;
         left: 0;
@@ -380,12 +380,10 @@
         align-items: center;
         animation: fadeIn 0.3s ease;
     }
-
-    #user-interaction-panel.visible {
+    .panel-overlay.visible {
         display: flex;
     }
-
-    #user-interaction-panel .panel-content {
+    .panel-content {
         background: var(--dark-card);
         padding: 2.5rem;
         border-radius: var(--border-radius);
@@ -397,7 +395,6 @@
         position: relative;
         animation: slideUp 0.4s cubic-bezier(0.25, 1, 0.5, 1);
     }
-
     .close-panel-btn {
         position: absolute;
         top: 10px;
@@ -415,29 +412,26 @@
         color: var(--light-text);
     }
 
+    /* User Interaction Panel */
     #user-interaction-panel h3 {
         font-size: 1.8rem;
         margin-bottom: 0.5rem;
         color: white;
         text-shadow: 0 0 8px var(--primary-blue);
     }
-
     #user-interaction-panel p {
         font-size: 1.1rem;
         color: var(--medium-text);
         margin-bottom: 2rem;
     }
-
     #user-interaction-panel p span {
         font-weight: bold;
         color: var(--gold);
     }
-
     #user-interaction-panel .gift-controls {
         display: flex;
         gap: 1rem;
     }
-
     #user-interaction-panel #gift-btn {
         background: linear-gradient(45deg, var(--success), #28a745);
     }
@@ -445,6 +439,15 @@
         box-shadow: 0 4px 15px rgba(48, 209, 88, 0.4);
         transform: translateY(-2px);
     }
+
+    /* Confirmation Panel */
+    #confirmation-panel .panel-content { max-width: 420px; }
+    #confirmation-panel h3 { font-size: 1.6rem; margin-bottom: 1rem; color: white; }
+    #confirmation-panel p { font-size: 1.1rem; color: var(--medium-text); margin-bottom: 2.5rem; }
+    .confirmation-buttons { display: flex; gap: 1rem; justify-content: center; }
+    #confirm-action-btn { background: var(--success); }
+    #cancel-action-btn { background: var(--danger); }
+
 
     /* Toast Notifications */
     #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 3000; display: flex; flex-direction: column; gap: 10px; }
@@ -622,7 +625,7 @@
 <div id="toast-container"></div>
 
 <!-- User Interaction Panel -->
-<div id="user-interaction-panel">
+<div id="user-interaction-panel" class="panel-overlay">
     <div class="panel-content">
         <button class="close-panel-btn">&times;</button>
         <h3 id="panel-user-name"></h3>
@@ -633,6 +636,19 @@
         </div>
     </div>
 </div>
+
+<!-- Confirmation Panel -->
+<div id="confirmation-panel" class="panel-overlay">
+    <div class="panel-content">
+        <h3>Confirm Action</h3>
+        <p id="confirmation-message">Are you sure you want to proceed?</p>
+        <div class="confirmation-buttons">
+            <button id="cancel-action-btn">Cancel</button>
+            <button id="confirm-action-btn">Confirm</button>
+        </div>
+    </div>
+</div>
+
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
 <script>
@@ -680,7 +696,14 @@ const panelUserName = document.getElementById('panel-user-name');
 const panelUserBalance = document.getElementById('panel-user-balance');
 const giftAmountInput = document.getElementById('gift-amount-input');
 const giftBtn = document.getElementById('gift-btn');
-const closePanelBtn = document.querySelector('.close-panel-btn');
+const closePanelBtn = userInteractionPanel.querySelector('.close-panel-btn');
+
+// --- Confirmation Panel Elements ---
+const confirmationPanel = document.getElementById('confirmation-panel');
+const confirmationMessage = document.getElementById('confirmation-message');
+const confirmActionBtn = document.getElementById('confirm-action-btn');
+const cancelActionBtn = document.getElementById('cancel-action-btn');
+let _onConfirmAction = null;
 
 
 // --- Toast Notification System ---
@@ -728,7 +751,7 @@ auth.onAuthStateChanged(user => {
 
     } else {
         // User is signed out.
-        if (currentUser) {
+        if (currentUser && db.ref(`linusHub/players/${currentUser.uid}`)) {
            db.ref(`linusHub/players/${currentUser.uid}`).remove();
         }
         currentUser = null;
@@ -1297,7 +1320,7 @@ function updateAllBalanceDisplays(targetBalance) {
         });
     }
 
-    async function onHouseClick(houseId) {
+    function onHouseClick(houseId) {
         const houseData = allHouses[houseId];
         const ownerUid = houseData ? houseData.ownerUid : null;
         
@@ -1308,9 +1331,10 @@ function updateAllBalanceDisplays(targetBalance) {
                 gameArea.style.pointerEvents = 'none';
             } else {
                 // House is owned by someone else
-                const ownerSnapshot = await db.ref(`users/${ownerUid}/email`).once('value');
-                const ownerEmail = ownerSnapshot.val() || 'someone';
-                showToast(`This house is owned by ${ownerEmail.split('@')[0]}.`, 'info');
+                db.ref(`users/${ownerUid}/email`).once('value').then(snapshot => {
+                    const ownerEmail = snapshot.val() || 'someone';
+                    showToast(`This house is owned by ${ownerEmail.split('@')[0]}.`, 'info');
+                });
             }
         } else {
             // House is unclaimed
@@ -1318,24 +1342,27 @@ function updateAllBalanceDisplays(targetBalance) {
                 showToast("You need 100 BUX to claim a house.", 'error');
                 return;
             }
-            if (confirm("Claim this house for 100 BUX?")) {
-                // Use a transaction to prevent race conditions
-                housesRef.child(houseId).transaction(currentData => {
+            
+            showConfirmationModal("Claim this house for 100 BUX?", () => {
+                const houseRef = housesRef.child(houseId);
+                houseRef.transaction(currentData => {
                     if (currentData === null) {
                         return { ownerUid: currentUser.uid, ownerEmail: currentUser.email };
                     }
-                    return; // Abort transaction if house is already claimed
+                    return; 
                 }, (error, committed) => {
                     if (error) {
                         showToast("An error occurred. Please try again.", 'error');
+                        console.error("House claim transaction failed:", error);
                     } else if (committed) {
-                        updateUserBalance(balance - 100);
+                        // Atomically decrement user's balance
+                        db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(-100));
                         showToast("House claimed successfully!", 'success');
                     } else {
                         showToast("This house was just claimed by someone else!", 'error');
                     }
                 });
-            }
+            });
         }
     }
     
@@ -1344,16 +1371,100 @@ function updateAllBalanceDisplays(targetBalance) {
         gameArea.style.pointerEvents = 'auto';
     });
     
+    // --- Confirmation Modal Logic ---
+    function showConfirmationModal(message, onConfirm) {
+        confirmationMessage.textContent = message;
+        _onConfirmAction = onConfirm;
+        confirmationPanel.classList.add('visible');
+    }
+    function hideConfirmationModal() {
+        confirmationPanel.classList.remove('visible');
+        _onConfirmAction = null;
+    }
+    confirmActionBtn.addEventListener('click', () => {
+        if (typeof _onConfirmAction === 'function') {
+            _onConfirmAction();
+        }
+        hideConfirmationModal();
+    });
+    cancelActionBtn.addEventListener('click', hideConfirmationModal);
+
+
     // --- User Gifting Panel Logic ---
-    function openUserPanel(targetUid, targetEmail) { /* ... (code unchanged) ... */ }
-    async function handleGift() { /* ... (code unchanged) ... */ }
+    function openUserPanel(targetUid, targetEmail) {
+        if (!targetUid || !targetEmail) return;
+    
+        db.ref(`users/${targetUid}/balance`).once('value', (snapshot) => {
+            const targetBalance = snapshot.val() || 0;
+            
+            panelUserName.textContent = targetEmail.split('@')[0];
+            panelUserBalance.textContent = targetBalance.toLocaleString();
+            giftAmountInput.value = '';
+            userInteractionPanel.dataset.targetUid = targetUid;
+            userInteractionPanel.classList.add('visible');
+    
+        }).catch(err => {
+            console.error("Could not fetch user data:", err);
+            showToast("Could not retrieve user data.", "error");
+        });
+    }
+
+    async function handleGift() {
+        const recipientUid = userInteractionPanel.dataset.targetUid;
+        const senderUid = currentUser.uid;
+        const amount = parseInt(giftAmountInput.value, 10);
+
+        if (!recipientUid) return;
+        if (isNaN(amount) || amount <= 0) {
+            showToast('Please enter a valid amount.', 'error'); return;
+        }
+        if (senderUid === recipientUid) {
+            showToast("You can't gift to yourself!", 'error'); return;
+        }
+        if (balance < amount) {
+            showToast('You do not have enough BUX.', 'error'); return;
+        }
+
+        giftBtn.disabled = true;
+
+        try {
+            const updates = {};
+            updates[`/users/${senderUid}/balance`] = firebase.database.ServerValue.increment(-amount);
+            updates[`/users/${recipientUid}/balance`] = firebase.database.ServerValue.increment(amount);
+
+            await db.ref().update(updates);
+            
+            showToast(`Successfully gifted ${amount.toLocaleString()} BUX!`, 'success');
+            userInteractionPanel.classList.remove('visible');
+
+        } catch (error) {
+            console.error('Gift update failed:', error);
+            showToast(error.message, 'error');
+        } finally {
+            giftBtn.disabled = false;
+            delete userInteractionPanel.dataset.targetUid;
+        }
+    }
+    
     giftBtn.addEventListener('click', handleGift);
     closePanelBtn.addEventListener('click', () => userInteractionPanel.classList.remove('visible'));
     userInteractionPanel.addEventListener('click', (e) => {
         if (e.target === userInteractionPanel) userInteractionPanel.classList.remove('visible');
     });
 
-    function handlePlayerChat(playerEl, chatMessage) { /* ... (code unchanged) ... */ }
+    function handlePlayerChat(playerEl, chatMessage) {
+        const bubble = playerEl.querySelector('.chat-bubble');
+        if (!bubble) return;
+    
+        if (playerEl.bubbleTimeout) clearTimeout(playerEl.bubbleTimeout);
+
+        bubble.textContent = chatMessage;
+        bubble.classList.add('visible');
+
+        playerEl.bubbleTimeout = setTimeout(() => {
+            bubble.classList.remove('visible');
+        }, 5000);
+    }
     
     function checkCollision(nextX, nextY) {
         const playerBox = {
@@ -1366,13 +1477,12 @@ function updateAllBalanceDisplays(targetBalance) {
                 left: house.x, top: house.y,
                 right: house.x + HOUSE_WIDTH, bottom: house.y + HOUSE_HEIGHT
             };
-            // Simple AABB collision check
             if (playerBox.right > houseBox.left && playerBox.left < houseBox.right &&
                 playerBox.bottom > houseBox.top && playerBox.top < houseBox.bottom) {
-                return true; // Collision detected
+                return true;
             }
         }
-        return false; // No collision
+        return false;
     }
 
     function updateLocalPlayerPosition() {
@@ -1387,11 +1497,9 @@ function updateAllBalanceDisplays(targetBalance) {
         if (keys.a) { nextX -= playerState.speed; }
         if (keys.d) { nextX += playerState.speed; }
         
-        // Update direction
         if (keys.a && playerState.direction !== -1) { playerState.direction = -1; dataChanged = true; }
         if (keys.d && playerState.direction !== 1) { playerState.direction = 1; dataChanged = true; }
 
-        // Check for collision before applying movement
         if ((nextX !== playerState.x || nextY !== playerState.y) && !checkCollision(nextX, nextY)) {
             playerState.x = nextX;
             playerState.y = nextY;
@@ -1404,10 +1512,8 @@ function updateAllBalanceDisplays(targetBalance) {
              dataChanged = true;
         }
 
-        // Update camera position
         worldContainer.style.transform = `translate(${-playerState.x + gameArea.offsetWidth / 2 - playerState.width / 2}px, ${-playerState.y + gameArea.offsetHeight / 2 - playerState.height / 2}px)`;
 
-        // Update local player visual state
         playerState.imgElement.style.transform = `scaleX(${playerState.direction})`;
         const newSrc = (playerState.animation === 'walk') ? 'WALK.gif' : 'IDLE.gif';
         if (playerState.imgElement.src.indexOf(newSrc) === -1) {
@@ -1441,7 +1547,10 @@ function updateAllBalanceDisplays(targetBalance) {
     }
 
     function handleGlobalKeyDown(e) {
-        if (userInteractionPanel.classList.contains('visible') || houseInteriorView.style.display === 'flex') return;
+        const isPanelVisible = userInteractionPanel.classList.contains('visible') ||
+                               confirmationPanel.classList.contains('visible') ||
+                               houseInteriorView.style.display === 'flex';
+        if (isPanelVisible) return;
 
         if (e.key === 'Enter') {
             e.preventDefault(); 
@@ -1470,12 +1579,9 @@ function updateAllBalanceDisplays(targetBalance) {
         initializeHouses();
 
         const initialData = {
-            x: playerState.x,
-            y: playerState.y,
-            width: playerState.width,
-            height: playerState.height,
-            direction: 1,
-            animation: 'idle',
+            x: playerState.x, y: playerState.y,
+            width: playerState.width, height: playerState.height,
+            direction: 1, animation: 'idle',
             email: currentUser.email || 'guest'
         };
         playerRef.set(initialData);
@@ -1483,7 +1589,6 @@ function updateAllBalanceDisplays(targetBalance) {
 
         housesRef.on('value', snapshot => {
             allHouses = snapshot.val() || {};
-            // Update visual state of all houses
             Object.values(houseElements).forEach(houseEl => {
                 const houseId = houseEl.dataset.id;
                 const houseData = allHouses[houseId];
