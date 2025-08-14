@@ -188,4 +188,18 @@ exports.playBlackjack = functions.https.onCall(async (data, context) => {
         // SERVER-SIDE LOGIC: Create deck, deal cards, etc.
         const newState = {
             status: "in-progress",
-            playerHand: [{suit: '♥', rank: 
+            playerHand: [{suit: '♥', rank: 'A', value: 11}, {suit: '♠', rank: 'K', value: 10}],
+            dealerHand: [{suit: '♣', rank: 'Q', value: 10}, {suit: '♦', rank: '7', value: 7}],
+            playerScore: 21,
+            dealerScore: "10 + ?",
+            canDoubleDown: true,
+            message: "Your move.",
+            bet: betAmount
+        };
+        await sessionRef.set(newState);
+        return newState;
+    }
+    
+    // Placeholder for other actions like 'hit', 'stand'
+    throw new functions.https.HttpsError("unimplemented", "This action is not yet implemented.");
+});
