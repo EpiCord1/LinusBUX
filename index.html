@@ -261,7 +261,6 @@
         flex-direction: column;
         align-items: center;
         cursor: pointer;
-        z-index: 10;
         /* Transitions are handled by GSAP for smoothness */
     }
     .player-character img {
@@ -1199,7 +1198,6 @@ function updateAllBalanceDisplays(targetBalance) {
     const chatInputContainer = document.getElementById('chat-input-container');
     const chatInput = document.getElementById('chat-input');
     
-    // Create the local player element here, but don't append it yet.
     const localPlayerContainer = document.createElement('div');
     localPlayerContainer.id = 'local-player-container';
     localPlayerContainer.className = 'player-character';
@@ -1377,7 +1375,7 @@ function updateAllBalanceDisplays(targetBalance) {
         itemEl.style.width = `${itemDef.width}px`;
         itemEl.style.height = `${itemDef.height}px`;
         itemEl.style.backgroundColor = itemDef.color;
-        itemEl.style.zIndex = itemData.y;
+        itemEl.style.zIndex = Math.round(itemData.y);
 
         if (isEditingHouse) itemEl.classList.add('removable');
 
@@ -1390,7 +1388,7 @@ function updateAllBalanceDisplays(targetBalance) {
             }
         });
         
-        interiorRoom.insertBefore(itemEl, localPlayerContainer); // Ensure players render on top
+        interiorRoom.appendChild(itemEl);
         placedItemElements[itemId] = itemEl;
     }
     
@@ -1531,6 +1529,7 @@ function updateAllBalanceDisplays(targetBalance) {
         // Camera and Player Position Update
         localPlayerContainer.style.left = `${playerState.x}px`;
         localPlayerContainer.style.top = `${playerState.y}px`;
+        localPlayerContainer.style.zIndex = Math.round(playerState.y);
         worldContainer.style.transform = `translate(${-playerState.x + gameArea.offsetWidth / 2 - playerState.width/2}px, ${-playerState.y + gameArea.offsetHeight / 2 - playerState.height/2}px)`;
         
         // Animation and Direction
@@ -1653,6 +1652,7 @@ function updateAllBalanceDisplays(targetBalance) {
             updatePlayerScene(otherPlayer.container, otherPlayer.inHouseId);
 
             gsap.to(otherPlayer.container, { left: pData.x, top: pData.y, duration: 0.1, ease: 'linear' });
+            otherPlayer.container.style.zIndex = Math.round(pData.y);
             otherPlayer.img.style.transform = `scaleX(${pData.direction})`;
             const newSrc = (pData.animation === 'walk' ? 'WALK.gif' : 'IDLE.gif');
             if (otherPlayer.img.src.indexOf(newSrc) === -1) otherPlayer.img.src = newSrc;
@@ -1684,7 +1684,7 @@ function updateAllBalanceDisplays(targetBalance) {
         if(gameLoopId) { cancelAnimationFrame(gameLoopId); gameLoopId = null; }
         
         worldContainer.innerHTML = ''; 
-        if(localPlayerContainer.parentElement === worldContainer) worldContainer.removeChild(localPlayerContainer);
+        if(localPlayerContainer.parentElement) localPlayerContainer.parentElement.removeChild(localPlayerContainer);
 
         otherPlayerElements = {}; 
         houseElements = {}; 
