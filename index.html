@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -242,14 +241,23 @@
     /* Linus Hub Tab */
     #linus-hub { justify-content: center; align-items: center; width: 100%; height: 100%; padding: 0; position: relative; }
     #game-area { width: 100%; height: 100%; background-color: #0d0d0d; border-radius: var(--border-radius); border: 2px solid var(--primary-blue); box-shadow: 0 0 25px rgba(10, 132, 255, 0.3); position: relative; overflow: hidden; }
-    .player-character { position: absolute; transition: top 0.1s linear, left 0.1s linear; user-select: none; display: flex; flex-direction: column; align-items: center; }
+    .player-character {
+        position: absolute;
+        transition: top 0.1s linear, left 0.1s linear;
+        user-select: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        cursor: pointer; /* Added for clickability feedback */
+    }
     .player-character img {
         width: 100%;
         height: 100%;
         object-fit: contain;
         transition: transform 0.1s linear;
+        pointer-events: none; /* Make sure click goes to the container */
     }
-    .player-ui-container { position: absolute; bottom: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 5px; }
+    .player-ui-container { position: absolute; bottom: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 5px; pointer-events: none; }
     .player-nametag {
         background: rgba(0, 0, 0, 0.7);
         color: white;
@@ -299,9 +307,89 @@
         box-shadow: 0 0 15px rgba(10, 132, 255, 0.5);
     }
 
+    /* User Interaction Panel */
+    #user-interaction-panel {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(5px);
+        z-index: 2500;
+        display: none; /* Hidden by default */
+        justify-content: center;
+        align-items: center;
+        animation: fadeIn 0.3s ease;
+    }
+
+    #user-interaction-panel.visible {
+        display: flex;
+    }
+
+    #user-interaction-panel .panel-content {
+        background: var(--dark-card);
+        padding: 2.5rem;
+        border-radius: var(--border-radius);
+        border: 1px solid var(--dark-card-border);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        width: 100%;
+        max-width: 380px;
+        text-align: center;
+        position: relative;
+        animation: slideUp 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    .close-panel-btn {
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        background: none;
+        border: none;
+        font-size: 2rem;
+        color: var(--medium-text);
+        cursor: pointer;
+        padding: 0;
+        line-height: 1;
+        transition: color 0.3s ease;
+    }
+    .close-panel-btn:hover {
+        color: var(--light-text);
+    }
+
+    #user-interaction-panel h3 {
+        font-size: 1.8rem;
+        margin-bottom: 0.5rem;
+        color: white;
+        text-shadow: 0 0 8px var(--primary-blue);
+    }
+
+    #user-interaction-panel p {
+        font-size: 1.1rem;
+        color: var(--medium-text);
+        margin-bottom: 2rem;
+    }
+
+    #user-interaction-panel p span {
+        font-weight: bold;
+        color: var(--gold);
+    }
+
+    #user-interaction-panel .gift-controls {
+        display: flex;
+        gap: 1rem;
+    }
+
+    #user-interaction-panel #gift-btn {
+        background: linear-gradient(45deg, var(--success), #28a745);
+    }
+    #user-interaction-panel #gift-btn:hover:not(:disabled) {
+        box-shadow: 0 4px 15px rgba(48, 209, 88, 0.4);
+        transform: translateY(-2px);
+    }
 
     /* Toast Notifications */
-    #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
+    #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 3000; display: flex; flex-direction: column; gap: 10px; }
     .toast { background-color: #2c2c2e; color: #f2f2f7; padding: 12px 20px; border-radius: 10px; border: 1px solid #38383a; border-left: 5px solid; box-shadow: 0 4px 12px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 10px; animation: slideUp 0.5s cubic-bezier(0.25, 1, 0.5, 1); }
     @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     .toast.toast-success { border-left-color: var(--success); }
@@ -465,6 +553,20 @@
 </main>
 </div>
 <div id="toast-container"></div>
+
+<!-- User Interaction Panel -->
+<div id="user-interaction-panel">
+    <div class="panel-content">
+        <button class="close-panel-btn">&times;</button>
+        <h3 id="panel-user-name"></h3>
+        <p>Balance: <span id="panel-user-balance">0</span> BUX</p>
+        <div class="gift-controls">
+            <input type="number" id="gift-amount-input" placeholder="Amount to gift">
+            <button id="gift-btn">Gift</button>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
 <script>
 const firebaseConfig = {
@@ -514,6 +616,15 @@ const loginBtn = document.getElementById('login-btn');
 const signupBtn = document.getElementById('signup-btn');
 const logoutBtn = document.getElementById('logout-btn');
 
+// --- User Interaction Panel Elements ---
+const userInteractionPanel = document.getElementById('user-interaction-panel');
+const panelUserName = document.getElementById('panel-user-name');
+const panelUserBalance = document.getElementById('panel-user-balance');
+const giftAmountInput = document.getElementById('gift-amount-input');
+const giftBtn = document.getElementById('gift-btn');
+const closePanelBtn = document.querySelector('.close-panel-btn');
+
+
 // --- Toast Notification System ---
 const toastContainer = document.getElementById('toast-container');
 function showToast(message, type = 'info') {
@@ -546,7 +657,10 @@ auth.onAuthStateChanged(user => {
             } else {
                 // First time login, set initial balance
                 balance = 100;
-                balanceRef.set({ balance: balance });
+                balanceRef.set({ 
+                    balance: balance,
+                    email: user.email // Also store email for reference
+                });
             }
             updateAllBalanceDisplays(balance);
         });
@@ -1095,6 +1209,88 @@ function updateAllBalanceDisplays(targetBalance) {
     let gameLoopId = null;
     let otherPlayerElements = {}; 
 
+    // --- User Gifting Panel Logic ---
+    function openUserPanel(targetUid, targetEmail) {
+        if (!targetUid || !targetEmail) return;
+    
+        db.ref(`users/${targetUid}/balance`).once('value', (snapshot) => {
+            const targetBalance = snapshot.val() || 0;
+            
+            panelUserName.textContent = targetEmail.split('@')[0];
+            panelUserBalance.textContent = targetBalance.toLocaleString();
+            giftAmountInput.value = '';
+
+            // This clone-and-replace trick removes any old event listeners
+            const newGiftBtn = giftBtn.cloneNode(true);
+            giftBtn.parentNode.replaceChild(newGiftBtn, giftBtn);
+            
+            // Add a fresh listener with the correct target UID and the button element
+            newGiftBtn.addEventListener('click', () => handleGift(targetUid, newGiftBtn));
+            
+            userInteractionPanel.classList.add('visible');
+    
+        }).catch(err => {
+            console.error("Could not fetch user data:", err);
+            showToast("Could not retrieve user data.", "error");
+        });
+    }
+
+    async function handleGift(targetUid, buttonElement) {
+        const amount = parseInt(giftAmountInput.value, 10);
+
+        if (isNaN(amount) || amount <= 0) {
+            showToast('Please enter a valid amount to gift.', 'error');
+            return;
+        }
+        if (amount > balance) {
+            showToast('You do not have enough BUX to make this gift.', 'error');
+            return;
+        }
+        if (currentUser.uid === targetUid) {
+            showToast("You can't gift money to yourself!", "error");
+            return;
+        }
+    
+        buttonElement.disabled = true;
+    
+        try {
+            // Use a transaction on the 'users' node for atomic updates
+            const result = await db.ref('users').transaction(usersNode => {
+                if (usersNode === null) return; // Abort if 'users' node doesn't exist.
+                
+                // Check if both sender and receiver exist
+                if (!usersNode[currentUser.uid] || !usersNode[targetUid]) return; 
+
+                if (usersNode[currentUser.uid].balance < amount) return; // Abort for insufficient funds
+    
+                // Perform the transfer
+                usersNode[currentUser.uid].balance -= amount;
+                usersNode[targetUid].balance += amount;
+                
+                return usersNode; // Commit the changes
+            });
+
+            if (result.committed) {
+                 showToast(`Successfully gifted ${amount.toLocaleString()} BUX!`, 'success');
+                 userInteractionPanel.classList.remove('visible');
+            } else {
+                 showToast('Gift failed. You may not have enough BUX.', 'error');
+            }
+
+        } catch (error) {
+            console.error('Gift transaction failed: ', error);
+            showToast('The gift could not be sent. Please try again.', 'error');
+        } finally {
+            buttonElement.disabled = false;
+        }
+    }
+
+    closePanelBtn.addEventListener('click', () => userInteractionPanel.classList.remove('visible'));
+    userInteractionPanel.addEventListener('click', (e) => {
+        if (e.target === userInteractionPanel) userInteractionPanel.classList.remove('visible');
+    });
+
+
     function handlePlayerChat(playerEl, chatMessage) {
         const bubble = playerEl.querySelector('.chat-bubble');
         if (!bubble) return;
@@ -1153,6 +1349,8 @@ function updateAllBalanceDisplays(targetBalance) {
     }
     
     function handleGlobalKeyDown(e) {
+        if (userInteractionPanel.classList.contains('visible')) return; // Ignore game input if panel is open
+
         if (e.key === 'Enter') {
             e.preventDefault();
             if (isChatting) {
@@ -1231,6 +1429,11 @@ function updateAllBalanceDisplays(targetBalance) {
             
             otherPlayerElements[uid] = { container, img, bubble, bubbleTimeout: null };
             gameArea.appendChild(container);
+
+            // Add the click listener to open the interaction panel
+            container.addEventListener('click', () => {
+                openUserPanel(uid, pData.email);
+            });
         });
 
         hubRef.on('child_changed', (snapshot) => {
@@ -1309,4 +1512,3 @@ function updateAllBalanceDisplays(targetBalance) {
 </script>
 </body>
 </html>
-
