@@ -1060,7 +1060,7 @@ function updateAllBalanceDisplays(targetBalance) {
     createDeck();
 })();
 
-// --- Linus Hub 2D Game Logic (MULTIPLAYER + CHAT UPDATE) ---
+// --- Linus Hub 2D Game Logic (MULTIPLAYER + CHAT - REFACTORED) ---
 (function setupLinusHubTab() {
     const gameArea = document.getElementById('game-area');
     if (!gameArea) return;
@@ -1097,7 +1097,7 @@ function updateAllBalanceDisplays(targetBalance) {
     let gameLoopId = null;
     let otherPlayerElements = {}; // {uid: {container: el, img: el, bubble: el, bubbleTimeout: id}}
 
-    function handlePlayerChat(playerEl, pData) {
+    function handlePlayerChat(playerEl, chatMessage) {
         const bubble = playerEl.querySelector('.chat-bubble');
         if (!bubble) return;
     
@@ -1105,81 +1105,14 @@ function updateAllBalanceDisplays(targetBalance) {
             clearTimeout(playerEl.bubbleTimeout);
         }
 
-        bubble.textContent = pData.chatMessage;
+        bubble.textContent = chatMessage;
         bubble.classList.add('visible');
 
         playerEl.bubbleTimeout = setTimeout(() => {
             bubble.classList.remove('visible');
         }, 5000); // Messages last for 5 seconds
     }
-
-    function updateAllPlayers(playersData) {
-        if (!playersData) playersData = {};
-        const uidsInSnapshot = Object.keys(playersData);
-
-        for (const uid in playersData) {
-            const pData = playersData[uid];
-            if (uid === currentUser.uid) { 
-                 if(pData.chatMessage && pData.chatTimestamp && (Date.now() - pData.chatTimestamp < 5100)) {
-                    handlePlayerChat(playerState.element, pData);
-                 }
-                continue;
-            }
-
-            let otherPlayer = otherPlayerElements[uid];
-
-            if (!otherPlayer) {
-                const container = document.createElement('div');
-                container.className = 'player-character';
-                container.style.width = `${pData.width}px`;
-                container.style.height = `${pData.height}px`;
-
-                const uiContainer = document.createElement('div');
-                uiContainer.className = 'player-ui-container';
-                
-                const bubble = document.createElement('div');
-                bubble.className = 'chat-bubble';
-
-                const nametag = document.createElement('div');
-                nametag.className = 'player-nametag';
-                nametag.textContent = pData.email.split('@')[0];
-
-                const img = document.createElement('img');
-                img.src = 'IDLE.gif';
-                
-                uiContainer.appendChild(bubble);
-                uiContainer.appendChild(nametag);
-                container.appendChild(uiContainer);
-                container.appendChild(img);
-                
-                otherPlayer = { container, img, bubble, bubbleTimeout: null };
-                otherPlayerElements[uid] = otherPlayer;
-                gameArea.appendChild(container);
-            }
-            
-            otherPlayer.container.style.left = `${pData.x}px`;
-            otherPlayer.container.style.top = `${pData.y}px`;
-            otherPlayer.img.style.transform = `scaleX(${pData.direction})`;
-            
-            const newSrc = (pData.animation === 'walk' ? 'WALK.gif' : 'IDLE.gif');
-            if (otherPlayer.img.src.indexOf(newSrc) === -1) {
-                otherPlayer.img.src = newSrc;
-            }
-
-             if(pData.chatMessage && pData.chatTimestamp && (Date.now() - pData.chatTimestamp < 5100)) {
-                handlePlayerChat(otherPlayer.container, pData);
-            }
-        }
-        
-        for (const uid in otherPlayerElements) {
-            if (!uidsInSnapshot.includes(uid)) {
-                if(otherPlayerElements[uid].bubbleTimeout) clearTimeout(otherPlayerElements[uid].bubbleTimeout);
-                otherPlayerElements[uid].container.remove();
-                delete otherPlayerElements[uid];
-            }
-        }
-    }
-
+    
     function updateLocalPlayerPosition() {
         const isMoving = (keys.w || keys.a || keys.s || keys.d);
         let posChanged = false;
@@ -1244,23 +1177,22 @@ function updateAllBalanceDisplays(targetBalance) {
         e.preventDefault();
         const message = chatInput.value.trim();
         if(message && playerRef) {
-            // Update the message and add a timestamp for server-side evaluation
             playerRef.update({
                 chatMessage: message,
                 chatTimestamp: firebase.database.ServerValue.TIMESTAMP
             });
-            // After sending, remove the chat message from the database after a delay
-            // This prevents old messages from showing up when a user logs in
             setTimeout(() => {
                 playerRef.child('chatMessage').remove();
                 playerRef.child('chatTimestamp').remove();
-            }, 500); // Remove slightly after sending
+            }, 500); 
         }
         chatInput.value = '';
         chatInputContainer.style.display = 'none';
         isChatting = false;
     });
-
+    
+    // --- REFACTORED FIREBASE LISTENERS ---
+    
     function enterHub() {
         if (!currentUser) return;
         playerRef = db.ref(`linusHub/players/${currentUser.uid}`);
@@ -1277,8 +1209,80 @@ function updateAllBalanceDisplays(targetBalance) {
         playerRef.set(initialData);
         playerRef.onDisconnect().remove();
 
-        hubRef.on('value', (snapshot) => {
-            updateAllPlayers(snapshot.val());
+        // Listener for when a player is added
+        hubRef.on('child_added', (snapshot) => {
+            const pData = snapshot.val();
+            const uid = snapshot.key;
+
+            if (uid === currentUser.uid) return; // Ignore self
+            
+            const container = document.createElement('div');
+            container.className = 'player-character';
+            container.style.width = `${pData.width}px`;
+            container.style.height = `${pData.height}px`;
+            container.style.left = `${pData.x}px`;
+            container.style.top = `${pData.y}px`;
+
+            const uiContainer = document.createElement('div');
+            uiContainer.className = 'player-ui-container';
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'chat-bubble';
+
+            const nametag = document.createElement('div');
+            nametag.className = 'player-nametag';
+            nametag.textContent = pData.email.split('@')[0];
+
+            const img = document.createElement('img');
+            img.src = (pData.animation === 'walk' ? 'WALK.gif' : 'IDLE.gif');
+            img.style.transform = `scaleX(${pData.direction})`;
+            
+            uiContainer.appendChild(bubble);
+            uiContainer.appendChild(nametag);
+            container.appendChild(uiContainer);
+            container.appendChild(img);
+            
+            const newPlayer = { container, img, bubble, bubbleTimeout: null };
+            otherPlayerElements[uid] = newPlayer;
+            gameArea.appendChild(container);
+        });
+
+        // Listener for when a player's data changes (moves, chats)
+        hubRef.on('child_changed', (snapshot) => {
+            const pData = snapshot.val();
+            const uid = snapshot.key;
+            
+            const playerElement = (uid === currentUser.uid) ? playerState.element : otherPlayerElements[uid]?.container;
+            if (!playerElement) return;
+
+            // Handle chat messages for both local and remote players
+            if(pData.chatMessage) {
+                handlePlayerChat(playerElement, pData.chatMessage);
+            }
+
+            // Only update remote players' movement/animation here
+            if (uid !== currentUser.uid) {
+                const otherPlayer = otherPlayerElements[uid];
+                otherPlayer.container.style.left = `${pData.x}px`;
+                otherPlayer.container.style.top = `${pData.y}px`;
+                otherPlayer.img.style.transform = `scaleX(${pData.direction})`;
+
+                const newSrc = (pData.animation === 'walk' ? 'WALK.gif' : 'IDLE.gif');
+                if (otherPlayer.img.src.indexOf(newSrc) === -1) {
+                    otherPlayer.img.src = newSrc;
+                }
+            }
+        });
+
+        // Listener for when a player is removed
+        hubRef.on('child_removed', (snapshot) => {
+            const uid = snapshot.key;
+            const otherPlayer = otherPlayerElements[uid];
+            if (otherPlayer) {
+                if (otherPlayer.bubbleTimeout) clearTimeout(otherPlayer.bubbleTimeout);
+                otherPlayer.container.remove();
+                delete otherPlayerElements[uid];
+            }
         });
 
         document.addEventListener('keydown', handleGlobalKeyDown);
@@ -1288,9 +1292,10 @@ function updateAllBalanceDisplays(targetBalance) {
 
     function leaveHub() {
         if (playerRef) playerRef.remove();
-        hubRef.off();
+        hubRef.off(); // Detach all listeners on the hubRef
         document.removeEventListener('keydown', handleGlobalKeyDown);
         document.removeEventListener('keyup', handleGlobalKeyUp);
+        
         for(let key in keys) { keys[key] = false; }
         if(gameLoopId) { 
             cancelAnimationFrame(gameLoopId);
