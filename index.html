@@ -1,42 +1,4 @@
-{
-  "rules": {
-    "users": {
-      "$uid": {
-        ".read": "$uid === auth.uid",
-        ".write": "$uid === auth.uid"
-      }
-    },
-    "linusHub": {
-      "players": {
-        // Any authenticated user can read the full list of players
-        ".read": "auth != null",
-        "$uid": {
-          // A user can only write to their own player data
-          ".write": "$uid === auth.uid"
-        }
-      }
-    }
-  }
-}```
 
-6.  Click **Publish**.
-
-### Step 2: The Required Asset Files
-
-Your application needs two GIF files for the player animations. These must be in the **same folder** as your HTML file.
-
-1.  **`IDLE.gif`**: An image of the character standing still.
-2.  **`WALK.gif`**: An image of the character's walking animation.
-
-The code I provided references these files. Without them, you would see broken images instead of players. Please ensure you have these two files ready.
-
-### Step 3: The Final, Corrected HTML File
-
-This is the single file containing all the HTML, CSS, and JavaScript. It uses the most robust method for detecting and displaying players in real-time. Save this code as `linus.html` (or any other name) in the same location as your two GIF files.
-
-This version is identical to the previous one, but I am providing it again to ensure you have the definitive version that works with the new security rules.
-
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1347,3 +1309,4 @@ function updateAllBalanceDisplays(targetBalance) {
 </script>
 </body>
 </html>
+
