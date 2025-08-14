@@ -884,9 +884,13 @@ function updateAllBalanceDisplays(targetBalance) {
         } else if (multiplier > 0) {
              const winnings = Math.floor(bet * multiplier);
              const profit = winnings - bet;
-             db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(profit));
-            if (multiplier > 1) { showToast(`YOU WON ${winnings.toLocaleString()} BUX!`, 'success'); }
-            else { showToast(`Safe! Your bet of ${bet.toLocaleString()} was returned.`, 'info'); }
+             if (profit !== 0) {
+                db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(profit));
+             }
+             if (winnings > bet) { showToast(`YOU WON ${winnings.toLocaleString()} BUX!`, 'success'); }
+             else if (winnings < bet && winnings > 0) { showToast(`You got back ${winnings.toLocaleString()} BUX.`, 'info'); }
+             else if (winnings === bet) { showToast(`Safe! Your bet of ${bet.toLocaleString()} was returned.`, 'info');}
+             else { showToast(`You lost your bet of ${bet.toLocaleString()} BUX.`, 'error'); }
         } else {
             showToast(`You lost your bet of ${bet.toLocaleString()} BUX.`, 'error');
         }
@@ -938,37 +942,233 @@ function updateAllBalanceDisplays(targetBalance) {
     const playerScoreEl = document.getElementById('player-score');
     const dealerScoreEl = document.getElementById('dealer-score');
     const gameStatusEl = document.getElementById('game-status');
+    const dealerCharacterImg = document.querySelector('.dealer-character img');
 
-    function createDeck() { /* ... */ }
-    function shuffleDeck() { /* ... */ }
-    function getCardValue(rank) { /* ... */ }
-    function calculateScore(hand) { /* ... */ }
-    function renderCard(card, targetEl, isFaceDown) { /* ... */ }
-    function updateScores(isDealerHidden) { /* ... */ }
-    function revealDealerCard() { /* ... */ }
+    function createDeck() {
+        deck = [];
+        for (const suit of suits) {
+            for (const rank of ranks) {
+                deck.push({ suit, rank });
+            }
+        }
+    }
+
+    function shuffleDeck() {
+        for (let i = deck.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [deck[i], deck[j]] = [deck[j], deck[i]];
+        }
+    }
+
+    function getCardValue(rank) {
+        if (['J', 'Q', 'K'].includes(rank)) return 10;
+        if (rank === 'A') return 11;
+        return parseInt(rank);
+    }
+
+    function calculateScore(hand) {
+        let score = hand.reduce((sum, card) => sum + getCardValue(card.rank), 0);
+        let aces = hand.filter(card => card.rank === 'A').length;
+        while (score > 21 && aces > 0) {
+            score -= 10;
+            aces--;
+        }
+        return score;
+    }
+
+    function renderCard(card, targetEl, isFaceDown = false) {
+        const cardEl = document.createElement('div');
+        cardEl.className = 'bj-card';
+        if (isFaceDown) {
+            cardEl.classList.add('facedown');
+        } else {
+            const isRed = ['♥', '♦'].includes(card.suit);
+            cardEl.classList.add(isRed ? 'red' : 'black');
+            cardEl.innerHTML = `
+                <span class="rank-top">${card.rank}</span>
+                <span class="center-suit">${card.suit}</span>
+                <span class="rank-bottom">${card.rank}</span>
+            `;
+        }
+        targetEl.appendChild(cardEl);
+        gsap.from(cardEl, { duration: 0.5, y: -50, opacity: 0, ease: 'back.out(1.7)' });
+    }
+
+    function updateScores(isDealerHidden = false) {
+        const playerScore = calculateScore(playerHand);
+        playerScoreEl.textContent = playerScore;
+
+        if (isDealerHidden) {
+            dealerScoreEl.textContent = getCardValue(dealerHand[1].rank);
+        } else {
+            const dealerScore = calculateScore(dealerHand);
+            dealerScoreEl.textContent = dealerScore;
+        }
+    }
+    
+    function resetBoard() {
+        playerHandEl.innerHTML = '';
+        dealerHandEl.innerHTML = '';
+        playerScoreEl.textContent = '0';
+        dealerScoreEl.textContent = '?';
+        gameStatusEl.textContent = 'Place your bet!';
+        betControls.style.display = 'flex';
+        gameActions.style.display = 'none';
+        dealerCharacterImg.src = 'IDLE.gif';
+    }
+
+    function setActionsState(canHit, canStand, canDouble) {
+        hitButton.disabled = !canHit;
+        standButton.disabled = !canStand;
+        doubleDownButton.disabled = !canDouble || (currentBetBJ * 2 > balance);
+    }
 
     function endGame(message, payoutMultiplier) {
         gameStatusEl.textContent = message;
-        if(payoutMultiplier > 0) {
-          const winnings = currentBetBJ * payoutMultiplier;
-          db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(winnings));
+        revealDealerCard();
+        setActionsState(false, false, false);
+        
+        if (payoutMultiplier > 0) {
+            const finalPayout = Math.floor(currentBetBJ * payoutMultiplier);
+            db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(finalPayout));
+            showToast(`You receive ${finalPayout.toLocaleString()} BUX`, 'success');
+        } else {
+            showToast(`You lost ${currentBetBJ.toLocaleString()} BUX`, 'error');
         }
-        setActionsState(false, false);
-        setTimeout(() => {
-            gameActions.style.display = 'none';
-            dealButton.textContent = 'Play Again';
-            betControls.style.display = 'flex';
-            gameStatusEl.textContent = 'Place your bet!';
-        }, 2500);
+        
+        dealerCharacterImg.src = payoutMultiplier > 1 ? 'HAPPY.gif' : (payoutMultiplier > 0 ? 'IDLE.gif' : 'ANGRY.gif');
+
+        setTimeout(resetBoard, 3500);
     }
+
+    function revealDealerCard() {
+        const facedownCard = dealerHandEl.querySelector('.facedown');
+        if (facedownCard) {
+            gsap.to(facedownCard, {
+                duration: 0.4,
+                rotationY: 90,
+                onComplete: () => {
+                    facedownCard.remove();
+                    dealerHandEl.innerHTML = ''; 
+                    renderCard(dealerHand[0], dealerHandEl);
+                    renderCard(dealerHand[1], dealerHandEl);
+                    updateScores(false);
+                }
+            });
+        } else {
+            updateScores(false);
+        }
+    }
+
+    function dealerTurn() {
+        revealDealerCard();
+        let dealerScore = calculateScore(dealerHand);
+
+        function hitOrStand() {
+            dealerScore = calculateScore(dealerHand);
+            if (dealerScore >= 17) {
+                const playerScore = calculateScore(playerHand);
+                if (dealerScore > 21 || playerScore > dealerScore) {
+                    endGame('You Win!', 2); // Payout is 2x bet (1x original + 1x winnings)
+                } else if (dealerScore > playerScore) {
+                    endGame('Dealer Wins!', 0);
+                } else {
+                    endGame('Push!', 1); // Return original bet
+                }
+            } else {
+                const newCard = deck.pop();
+                dealerHand.push(newCard);
+                renderCard(newCard, dealerHandEl);
+                updateScores(false);
+                setTimeout(hitOrStand, 800);
+            }
+        }
+        setTimeout(hitOrStand, 800);
+    }
+
+    dealButton.addEventListener('click', () => {
+        const bet = parseInt(betInput.value, 10);
+        if (isNaN(bet) || bet <= 0) { showToast('Invalid bet amount.', 'error'); return; }
+        if (bet > balance) { showToast('Insufficient balance.', 'error'); return; }
+
+        currentBetBJ = bet;
+        db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(-currentBetBJ));
+
+        betControls.style.display = 'none';
+        gameActions.style.display = 'flex';
+        gameStatusEl.textContent = '';
+        
+        createDeck();
+        shuffleDeck();
+
+        playerHand = [deck.pop(), deck.pop()];
+        dealerHand = [deck.pop(), deck.pop()];
+
+        playerHandEl.innerHTML = '';
+        dealerHandEl.innerHTML = '';
+        
+        renderCard(playerHand[0], playerHandEl);
+        renderCard(playerHand[1], playerHandEl);
+        renderCard(dealerHand[0], dealerHandEl, true); 
+        renderCard(dealerHand[1], dealerHandEl);
+
+        updateScores(true);
+        const playerScore = calculateScore(playerHand);
+
+        if (playerScore === 21) {
+            endGame('Blackjack!', 2.5); // Payout is 1x bet + 1.5x winnings
+        } else {
+            setActionsState(true, true, true);
+        }
+    });
+
+    hitButton.addEventListener('click', () => {
+        setActionsState(true, true, false); 
+        const newCard = deck.pop();
+        playerHand.push(newCard);
+        renderCard(newCard, playerHandEl);
+        const playerScore = calculateScore(playerHand);
+        updateScores(true);
+
+        if (playerScore > 21) {
+            endGame('Bust! You Lose.', 0);
+        } else if (playerScore === 21) {
+            setActionsState(false, true, false);
+        }
+    });
+
+    standButton.addEventListener('click', () => {
+        setActionsState(false, false, false);
+        dealerTurn();
+    });
     
-    dealButton.addEventListener('click', () => { /* ... */ });
-    hitButton.addEventListener('click', () => { /* ... */ });
-    standButton.addEventListener('click', () => { /* ... */ });
-    doubleDownButton.addEventListener('click', () => { /* ... */ });
+    doubleDownButton.addEventListener('click', () => {
+        if (currentBetBJ > balance) { 
+            showToast("Not enough BUX to double down!", 'error');
+            return;
+        }
+        
+        db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(-currentBetBJ));
+        currentBetBJ *= 2;
+        showToast(`Bet doubled to ${currentBetBJ.toLocaleString()}`, 'info');
+        setActionsState(false, false, false);
+
+        const newCard = deck.pop();
+        playerHand.push(newCard);
+        renderCard(newCard, playerHandEl);
+        const playerScore = calculateScore(playerHand);
+        updateScores(true);
+
+        if (playerScore > 21) {
+            endGame('Bust! You Lose.', 0);
+        } else {
+            setTimeout(dealerTurn, 800);
+        }
+    });
     
-    createDeck();
+    resetBoard();
 })();
+
 
 // --- Linus Hub Logic ---
 (function setupLinusHubTab() {
@@ -994,13 +1194,14 @@ function updateAllBalanceDisplays(targetBalance) {
     const localPlayerImage = document.getElementById('player-character-img');
     const playerState = {
         element: localPlayerContainer, imgElement: localPlayerImage,
-        x: 0, y: 0, width: 80, height: 80, speed: 5, direction: 1, animation: 'idle',
+        x: 0, y: 0, width: 80, height: 80, speed: 250, direction: 1, animation: 'idle',
         currentScene: 'hub', currentHouseId: null
     };
     localPlayerContainer.style.width = `${playerState.width}px`;
     localPlayerContainer.style.height = `${playerState.height}px`;
     const keys = { w: false, a: false, s: false, d: false };
     let isChatting = false, gameLoopId = null, otherPlayerElements = {}, houseElements = {}, allHouses = {}, placedItemElements = {}, isEditingHouse = false, selectedFurnitureType = null;
+    let lastFrameTime = performance.now();
     const FURNITURE_CATALOG = {
         'table': { name: 'Table', width: 120, height: 80, color: '#A0522D' },
         'chair': { name: 'Chair', width: 40, height: 40, color: '#800000' },
@@ -1042,6 +1243,7 @@ function updateAllBalanceDisplays(targetBalance) {
         interiorContainer.style.display = 'block';
         interiorUI.style.display = 'flex';
         localPlayerContainer.style.transform = '';
+        if(playerRef) playerRef.update({ currentScene: 'interior', currentHouseId: houseId });
         decorationListener = decorationsRef.child(houseId);
         decorationListener.on('value', snapshot => {
             interiorRoom.querySelectorAll('.placed-item').forEach(el => el.remove());
@@ -1055,6 +1257,7 @@ function updateAllBalanceDisplays(targetBalance) {
 
     function leaveHouse() {
         if (decorationListener) decorationListener.off();
+        if(playerRef) playerRef.update({ currentScene: 'hub', currentHouseId: null });
         decorationListener = null;
         playerState.currentScene = 'hub';
         playerState.currentHouseId = null;
@@ -1126,7 +1329,6 @@ function updateAllBalanceDisplays(targetBalance) {
                 leaveHouse();
             }).catch(err => {
                 showToast("Error selling house. Please try again.", 'error');
-                console.error("Sell house error:", err);
             });
         });
     });
@@ -1204,16 +1406,28 @@ function updateAllBalanceDisplays(targetBalance) {
     }
 
     function updateLocalPlayerPosition() {
+        const now = performance.now();
+        const deltaTime = (now - lastFrameTime) / 1000.0;
+        lastFrameTime = now;
+        
+        let moveSpeed = playerState.speed * deltaTime;
         let nextX = playerState.x, nextY = playerState.y;
-        if (keys.w) nextY -= playerState.speed;
-        if (keys.s) nextY += playerState.speed;
-        if (keys.a) nextX -= playerState.speed;
-        if (keys.d) nextX += playerState.speed;
+        
+        let moveX = 0, moveY = 0;
+        if (keys.a) moveX -= 1;
+        if (keys.d) moveX += 1;
+        if (keys.w) moveY -= 1;
+        if (keys.s) moveY += 1;
 
-        if (!checkCollision(nextX, nextY)) {
-            playerState.x = nextX;
-            playerState.y = nextY;
+        if (moveX !== 0 && moveY !== 0) {
+            moveSpeed /= Math.sqrt(2);
         }
+
+        nextX += moveX * moveSpeed;
+        nextY += moveY * moveSpeed;
+
+        if (!checkCollision(nextX, playerState.y)) { playerState.x = nextX; }
+        if (!checkCollision(playerState.x, nextY)) { playerState.y = nextY; }
 
         if (playerState.currentScene === 'hub') {
             worldContainer.style.transform = `translate(${-playerState.x + gameArea.offsetWidth / 2 - playerState.width / 2}px, ${-playerState.y + gameArea.offsetHeight / 2 - playerState.height / 2}px)`;
@@ -1235,7 +1449,12 @@ function updateAllBalanceDisplays(targetBalance) {
         }
         
         if (playerRef) {
-            playerRef.update({ x: playerState.x, y: playerState.y, direction: playerState.direction, animation: playerState.animation });
+            playerRef.update({ 
+                x: playerState.x, y: playerState.y, 
+                direction: playerState.direction, 
+                animation: playerState.animation,
+                currentScene: playerState.currentScene
+            });
         }
     }
 
@@ -1248,7 +1467,11 @@ function updateAllBalanceDisplays(targetBalance) {
         if (!currentUser) return;
         playerRef = playersRef.child(currentUser.uid);
         initializeHouses();
-        playerRef.set({ x: playerState.x, y: playerState.y, width: playerState.width, height: playerState.height, direction: 1, animation: 'idle', email: currentUser.email || 'guest' });
+        playerRef.set({ 
+            x: playerState.x, y: playerState.y, width: playerState.width, height: playerState.height, 
+            direction: 1, animation: 'idle', email: currentUser.email || 'guest',
+            currentScene: 'hub'
+        });
         playerRef.onDisconnect().remove();
 
         housesRef.on('value', snapshot => {
@@ -1280,6 +1503,8 @@ function updateAllBalanceDisplays(targetBalance) {
             container.style.height = `${pData.height}px`;
             container.style.left = `${pData.x}px`;
             container.style.top = `${pData.y}px`;
+            if(pData.currentScene !== 'hub') container.style.display = 'none';
+
             const uiContainer = document.createElement('div');
             uiContainer.className = 'player-ui-container';
             const bubble = document.createElement('div');
@@ -1306,6 +1531,13 @@ function updateAllBalanceDisplays(targetBalance) {
             }
             const otherPlayer = otherPlayerElements[uid];
             if (!otherPlayer) return;
+            
+            if (pData.currentScene !== 'hub') {
+                otherPlayer.container.style.display = 'none';
+                return;
+            }
+            otherPlayer.container.style.display = 'flex';
+
             gsap.to(otherPlayer.container, { left: pData.x, top: pData.y, duration: 0.1, ease: 'linear' });
             otherPlayer.img.style.transform = `scaleX(${pData.direction})`;
             const newSrc = (pData.animation === 'walk' ? 'WALK.gif' : 'IDLE.gif');
@@ -1325,6 +1557,7 @@ function updateAllBalanceDisplays(targetBalance) {
 
         document.addEventListener('keydown', handleGlobalKeyDown);
         document.addEventListener('keyup', handleGlobalKeyUp);
+        lastFrameTime = performance.now();
         if (!gameLoopId) gameLoop();
     }
 
@@ -1408,8 +1641,8 @@ function updateAllBalanceDisplays(targetBalance) {
     }
 
     function handleGlobalKeyDown(e) {
-        const isPanelVisible = userInteractionPanel.classList.contains('visible') || confirmationPanel.classList.contains('visible') || playerState.currentScene === 'interior';
-        if (isPanelVisible && playerState.currentScene === 'hub') return;
+        const isPanelVisible = userInteractionPanel.classList.contains('visible') || confirmationPanel.classList.contains('visible');
+        if (isPanelVisible) return;
         if (e.key === 'Enter') {
             e.preventDefault(); 
             if (isChatting) { sendMessage(); } 
