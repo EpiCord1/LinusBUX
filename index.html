@@ -643,6 +643,7 @@ document.addEventListener('DOMContentLoaded', () => {
 let balance = 0;
 let currentUser = null;
 let balanceRef = null;
+let isBalanceInitialized = false; // Flag to prevent spending before DB is updated
 const generatedCodes = {};
 
 // --- UI Elements ---
@@ -697,6 +698,7 @@ auth.onAuthStateChanged(user => {
                 balanceRef.set({ balance: balance, email: user.email });
             }
             updateAllBalanceDisplays(balance);
+            isBalanceInitialized = true; // Confirmation that balance is synced with server
         });
         appContainer.classList.add('visible');
         authContainer.style.display = 'none';
@@ -707,6 +709,7 @@ auth.onAuthStateChanged(user => {
         currentUser = null;
         if(balanceRef) balanceRef.off();
         balance = 0;
+        isBalanceInitialized = false;
         updateAllBalanceDisplays(0);
         appContainer.classList.remove('visible');
         authContainer.style.display = 'flex';
@@ -1405,6 +1408,11 @@ function updateAllBalanceDisplays(targetBalance) {
     }
     
     function onHouseClick(houseId) {
+        if (!isBalanceInitialized) {
+            showToast("Initializing account, please wait...", "info");
+            return;
+        }
+
         const houseData = allHouses[houseId];
         const ownerUid = houseData ? houseData.ownerUid : null;
         
@@ -1427,7 +1435,7 @@ function updateAllBalanceDisplays(targetBalance) {
                     }
                     return; 
                 }, (error, committed) => {
-                    if (error) { showToast("Transaction failed.", 'error');
+                    if (error) { showToast("Transaction failed. Check console.", 'error'); console.log(error)
                     } else if (committed) {
                         db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(-100));
                         showToast("House claimed successfully!", 'success');
@@ -1653,6 +1661,10 @@ function updateAllBalanceDisplays(targetBalance) {
     }
 
     async function handleGift() {
+        if (!isBalanceInitialized) {
+            showToast("Initializing account, please wait...", "info");
+            return;
+        }
         const recipientUid = userInteractionPanel.dataset.targetUid;
         const senderUid = currentUser.uid;
         const amount = parseInt(giftAmountInput.value, 10);
@@ -1667,8 +1679,13 @@ function updateAllBalanceDisplays(targetBalance) {
             await db.ref().update(updates);
             showToast(`Successfully gifted ${amount.toLocaleString()} BUX!`, 'success');
             userInteractionPanel.classList.remove('visible');
-        } catch (error) { showToast(error.message, 'error');
-        } finally { giftBtn.disabled = false; delete userInteractionPanel.dataset.targetUid; }
+        } catch (error) { 
+            showToast("Gifting failed. Please try again.", 'error');
+            console.error("Gifting error: ", error);
+        } finally { 
+            giftBtn.disabled = false;
+            delete userInteractionPanel.dataset.targetUid; 
+        }
     }
     
     giftBtn.addEventListener('click', handleGift);
@@ -1717,4 +1734,4 @@ function updateAllBalanceDisplays(targetBalance) {
 });
 </script>
 </body>
-</html>
+</html>```
