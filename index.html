@@ -268,10 +268,6 @@
         width: 100%; height: 100%; object-fit: contain;
         transition: transform 0.1s linear; pointer-events: none;
     }
-    #local-player-container {
-        z-index: 11;
-        position: absolute;
-    }
     .player-ui-container { position: absolute; bottom: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 5px; pointer-events: none; }
     .player-nametag {
         background: rgba(0, 0, 0, 0.7); color: white; padding: 3px 9px;
@@ -339,6 +335,9 @@
         position: absolute;
         box-sizing: border-box;
         border: 2px solid rgba(0,0,0,0.5);
+    }
+     .placed-item[data-type="chair"] {
+        cursor: pointer;
     }
     .placed-item.removable:hover {
         cursor: pointer;
@@ -566,15 +565,8 @@
                 <!-- Furniture selection items are rendered here -->
             </div>
         </div>
-
-        <!-- Local player character is always visible, but moves within different scenes -->
-        <div id="local-player-container" class="player-character">
-             <div class="player-ui-container">
-                <div class="chat-bubble"></div>
-                <div class="player-nametag">You</div>
-            </div>
-            <img id="player-character-img" src="IDLE.gif" alt="Player">
-        </div>
+        
+        <!-- Local player character is NOT here by default. JS moves it into the correct scene. -->
 
         <!-- Chat Input -->
         <div id="chat-input-container" style="display: none;">
@@ -1206,13 +1198,26 @@ function updateAllBalanceDisplays(targetBalance) {
     let decorationListener = null;
     const chatInputContainer = document.getElementById('chat-input-container');
     const chatInput = document.getElementById('chat-input');
-    const localPlayerContainer = document.getElementById('local-player-container');
-    const localPlayerImage = document.getElementById('player-character-img');
+    
+    // Create the local player element here, but don't append it yet.
+    const localPlayerContainer = document.createElement('div');
+    localPlayerContainer.id = 'local-player-container';
+    localPlayerContainer.className = 'player-character';
+    localPlayerContainer.innerHTML = `
+        <div class="player-ui-container">
+            <div class="chat-bubble"></div>
+            <div class="player-nametag">You</div>
+        </div>
+        <img id="player-character-img" src="IDLE.gif" alt="Player">
+    `;
+    const localPlayerImage = localPlayerContainer.querySelector('#player-character-img');
+
+
     const playerState = {
         element: localPlayerContainer, imgElement: localPlayerImage,
         x: 0, y: 0, width: 80, height: 80, speed: 250, direction: 1, animation: 'idle',
         inHouseId: null,
-        hubX: 0, hubY: 0, // Store hub position
+        hubX: 0, hubY: 0, 
         isSitting: false
     };
     localPlayerContainer.style.width = `${playerState.width}px`;
@@ -1235,12 +1240,12 @@ function updateAllBalanceDisplays(targetBalance) {
     ];
 
     function updatePlayerScene(playerElement, sceneId) {
-        if (sceneId === null) { // Should be in Hub
+        if (sceneId === null) { 
             if (playerElement.parentElement !== worldContainer) {
                 worldContainer.appendChild(playerElement);
             }
             playerElement.style.display = 'flex';
-        } else { // Should be in a House
+        } else { 
             if (playerElement.parentElement !== interiorRoom) {
                 interiorRoom.appendChild(playerElement);
             }
@@ -1570,7 +1575,6 @@ function updateAllBalanceDisplays(targetBalance) {
 
         housesRef.on('value', snapshot => {
             const newHousesData = snapshot.val() || {};
-            // Check if a house we are in was just closed
             if (playerState.inHouseId && newHousesData[playerState.inHouseId]) {
                 const houseData = newHousesData[playerState.inHouseId];
                 const wasOpen = allHouses[playerState.inHouseId]?.isOpen || false;
@@ -1678,7 +1682,13 @@ function updateAllBalanceDisplays(targetBalance) {
         document.removeEventListener('keydown', handleGlobalKeyDown);
         document.removeEventListener('keyup', handleGlobalKeyUp);
         if(gameLoopId) { cancelAnimationFrame(gameLoopId); gameLoopId = null; }
-        worldContainer.innerHTML = ''; otherPlayerElements = {}; houseElements = {}; isChatting = false;
+        
+        worldContainer.innerHTML = ''; 
+        if(localPlayerContainer.parentElement === worldContainer) worldContainer.removeChild(localPlayerContainer);
+
+        otherPlayerElements = {}; 
+        houseElements = {}; 
+        isChatting = false;
         chatInputContainer.style.display = 'none';
         if (playerState.inHouseId) leaveHouse();
     }
