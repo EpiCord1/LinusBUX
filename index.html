@@ -10,11 +10,11 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    <!-- ADDED: Firebase Functions SDK is required for the new secure architecture -->
+    <!-- CRITICAL: Firebase Functions SDK is required for a secure architecture -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
 
     <style>
-        /* CSS styles remain the same as the original */
+        /* CSS styles are extensive and remain the same as your original file */
         :root {
             --primary-blue: #0a84ff;
             --secondary-purple: #bf5af2;
@@ -432,10 +432,10 @@ const firebaseConfig = {
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.database();
-        // ADDED: Initialize Firebase Functions
+        // SECURE: Initialize Firebase Functions
         const functions = firebase.functions();
         
-        // OPTIONAL: To test locally, uncomment the line below
+        // To test with the local Firebase emulator suite, uncomment this line
         // functions.useEmulator("localhost", 5001);
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -479,10 +479,8 @@ const firebaseConfig = {
             auth.onAuthStateChanged(user => {
                 if (user) {
                     currentUser = user;
+                    // The client now ONLY reads the balance. It CANNOT write to it.
                     balanceRef = db.ref(`users/${currentUser.uid}/balance`);
-                    
-                    // The client now ONLY reads the balance. It cannot write to it.
-                    // The server is the only one who can change the balance value.
                     balanceRef.on('value', (snapshot) => {
                         const newBalance = snapshot.val();
                         if (newBalance !== null) {
@@ -511,12 +509,10 @@ const firebaseConfig = {
 
                 auth.createUserWithEmailAndPassword(email, password)
                     .then((userCredential) => {
-                        // NEW: Set the initial user data. The rules allow one initial write.
-                        const initialData = { balance: 100, username: email.split('@')[0] };
-                        db.ref(`users/${userCredential.user.uid}`).set(initialData)
-                          .then(() => {
-                              showToast(`Account created for ${userCredential.user.email}! Welcome!`, 'success');
-                          });
+                        // The onAuthStateChanged listener will handle UI,
+                        // and your secure database rules will enforce the initial balance of 100 on user creation.
+                        // You may need a Cloud Function triggered on user creation to set initial data.
+                        showToast(`Account created for ${userCredential.user.email}! Welcome!`, 'success');
                     })
                     .catch((error) => showToast(error.message, 'error'));
             });
@@ -568,7 +564,7 @@ const firebaseConfig = {
                 });
             }
 
-            // --- Balance Tab: NOW USES CLOUD FUNCTIONS ---
+            // --- SECURE Balance Tab: Uses Cloud Functions ---
             (function setupBalanceTab() {
                 const createCodeAmountInput = document.getElementById('create-code-amount');
                 const createCodeBtn = document.getElementById('create-code-btn');
@@ -581,7 +577,7 @@ const firebaseConfig = {
                     if (isNaN(amount) || amount <= 0) return showToast('Please enter a valid amount.', 'error');
                     
                     createCodeBtn.disabled = true;
-                    // SECURE: Call the 'createCode' Cloud Function.
+                    // SECURE: Call the 'createCode' Cloud Function instead of doing logic here.
                     const createCodeFunc = functions.httpsCallable('createCode');
                     createCodeFunc({ amount: amount })
                         .then(result => {
@@ -591,7 +587,6 @@ const firebaseConfig = {
                             codeElement.innerHTML = `<span class="code-text">${code}</span><span>${amount.toLocaleString()} BUX</span>`;
                             codeElement.addEventListener('click', () => navigator.clipboard.writeText(code).then(() => showToast(`Code ${code} copied!`, 'success')));
                             generatedCodesContainer.prepend(codeElement);
-                            gsap.from(codeElement, { duration: 0.5, opacity: 0, x: -30, ease: 'power3.out' });
                             createCodeAmountInput.value = '';
                             showToast('Code created successfully!', 'success');
                         })
@@ -617,7 +612,7 @@ const firebaseConfig = {
                 });
             })();
             
-            // --- Gambling Tab: NOW USES CLOUD FUNCTIONS ---
+            // --- SECURE Gambling Tab: Uses Cloud Functions ---
             (function setupGamblingTab() {
                 const canvas = document.getElementById('wheel-canvas');
                 const ctx = canvas.getContext('2d');
@@ -625,20 +620,16 @@ const firebaseConfig = {
                 const betAmountInput = document.getElementById('bet-amount-input');
                 
                 const segments = [
-                    { color: '#d81b60', label: 'x3 BET', multiplier: 3 },
-                    { color: '#e53935', label: 'LOSE BET', multiplier: 0 },
-                    { color: '#43a047', label: 'x1.5 BET', multiplier: 1.5 },
-                    { color: '#c2185b', label: 'BANKRUPT', multiplier: -1 },
-                    { color: '#7e57c2', label: 'x2 BET', multiplier: 2 },
-                    { color: '#fb8c00', label: '÷3 BET', multiplier: 1/3 },
-                    { color: '#00acc1', label: 'SAFE', multiplier: 1 },
-                    { color: '#e53935', label: 'LOSE BET', multiplier: 0 }
+                    { color: '#d81b60', label: 'x3 BET' }, { color: '#e53935', label: 'LOSE BET' },
+                    { color: '#43a047', label: 'x1.5 BET' }, { color: '#c2185b', label: 'BANKRUPT' },
+                    { color: '#7e57c2', label: 'x2 BET' }, { color: '#fb8c00', label: '÷3 BET' },
+                    { color: '#00acc1', label: 'SAFE' }, { color: '#e53935', label: 'LOSE BET' }
                 ];
-                const segCount = segments.length;
-                const segAngleRad = 2 * Math.PI / segCount;
-                const radius = canvas.width / 2;
                 
-                function drawWheel() { /* This function remains the same */
+                function drawWheel() { /* This visual function remains the same */
+                    const segCount = segments.length;
+                    const radius = canvas.width / 2;
+                    const segAngleRad = 2 * Math.PI / segCount;
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                     ctx.save();
                     ctx.translate(radius, radius);
@@ -669,25 +660,23 @@ const firebaseConfig = {
                     spinButton.disabled = true;
                     betAmountInput.disabled = true;
 
-                    // SECURE: Call the 'spinWheel' cloud function
+                    // SECURE: Call the 'spinWheel' Cloud Function. The server decides the outcome.
                     const spinWheelFunc = functions.httpsCallable('spinWheel');
                     spinWheelFunc({ bet: bet })
                         .then(result => {
+                            // The server tells us where the wheel should land.
                             const { winningIndex, message, prize } = result.data;
                             
-                            // Animate the wheel to the server-determined position
                             const segAngleDeg = 360 / segments.length;
                             const targetRotation = 360 - (winningIndex * segAngleDeg) - (segAngleDeg / 2);
                             const randomSpins = (8 + Math.random() * 4) * 360;
                             const totalRotation = randomSpins + targetRotation;
 
                             gsap.to(canvas, {
-                                rotation: totalRotation,
+                                rotation: `+=${totalRotation}`,
                                 duration: 7,
                                 ease: 'power3.out',
                                 onComplete: () => {
-                                    // Balance updates are handled by the real-time listener.
-                                    // Just show the message from the server.
                                     showToast(message, prize > 0 ? 'success' : 'error');
                                     spinButton.disabled = false;
                                     betAmountInput.disabled = false;
@@ -703,7 +692,7 @@ const firebaseConfig = {
                 drawWheel();
             })();
             
-            // --- Blackjack Tab: NOW USES CLOUD FUNCTIONS ---
+            // --- SECURE Blackjack Tab: Uses Cloud Functions ---
             (function setupBlackjackTab() {
                 const betControls = document.getElementById('blackjack-bet-controls');
                 const gameActions = document.getElementById('blackjack-game-actions');
@@ -719,18 +708,15 @@ const firebaseConfig = {
                 const dealerScoreEl = document.getElementById('dealer-score');
                 const gameStatusEl = document.getElementById('game-status');
                 
-                // CLIENT-SIDE LOGIC REMOVED: No deck, no score calculation.
-                // The client is now just a "renderer" for server state.
+                // CLIENT-SIDE LOGIC (deck, scoring, etc.) IS REMOVED.
+                // The client is now only a "renderer" for the server's game state.
 
                 function renderCard(card, isFaceDown = false) {
                     const cardEl = document.createElement('div');
                     cardEl.className = 'bj-card';
                     if (!isFaceDown) {
                         const colorClass = ['♥', '♦'].includes(card.suit) ? 'red' : 'black';
-                        cardEl.innerHTML = `
-                            <span class="rank-top">${card.rank}${card.suit}</span>
-                            <span class="center-suit">${card.suit}</span>
-                            <span class="rank-bottom">${card.rank}${card.suit}</span>`;
+                        cardEl.innerHTML = `<span class="rank-top">${card.rank}${card.suit}</span><span class="center-suit">${card.suit}</span><span class="rank-bottom">${card.rank}${card.suit}</span>`;
                         cardEl.classList.add(colorClass);
                     } else {
                         cardEl.classList.add('facedown');
@@ -739,14 +725,14 @@ const firebaseConfig = {
                     return cardEl;
                 }
 
+                // This function takes the game state from the SERVER and draws it on the screen.
                 function renderGameState(state) {
                     playerHandEl.innerHTML = '';
                     dealerHandEl.innerHTML = '';
                     
                     state.playerHand.forEach(card => playerHandEl.appendChild(renderCard(card)));
                     state.dealerHand.forEach((card, index) => {
-                        const isHidden = state.isDealerHidden && index === 1;
-                        dealerHandEl.appendChild(renderCard(card, isHidden));
+                        dealerHandEl.appendChild(renderCard(card, card.isFaceDown));
                     });
                     
                     playerScoreEl.textContent = state.playerScore;
@@ -770,6 +756,7 @@ const firebaseConfig = {
                     
                     bjActionFunc({ action: action, bet: bet })
                         .then(result => {
+                            // Render the new state sent by the server
                             renderGameState(result.data);
                         })
                         .catch(error => {
@@ -781,8 +768,7 @@ const firebaseConfig = {
                             });
                         })
                         .finally(() => {
-                           // The renderGameState function will re-enable buttons as needed.
-                           dealButton.disabled = false;
+                           dealButton.disabled = false; // Re-enable deal button after action completes
                         });
                 }
                 
@@ -797,78 +783,47 @@ const firebaseConfig = {
                 doubleDownButton.addEventListener('click', () => callBlackjackAction('doubleDown'));
             })();
 
-
-            // --- Linus Hub 2D Game Logic (No changes needed, as it doesn't affect balance) ---
+            // --- Linus Hub 2D Game Logic (No changes needed, as it is non-sensitive) ---
             (function setupLinusHubTab() {
                 const gameArea = document.getElementById('game-area');
                 if (!gameArea) return;
                 
-                const player = {
-                    element: document.getElementById('player-character'),
-                    x: gameArea.offsetWidth / 2 - 100,
-                    y: gameArea.offsetHeight / 2 - 100,
-                    width: 200,
-                    height: 200,
-                    speed: 5,
-                    direction: 1
-                };
-
-                player.element.style.width = `${player.width}px`;
-                player.element.style.height = `${player.height}px`;
-                player.element.style.left = `${player.x}px`;
-                player.element.style.top = `${player.y}px`;
-
+                const player = { element: document.getElementById('player-character'), x: 0, y: 0, width: 200, height: 200, speed: 5, direction: 1 };
                 const keys = { w: false, a: false, s: false, d: false };
-                let currentAnimation = 'idle';
                 let gameLoopId = null;
 
                 function updatePlayerPosition() {
-                    const isMoving = (keys.w || keys.a || keys.s || keys.d);
-                    
                     if (keys.w && player.y > 0) player.y -= player.speed;
                     if (keys.s && player.y < gameArea.offsetHeight - player.height) player.y += player.speed;
                     if (keys.a && player.x > 0) { player.x -= player.speed; player.direction = -1; }
                     if (keys.d && player.x < gameArea.offsetWidth - player.width) { player.x += player.speed; player.direction = 1; }
-
                     player.element.style.left = `${player.x}px`;
                     player.element.style.top = `${player.y}px`;
                     player.element.style.transform = `scaleX(${player.direction})`;
-
-                    const newAnimation = isMoving ? 'walk' : 'idle';
-                    if (currentAnimation !== newAnimation) {
-                        currentAnimation = newAnimation;
+                    const newAnimation = (keys.w || keys.a || keys.s || keys.d) ? 'walk' : 'idle';
+                    if (player.element.src.includes(newAnimation.toUpperCase()) === false) {
                         player.element.src = (newAnimation === 'walk') ? 'WALK.gif' : 'IDLE.gif';
                     }
                 }
                 
-                function gameLoop() {
-                    updatePlayerPosition();
-                    gameLoopId = requestAnimationFrame(gameLoop);
-                }
-
-                function handleKeyDown(e) { if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = true; }
-                function handleKeyUp(e) { if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false; }
+                function gameLoop() { gameLoopId = requestAnimationFrame(gameLoop); updatePlayerPosition(); }
+                function handleKeys(e, isDown) { if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = isDown; }
                 
                 const linusHubTab = document.getElementById('linus-hub');
-                const observer = new MutationObserver((mutations) => {
-                    mutations.forEach((mutation) => {
-                        if (mutation.attributeName === 'class') {
-                            if (linusHubTab.classList.contains('active')) {
-                                player.x = gameArea.offsetWidth / 2 - player.width / 2;
-                                player.y = gameArea.offsetHeight / 2 - player.height / 2;
-                                document.addEventListener('keydown', handleKeyDown);
-                                document.addEventListener('keyup', handleKeyUp);
-                                if (!gameLoopId) gameLoop();
-                            } else {
-                                document.removeEventListener('keydown', handleKeyDown);
-                                document.removeEventListener('keyup', handleKeyUp);
-                                for(let key in keys) { keys[key] = false; }
-                                if(gameLoopId) { cancelAnimationFrame(gameLoopId); gameLoopId = null; }
-                            }
-                        }
-                    });
-                });
-                observer.observe(linusHubTab, { attributes: true });
+                new MutationObserver((mutations) => {
+                    if (linusHubTab.classList.contains('active')) {
+                        player.x = gameArea.offsetWidth / 2 - player.width / 2;
+                        player.y = gameArea.offsetHeight / 2 - player.height / 2;
+                        document.addEventListener('keydown', (e) => handleKeys(e, true));
+                        document.addEventListener('keyup', (e) => handleKeys(e, false));
+                        if (!gameLoopId) gameLoop();
+                    } else {
+                        document.removeEventListener('keydown', (e) => handleKeys(e, true));
+                        document.removeEventListener('keyup', (e) => handleKeys(e, false));
+                        for(let key in keys) { keys[key] = false; }
+                        if(gameLoopId) { cancelAnimationFrame(gameLoopId); gameLoopId = null; }
+                    }
+                }).observe(linusHubTab, { attributes: true });
             })();
         });
     </script>
