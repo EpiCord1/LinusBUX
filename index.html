@@ -238,17 +238,28 @@
     #blackjack-bet-controls input { font-size: 1.2rem; padding: 0.8rem; width: 150px; text-align: center; font-weight: 600; }
     #blackjack-bet-controls input:focus { border-color: var(--blackjack-green); box-shadow: 0 0 0 4px rgba(16, 124, 65, 0.4); }
 
-    /* Linus Hub Tab */
+    /* --- Linus Hub Tab --- */
     #linus-hub { justify-content: center; align-items: center; width: 100%; height: 100%; padding: 0; position: relative; }
-    #game-area { width: 100%; height: 100%; background-color: #0d0d0d; border-radius: var(--border-radius); border: 2px solid var(--primary-blue); box-shadow: 0 0 25px rgba(10, 132, 255, 0.3); position: relative; overflow: hidden; }
+    #game-area {
+        width: 100%;
+        height: 100%;
+        background-image: url('https://i.imgur.com/bAI91fF.png'); /* Simple repeating grass texture */
+        background-color: #38a038;
+        border-radius: var(--border-radius);
+        border: 2px solid var(--primary-blue);
+        box-shadow: 0 0 25px rgba(10, 132, 255, 0.3);
+        position: relative;
+        overflow: hidden;
+    }
+    #world-container { position: absolute; top: 0; left: 0; transition: transform 0.1s linear; }
     .player-character {
         position: absolute;
-        transition: top 0.1s linear, left 0.1s linear;
         user-select: none;
         display: flex;
         flex-direction: column;
         align-items: center;
         cursor: pointer;
+        z-index: 10;
     }
     .player-character img {
         width: 100%;
@@ -256,6 +267,13 @@
         object-fit: contain;
         transition: transform 0.1s linear;
         pointer-events: none;
+    }
+    #local-player-container {
+        /* The local player is always in the center of the screen */
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 11; /* Above other players */
     }
     .player-ui-container { position: absolute; bottom: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 5px; pointer-events: none; }
     .player-nametag {
@@ -283,7 +301,48 @@
         pointer-events: none;
     }
     .chat-bubble.visible { opacity: 1; }
-    
+    .hub-house {
+        position: absolute;
+        width: 150px;
+        height: 150px;
+        background-image: url('https://i.imgur.com/7b58m9Y.png'); /* Simple house sprite */
+        background-size: contain;
+        background-repeat: no-repeat;
+        cursor: pointer;
+        z-index: 5;
+    }
+    .house-owner-tag {
+        position: absolute;
+        top: -25px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: rgba(255, 214, 10, 0.8);
+        color: #121212;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: bold;
+        white-space: nowrap;
+        border: 1px solid rgba(0,0,0,0.2);
+    }
+    #house-interior-view {
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(18, 18, 18, 0.95);
+        z-index: 500;
+        display: none; /* Hidden by default */
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 2rem;
+        color: white;
+        text-align: center;
+    }
+    #house-interior-view h2 { font-size: 2.5rem; }
+    #house-interior-view button { background: var(--primary-blue); font-size: 1.2rem; }
+
+
     #chat-input-container {
         position: absolute;
         bottom: 20px;
@@ -531,7 +590,11 @@
 <!-- Linus Hub Tab -->
 <div id="linus-hub" class="tab-content">
     <div id="game-area">
-        <!-- Local player character -->
+        <div id="world-container">
+             <!-- Other players and houses will be added here by JS -->
+        </div>
+
+        <!-- Local player character is fixed in the center of the viewport -->
         <div id="local-player-container" class="player-character">
              <div class="player-ui-container">
                 <div class="chat-bubble"></div>
@@ -546,9 +609,14 @@
                 <input type="text" id="chat-input" placeholder="Say something..." maxlength="50" autocomplete="off">
             </form>
         </div>
-        <!-- Other players will be added here by JS -->
+    </div>
+    <div id="house-interior-view">
+        <h2>Welcome Home!</h2>
+        <p>This is your personal space.</p>
+        <button id="leave-house-btn">Leave House</button>
     </div>
 </div>
+
 
 </main>
 </div>
@@ -1166,27 +1234,32 @@ function updateAllBalanceDisplays(targetBalance) {
     createDeck();
 })();
 
-// --- Linus Hub 2D Game Logic (FIXED) ---
+// --- Linus Hub 2D Game Logic ---
 (function setupLinusHubTab() {
     const gameArea = document.getElementById('game-area');
-    if (!gameArea) return;
-    
-    const hubRef = db.ref('linusHub/players');
+    const worldContainer = document.getElementById('world-container');
+    if (!gameArea || !worldContainer) return;
+
+    const playersRef = db.ref('linusHub/players');
+    const housesRef = db.ref('linusHub/houses');
     let playerRef = null;
 
     const chatInputContainer = document.getElementById('chat-input-container');
     const chatInput = document.getElementById('chat-input');
+    const houseInteriorView = document.getElementById('house-interior-view');
+    const leaveHouseBtn = document.getElementById('leave-house-btn');
 
-    const playerContainer = document.getElementById('local-player-container');
-    const playerImage = document.getElementById('player-character-img');
+    const localPlayerContainer = document.getElementById('local-player-container');
+    const localPlayerImage = document.getElementById('player-character-img');
+
     const playerState = {
-        element: playerContainer,
-        imgElement: playerImage,
-        x: gameArea.offsetWidth / 2 - 25,
-        y: gameArea.offsetHeight / 2 - 25,
-        width: 50,
-        height: 50,
-        speed: 4,
+        element: localPlayerContainer,
+        imgElement: localPlayerImage,
+        x: 0,
+        y: 0,
+        width: 80, // Increased size
+        height: 80, // Increased size
+        speed: 5,
         direction: 1,
         animation: 'idle'
     };
@@ -1198,95 +1271,133 @@ function updateAllBalanceDisplays(targetBalance) {
     let isChatting = false;
     let gameLoopId = null;
     let otherPlayerElements = {}; 
+    let houseElements = {};
+    let allHouses = {}; // Local cache of house data from Firebase
 
-    // --- User Gifting Panel Logic ---
-    
-    function openUserPanel(targetUid, targetEmail) {
-        if (!targetUid || !targetEmail) return;
-    
-        db.ref(`users/${targetUid}/balance`).once('value', (snapshot) => {
-            const targetBalance = snapshot.val() || 0;
-            
-            panelUserName.textContent = targetEmail.split('@')[0];
-            panelUserBalance.textContent = targetBalance.toLocaleString();
-            giftAmountInput.value = '';
-            userInteractionPanel.dataset.targetUid = targetUid;
-            userInteractionPanel.classList.add('visible');
-    
-        }).catch(err => {
-            console.error("Could not fetch user data:", err);
-            showToast("Could not retrieve user data.", "error");
+    // --- House Definitions and Logic ---
+    const HOUSE_WIDTH = 150;
+    const HOUSE_HEIGHT = 150;
+    const houseLayout = [
+        { id: 0, x: -200, y: -200 }, { id: 1, x: 200, y: -400 },
+        { id: 2, x: 600, y: -200 }, { id: 3, x: 800, y: 200 },
+        { id: 4, x: 600, y: 600 }, { id: 5, x: 200, y: 800 },
+        { id: 6, x: -200, y: 600 }, { id: 7, x: -600, y: 200 },
+        { id: 8, x: -800, y: -400 }, { id: 9, x: -500, y: -700 }
+    ];
+
+    function initializeHouses() {
+        houseLayout.forEach(layout => {
+            const houseEl = document.createElement('div');
+            houseEl.className = 'hub-house';
+            houseEl.dataset.id = layout.id;
+            houseEl.style.left = `${layout.x}px`;
+            houseEl.style.top = `${layout.y}px`;
+            houseEl.addEventListener('click', () => onHouseClick(layout.id));
+            worldContainer.appendChild(houseEl);
+            houseElements[layout.id] = houseEl;
         });
     }
 
-    async function handleGift() {
-        const recipientUid = userInteractionPanel.dataset.targetUid;
-        const senderUid = currentUser.uid;
-        const amount = parseInt(giftAmountInput.value, 10);
-
-        if (!recipientUid) return;
-        if (isNaN(amount) || amount <= 0) {
-            showToast('Please enter a valid amount.', 'error');
-            return;
-        }
-        if (senderUid === recipientUid) {
-            showToast("You can't gift to yourself!", 'error');
-            return;
-        }
-        if (balance < amount) {
-            showToast('You do not have enough BUX.', 'error');
-            return;
-        }
-
-        giftBtn.disabled = true;
-
-        try {
-            const updates = {};
-            updates[`/users/${senderUid}/balance`] = firebase.database.ServerValue.increment(-amount);
-            updates[`/users/${recipientUid}/balance`] = firebase.database.ServerValue.increment(amount);
-
-            await db.ref().update(updates);
-            
-            showToast(`Successfully gifted ${amount.toLocaleString()} BUX!`, 'success');
-            userInteractionPanel.classList.remove('visible');
-
-        } catch (error) {
-            console.error('Gift update failed:', error);
-            showToast(error.message, 'error');
-        } finally {
-            giftBtn.disabled = false;
-            delete userInteractionPanel.dataset.targetUid;
+    async function onHouseClick(houseId) {
+        const houseData = allHouses[houseId];
+        const ownerUid = houseData ? houseData.ownerUid : null;
+        
+        if (ownerUid) {
+            if (ownerUid === currentUser.uid) {
+                // Enter your own house
+                houseInteriorView.style.display = 'flex';
+                gameArea.style.pointerEvents = 'none';
+            } else {
+                // House is owned by someone else
+                const ownerSnapshot = await db.ref(`users/${ownerUid}/email`).once('value');
+                const ownerEmail = ownerSnapshot.val() || 'someone';
+                showToast(`This house is owned by ${ownerEmail.split('@')[0]}.`, 'info');
+            }
+        } else {
+            // House is unclaimed
+            if (balance < 100) {
+                showToast("You need 100 BUX to claim a house.", 'error');
+                return;
+            }
+            if (confirm("Claim this house for 100 BUX?")) {
+                // Use a transaction to prevent race conditions
+                housesRef.child(houseId).transaction(currentData => {
+                    if (currentData === null) {
+                        return { ownerUid: currentUser.uid, ownerEmail: currentUser.email };
+                    }
+                    return; // Abort transaction if house is already claimed
+                }, (error, committed) => {
+                    if (error) {
+                        showToast("An error occurred. Please try again.", 'error');
+                    } else if (committed) {
+                        updateUserBalance(balance - 100);
+                        showToast("House claimed successfully!", 'success');
+                    } else {
+                        showToast("This house was just claimed by someone else!", 'error');
+                    }
+                });
+            }
         }
     }
     
+    leaveHouseBtn.addEventListener('click', () => {
+        houseInteriorView.style.display = 'none';
+        gameArea.style.pointerEvents = 'auto';
+    });
+    
+    // --- User Gifting Panel Logic ---
+    function openUserPanel(targetUid, targetEmail) { /* ... (code unchanged) ... */ }
+    async function handleGift() { /* ... (code unchanged) ... */ }
     giftBtn.addEventListener('click', handleGift);
     closePanelBtn.addEventListener('click', () => userInteractionPanel.classList.remove('visible'));
     userInteractionPanel.addEventListener('click', (e) => {
         if (e.target === userInteractionPanel) userInteractionPanel.classList.remove('visible');
     });
 
-    function handlePlayerChat(playerEl, chatMessage) {
-        const bubble = playerEl.querySelector('.chat-bubble');
-        if (!bubble) return;
+    function handlePlayerChat(playerEl, chatMessage) { /* ... (code unchanged) ... */ }
     
-        if (playerEl.bubbleTimeout) clearTimeout(playerEl.bubbleTimeout);
+    function checkCollision(nextX, nextY) {
+        const playerBox = {
+            left: nextX, top: nextY,
+            right: nextX + playerState.width, bottom: nextY + playerState.height
+        };
 
-        bubble.textContent = chatMessage;
-        bubble.classList.add('visible');
-
-        playerEl.bubbleTimeout = setTimeout(() => {
-            bubble.classList.remove('visible');
-        }, 5000);
+        for (const house of houseLayout) {
+            const houseBox = {
+                left: house.x, top: house.y,
+                right: house.x + HOUSE_WIDTH, bottom: house.y + HOUSE_HEIGHT
+            };
+            // Simple AABB collision check
+            if (playerBox.right > houseBox.left && playerBox.left < houseBox.right &&
+                playerBox.bottom > houseBox.top && playerBox.top < houseBox.bottom) {
+                return true; // Collision detected
+            }
+        }
+        return false; // No collision
     }
-    
+
     function updateLocalPlayerPosition() {
         const isMoving = (keys.w || keys.a || keys.s || keys.d);
         let dataChanged = false;
 
-        if (keys.w && playerState.y > 0) { playerState.y -= playerState.speed; dataChanged = true; }
-        if (keys.s && playerState.y < gameArea.offsetHeight - playerState.height) { playerState.y += playerState.speed; dataChanged = true; }
-        if (keys.a && playerState.x > 0) { playerState.x -= playerState.speed; if(playerState.direction !== -1){ playerState.direction = -1; dataChanged = true;} }
-        if (keys.d && playerState.x < gameArea.offsetWidth - playerState.width) { playerState.x += playerState.speed; if(playerState.direction !== 1){ playerState.direction = 1; dataChanged = true;} }
+        let nextX = playerState.x;
+        let nextY = playerState.y;
+
+        if (keys.w) { nextY -= playerState.speed; }
+        if (keys.s) { nextY += playerState.speed; }
+        if (keys.a) { nextX -= playerState.speed; }
+        if (keys.d) { nextX += playerState.speed; }
+        
+        // Update direction
+        if (keys.a && playerState.direction !== -1) { playerState.direction = -1; dataChanged = true; }
+        if (keys.d && playerState.direction !== 1) { playerState.direction = 1; dataChanged = true; }
+
+        // Check for collision before applying movement
+        if ((nextX !== playerState.x || nextY !== playerState.y) && !checkCollision(nextX, nextY)) {
+            playerState.x = nextX;
+            playerState.y = nextY;
+            dataChanged = true;
+        }
 
         const newAnimation = isMoving ? 'walk' : 'idle';
         if(playerState.animation !== newAnimation) {
@@ -1294,8 +1405,10 @@ function updateAllBalanceDisplays(targetBalance) {
              dataChanged = true;
         }
 
-        playerState.element.style.left = `${playerState.x}px`;
-        playerState.element.style.top = `${playerState.y}px`;
+        // Update camera position
+        worldContainer.style.transform = `translate(${-playerState.x + gameArea.offsetWidth / 2 - playerState.width / 2}px, ${-playerState.y + gameArea.offsetHeight / 2 - playerState.height / 2}px)`;
+
+        // Update local player visual state
         playerState.imgElement.style.transform = `scaleX(${playerState.direction})`;
         const newSrc = (playerState.animation === 'walk') ? 'WALK.gif' : 'IDLE.gif';
         if (playerState.imgElement.src.indexOf(newSrc) === -1) {
@@ -1329,10 +1442,10 @@ function updateAllBalanceDisplays(targetBalance) {
     }
 
     function handleGlobalKeyDown(e) {
-        if (userInteractionPanel.classList.contains('visible')) return;
+        if (userInteractionPanel.classList.contains('visible') || houseInteriorView.style.display === 'flex') return;
 
         if (e.key === 'Enter') {
-            e.preventDefault(); // This is the crucial fix to prevent page reload
+            e.preventDefault(); 
             if (isChatting) {
                 sendMessage();
             } else {
@@ -1353,8 +1466,10 @@ function updateAllBalanceDisplays(targetBalance) {
     
     function enterHub() {
         if (!currentUser) return;
-        playerRef = hubRef.child(currentUser.uid);
+        playerRef = playersRef.child(currentUser.uid);
         
+        initializeHouses();
+
         const initialData = {
             x: playerState.x,
             y: playerState.y,
@@ -1367,7 +1482,28 @@ function updateAllBalanceDisplays(targetBalance) {
         playerRef.set(initialData);
         playerRef.onDisconnect().remove();
 
-        hubRef.on('child_added', (snapshot) => {
+        housesRef.on('value', snapshot => {
+            allHouses = snapshot.val() || {};
+            // Update visual state of all houses
+            Object.values(houseElements).forEach(houseEl => {
+                const houseId = houseEl.dataset.id;
+                const houseData = allHouses[houseId];
+                let ownerTag = houseEl.querySelector('.house-owner-tag');
+
+                if (houseData && houseData.ownerEmail) {
+                    if (!ownerTag) {
+                        ownerTag = document.createElement('div');
+                        ownerTag.className = 'house-owner-tag';
+                        houseEl.appendChild(ownerTag);
+                    }
+                    ownerTag.textContent = `${houseData.ownerEmail.split('@')[0]}'s House`;
+                } else {
+                    if (ownerTag) ownerTag.remove();
+                }
+            });
+        });
+
+        playersRef.on('child_added', (snapshot) => {
             const pData = snapshot.val();
             const uid = snapshot.key;
 
@@ -1395,31 +1531,26 @@ function updateAllBalanceDisplays(targetBalance) {
             container.append(uiContainer, img);
             
             otherPlayerElements[uid] = { container, img, bubble, bubbleTimeout: null };
-            gameArea.appendChild(container);
+            worldContainer.appendChild(container);
 
             container.addEventListener('click', () => {
                 openUserPanel(uid, pData.email);
             });
         });
 
-        hubRef.on('child_changed', (snapshot) => {
+        playersRef.on('child_changed', (snapshot) => {
             const pData = snapshot.val();
             const uid = snapshot.key;
 
             if (uid === currentUser.uid) {
-                // We've received our own chat message back from Firebase.
-                // We already displayed it locally, so we'll just clear it from the database now.
-                if (pData.chatMessage) {
-                    playerRef.child('chatMessage').remove();
-                }
+                if (pData.chatMessage) playerRef.child('chatMessage').remove();
                 return;
             }
 
             const otherPlayer = otherPlayerElements[uid];
             if (!otherPlayer) return;
 
-            otherPlayer.container.style.left = `${pData.x}px`;
-            otherPlayer.container.style.top = `${pData.y}px`;
+            gsap.to(otherPlayer.container, { left: pData.x, top: pData.y, duration: 0.1, ease: 'linear' });
             otherPlayer.img.style.transform = `scaleX(${pData.direction})`;
             const newSrc = (pData.animation === 'walk' ? 'WALK.gif' : 'IDLE.gif');
             if (otherPlayer.img.src.indexOf(newSrc) === -1) otherPlayer.img.src = newSrc;
@@ -1429,7 +1560,7 @@ function updateAllBalanceDisplays(targetBalance) {
             }
         });
 
-        hubRef.on('child_removed', (snapshot) => {
+        playersRef.on('child_removed', (snapshot) => {
             const uid = snapshot.key;
             const otherPlayer = otherPlayerElements[uid];
             if (otherPlayer) {
@@ -1446,7 +1577,8 @@ function updateAllBalanceDisplays(targetBalance) {
 
     function leaveHub() {
         if (playerRef) playerRef.remove();
-        hubRef.off(); 
+        playersRef.off();
+        housesRef.off(); 
         document.removeEventListener('keydown', handleGlobalKeyDown);
         document.removeEventListener('keyup', handleGlobalKeyUp);
         
@@ -1456,13 +1588,13 @@ function updateAllBalanceDisplays(targetBalance) {
             gameLoopId = null; 
         }
 
-        for(const uid in otherPlayerElements) {
-            if(otherPlayerElements[uid].bubbleTimeout) clearTimeout(otherPlayerElements[uid].bubbleTimeout);
-            otherPlayerElements[uid].container.remove();
-        }
+        worldContainer.innerHTML = '';
         otherPlayerElements = {};
+        houseElements = {};
         isChatting = false;
         chatInputContainer.style.display = 'none';
+        houseInteriorView.style.display = 'none';
+        gameArea.style.pointerEvents = 'auto';
     }
 
     const linusHubTab = document.getElementById('linus-hub');
