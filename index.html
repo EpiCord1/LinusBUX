@@ -244,37 +244,38 @@
     #game-area {
         width: 100%;
         height: 100%;
-        
-        /* NEW CSS BACKGROUND */
+        /* background-color: #0d0d0d; --- OLD --- */
+
+        /* --- NEW CSS BACKGROUND --- */
         background:
             /* Layer 1: Vertical tile lines */
             repeating-linear-gradient(
                 90deg,
                 rgba(0,0,0,0.1) 0,
-                rgba(0,0,0,0.1) 1px,
-                transparent 1px,
+                rgba(0,0,0,0.1) 2px,
+                transparent 2px,
                 transparent 40px
             ),
             /* Layer 2: Horizontal tile lines */
             repeating-linear-gradient(
                 0deg,
                 rgba(0,0,0,0.1) 0,
-                rgba(0,0,0,0.1) 1px,
-                transparent 1px,
+                rgba(0,0,0,0.1) 2px,
+                transparent 2px,
                 transparent 40px
             ),
             /* Layer 3: The circular stone plaza */
             radial-gradient(
                 circle at center,
-                #999 0%,
-                #777 400px,
-                transparent 401px
+                #bbb 0, /* Inner stone color */
+                #999 400px, /* Outer edge stone color */
+                transparent 401px /* Make transparent just outside the circle */
             ),
             /* Layer 4: The grass base layer */
             radial-gradient(
                 ellipse at center,
-                #2a8c3c 0%,
-                #1e592a 100%
+                #2a8c3c 0%, /* Lighter green center */
+                #1e592a 100% /* Darker green edges */
             );
         
         border-radius: var(--border-radius);
@@ -631,291 +632,283 @@ const db = firebase.database();
 
 document.addEventListener('DOMContentLoaded', () => {
     
-    // --- App State ---
-    let balance = 0;
-    let currentUser = null;
-    let balanceRef = null;
-    const generatedCodes = {};
+// --- App State ---
+let balance = 0;
+let currentUser = null;
+let balanceRef = null;
+const generatedCodes = {};
 
-    // --- UI Elements ---
-    const mainBalanceElement = document.getElementById('main-balance-amount');
-    const headerBalanceElement = document.getElementById('header-balance-amount');
-    const navLinks = document.querySelectorAll('.nav-link');
-    const tabContents = document.querySelectorAll('.tab-content');
-    const appContainer = document.getElementById('app');
-    const authContainer = document.getElementById('auth-container');
-    const emailInput = document.getElementById('email-input');
-    const passwordInput = document.getElementById('password-input');
-    const loginBtn = document.getElementById('login-btn');
-    const signupBtn = document.getElementById('signup-btn');
-    const logoutBtn = document.getElementById('logout-btn');
-    const userInteractionPanel = document.getElementById('user-interaction-panel');
-    const panelUserName = document.getElementById('panel-user-name');
-    const panelUserBalance = document.getElementById('panel-user-balance');
-    const giftAmountInput = document.getElementById('gift-amount-input');
-    const giftBtn = document.getElementById('gift-btn');
-    const closePanelBtn = document.querySelector('#user-interaction-panel .close-panel-btn');
+// --- UI Elements ---
+const mainBalanceElement = document.getElementById('main-balance-amount');
+const headerBalanceElement = document.getElementById('header-balance-amount');
+const headerBalanceContainer = document.querySelector('.header-balance');
+const navLinks = document.querySelectorAll('.nav-link');
+const tabContents = document.querySelectorAll('.tab-content');
+const appContainer = document.getElementById('app');
+const authContainer = document.getElementById('auth-container');
+const emailInput = document.getElementById('email-input');
+const passwordInput = document.getElementById('password-input');
+const loginBtn = document.getElementById('login-btn');
+const signupBtn = document.getElementById('signup-btn');
+const logoutBtn = document.getElementById('logout-btn');
+const userInteractionPanel = document.getElementById('user-interaction-panel');
+const panelUserName = document.getElementById('panel-user-name');
+const panelUserBalance = document.getElementById('panel-user-balance');
+const giftAmountInput = document.getElementById('gift-amount-input');
+const giftBtn = document.getElementById('gift-btn');
+const closePanelBtn = document.querySelector('#user-interaction-panel .close-panel-btn');
 
-    // --- Toast Notification System ---
-    const toastContainer = document.getElementById('toast-container');
-    function showToast(message, type = 'info') {
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        toast.textContent = message;
-        toastContainer.appendChild(toast);
-        gsap.to(toast, {
-            opacity: 0, y: 20, delay: 3.5, duration: 0.5,
-            onComplete: () => toast.remove()
-        });
-    }
-
-    // --- Firebase Auth Logic ---
-    auth.onAuthStateChanged(user => {
-        if (user) {
-            currentUser = user;
-            balanceRef = db.ref(`users/${currentUser.uid}`);
-            
-            balanceRef.on('value', (snapshot) => {
-                const userData = snapshot.val();
-                if (userData === null) {
-                    balanceRef.set({
-                        balance: 100,
-                        email: user.email
-                    });
-                } else {
-                    balance = userData.balance;
-                }
-                updateAllBalanceDisplays(balance);
-            });
-
-            appContainer.classList.add('visible');
-            authContainer.style.display = 'none';
-        } else {
-            if (currentUser) {
-                db.ref(`linusHub/players/${currentUser.uid}`).remove();
-            }
-            currentUser = null;
-            if (balanceRef) balanceRef.off();
-            balance = 0;
-            updateAllBalanceDisplays(0);
-
-            appContainer.classList.remove('visible');
-            authContainer.style.display = 'flex';
-        }
+// --- Toast Notification System ---
+const toastContainer = document.getElementById('toast-container');
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    toastContainer.appendChild(toast);
+    gsap.to(toast, {
+        opacity: 0,
+        y: 20,
+        delay: 3.5,
+        duration: 0.5,
+        onComplete: () => toast.remove()
     });
+}
 
-    // --- Authentication Buttons ---
-    signupBtn.addEventListener('click', () => {
-        const email = emailInput.value;
-        const password = passwordInput.value;
-        if (!email || !password) return showToast('Please enter email and password.', 'error');
-        auth.createUserWithEmailAndPassword(email, password)
-            .then(() => showToast(`Account created! Welcome!`, 'success'))
-            .catch((error) => showToast(error.message, 'error'));
-    });
-
-    loginBtn.addEventListener('click', () => {
-        const email = emailInput.value;
-        const password = passwordInput.value;
-        if (!email || !password) return showToast('Please enter email and password.', 'error');
-        auth.signInWithEmailAndPassword(email, password)
-            .then(() => showToast('Welcome back!', 'success'))
-            .catch((error) => showToast(error.message, 'error'));
-    });
-
-    logoutBtn.addEventListener('click', () => auth.signOut());
-
-    // --- UI Logic ---
-    function updateAllBalanceDisplays(targetBalance) {
-        [mainBalanceElement, headerBalanceElement].forEach(el => {
-            if (!el) return;
-            gsap.to(el, {
-                duration: 1, innerHTML: Math.floor(targetBalance), roundProps: "innerHTML",
-                onUpdate: function() { this.targets()[0].innerHTML = parseInt(this.targets()[0].innerHTML).toLocaleString(); },
-                ease: "power3.out"
-            });
-        });
-    }
-
-    navLinks.forEach(link => {
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-            const tabId = e.currentTarget.dataset.tab;
-            navLinks.forEach(l => l.classList.remove('active'));
-            tabContents.forEach(content => content.classList.remove('active'));
-            e.currentTarget.classList.add('active');
-            document.getElementById(tabId).classList.add('active');
-            document.querySelector('.header-balance').classList.toggle('visible', tabId !== 'balance');
-        });
-    });
-
-    // --- Linus Hub Logic ---
-    (function setupLinusHubTab() {
-        const gameArea = document.getElementById('game-area');
-        const hubRef = db.ref('linusHub/players');
-        let playerRef = null;
-
-        const playerContainer = document.getElementById('local-player-container');
-        const playerImage = document.getElementById('player-character-img');
-        const playerState = {
-            element: playerContainer, imgElement: playerImage,
-            x: gameArea.offsetWidth / 2 - 25, y: gameArea.offsetHeight / 2 - 25,
-            width: 50, height: 50, speed: 4, direction: 1
-        };
-        playerContainer.style.width = `${playerState.width}px`;
-        playerContainer.style.height = `${playerState.height}px`;
-
-        const keys = { w: false, a: false, s: false, d: false };
-        let gameLoopId = null;
-        let otherPlayerElements = {};
-
-        function openUserPanel(targetUid, targetEmail) {
-            db.ref(`users/${targetUid}/balance`).once('value', (snapshot) => {
-                panelUserName.textContent = targetEmail.split('@')[0];
-                panelUserBalance.textContent = (snapshot.val() || 0).toLocaleString();
-                userInteractionPanel.dataset.targetUid = targetUid;
-                userInteractionPanel.classList.add('visible');
-            });
-        }
-
-        async function handleGift() {
-            const recipientUid = userInteractionPanel.dataset.targetUid;
-            const senderUid = currentUser.uid;
-            const amount = parseInt(giftAmountInput.value, 10);
-
-            if (!recipientUid) return;
-            if (isNaN(amount) || amount <= 0) return showToast('Please enter a valid amount.', 'error');
-            if (senderUid === recipientUid) return showToast("You can't gift to yourself!", 'error');
-            if (balance < amount) return showToast('You do not have enough BUX.', 'error');
-
-            giftBtn.disabled = true;
-            try {
-                const updates = {};
-                updates[`/users/${senderUid}/balance`] = firebase.database.ServerValue.increment(-amount);
-                updates[`/users/${recipientUid}/balance`] = firebase.database.ServerValue.increment(amount);
-                await db.ref().update(updates);
-                showToast(`Successfully gifted ${amount.toLocaleString()} BUX!`, 'success');
-                userInteractionPanel.classList.remove('visible');
-            } catch (error) {
-                showToast(error.message, 'error');
-            } finally {
-                giftBtn.disabled = false;
-            }
-        }
-
-        giftBtn.addEventListener('click', handleGift);
-        closePanelBtn.addEventListener('click', () => userInteractionPanel.classList.remove('visible'));
-        userInteractionPanel.addEventListener('click', (e) => {
-            if (e.target === userInteractionPanel) userInteractionPanel.classList.remove('visible');
-        });
-
-        function updateLocalPlayerPosition() {
-            if (keys.w) playerState.y -= playerState.speed;
-            if (keys.s) playerState.y += playerState.speed;
-            if (keys.a) { playerState.x -= playerState.speed; playerState.direction = -1; }
-            if (keys.d) { playerState.x += playerState.speed; playerState.direction = 1; }
-
-            // Boundary checks
-            playerState.x = Math.max(0, Math.min(gameArea.offsetWidth - playerState.width, playerState.x));
-            playerState.y = Math.max(0, Math.min(gameArea.offsetHeight - playerState.height, playerState.y));
-
-            const isMoving = keys.w || keys.a || keys.s || keys.d;
-            const newAnimation = isMoving ? 'WALK.gif' : 'IDLE.gif';
-            
-            playerState.element.style.left = `${playerState.x}px`;
-            playerState.element.style.top = `${playerState.y}px`;
-            playerState.imgElement.style.transform = `scaleX(${playerState.direction})`;
-            if (!playerState.imgElement.src.includes(newAnimation)) {
-                playerState.imgElement.src = newAnimation;
-            }
-
-            if (playerRef) {
-                playerRef.update({ x: playerState.x, y: playerState.y, direction: playerState.direction, animation: isMoving ? 'walk' : 'idle' });
-            }
-        }
-
-        function gameLoop() {
-            updateLocalPlayerPosition();
-            gameLoopId = requestAnimationFrame(gameLoop);
-        }
-
-        function enterHub() {
-            if (!currentUser || playerRef) return;
-            playerRef = hubRef.child(currentUser.uid);
-            playerRef.set({
-                x: playerState.x, y: playerState.y, direction: 1, animation: 'idle', email: currentUser.email
-            });
-            playerRef.onDisconnect().remove();
-
-            hubRef.on('child_added', (snapshot) => {
-                const pData = snapshot.val();
-                const uid = snapshot.key;
-                if (uid === currentUser.uid || otherPlayerElements[uid]) return;
-                
-                const container = document.createElement('div');
-                container.className = 'player-character';
-                container.style.cssText = `width:${playerState.width}px; height:${playerState.height}px; left:${pData.x}px; top:${pData.y}px;`;
-                container.innerHTML = `<div class="player-ui-container"><div class="player-nametag">${pData.email.split('@')[0]}</div></div><img src="IDLE.gif" alt="Player">`;
-                container.addEventListener('click', () => openUserPanel(uid, pData.email));
-                gameArea.appendChild(container);
-                otherPlayerElements[uid] = container;
-            });
-
-            hubRef.on('child_changed', (snapshot) => {
-                const pData = snapshot.val();
-                const uid = snapshot.key;
-                if (uid === currentUser.uid) return;
-                const otherPlayer = otherPlayerElements[uid];
-                if (!otherPlayer) return;
-                
-                otherPlayer.style.left = `${pData.x}px`;
-                otherPlayer.style.top = `${pData.y}px`;
-                const img = otherPlayer.querySelector('img');
-                img.style.transform = `scaleX(${pData.direction})`;
-                const anim = pData.animation === 'walk' ? 'WALK.gif' : 'IDLE.gif';
-                if(!img.src.includes(anim)) img.src = anim;
-            });
-
-            hubRef.on('child_removed', (snapshot) => {
-                const otherPlayer = otherPlayerElements[snapshot.key];
-                if (otherPlayer) {
-                    otherPlayer.remove();
-                    delete otherPlayerElements[snapshot.key];
-                }
-            });
-
-            if (!gameLoopId) gameLoop();
-        }
-
-        function leaveHub() {
-            if (playerRef) playerRef.remove();
-            playerRef = null;
-            hubRef.off();
-            for (const uid in otherPlayerElements) otherPlayerElements[uid].remove();
-            otherPlayerElements = {};
-            if (gameLoopId) {
-                cancelAnimationFrame(gameLoopId);
-                gameLoopId = null;
-            }
-        }
+// --- Firebase Auth Logic ---
+auth.onAuthStateChanged(user => {
+    if (user) {
+        currentUser = user;
+        balanceRef = db.ref(`users/${currentUser.uid}/balance`);
         
-        document.addEventListener('keydown', (e) => {
-            if (e.key.toLowerCase() in keys) keys[e.key.toLowerCase()] = true;
-        });
-        document.addEventListener('keyup', (e) => {
-            if (e.key.toLowerCase() in keys) keys[e.key.toLowerCase()] = false;
+        balanceRef.on('value', (snapshot) => {
+             const userBalance = snapshot.val();
+            if (userBalance === null) {
+                db.ref(`users/${currentUser.uid}`).set({
+                    balance: 100,
+                    email: user.email
+                });
+            } else {
+                balance = userBalance;
+            }
+            updateAllBalanceDisplays(balance);
         });
 
-        const observer = new MutationObserver(() => {
-            if (document.getElementById('linus-hub').classList.contains('active')) {
-                enterHub();
-            } else {
-                leaveHub();
+        appContainer.classList.add('visible');
+        authContainer.style.display = 'none';
+    } else {
+        if (currentUser) {
+           db.ref(`linusHub/players/${currentUser.uid}`).remove();
+        }
+        currentUser = null;
+        if(balanceRef) balanceRef.off();
+        balance = 0;
+        updateAllBalanceDisplays(0);
+
+        appContainer.classList.remove('visible');
+        authContainer.style.display = 'flex';
+    }
+});
+
+// --- Other Setup (Login, Logout, etc. - unchanged) ---
+signupBtn.addEventListener('click', () => {
+    const email = emailInput.value;
+    const password = passwordInput.value;
+    if (!email || !password) {
+        showToast('Please enter email and password.', 'error');
+        return;
+    }
+    auth.createUserWithEmailAndPassword(email, password)
+        .catch((error) => showToast(error.message, 'error'));
+});
+loginBtn.addEventListener('click', () => {
+    const email = emailInput.value;
+    const password = passwordInput.value;
+    if (!email || !password) {
+        showToast('Please enter email and password.', 'error');
+        return;
+    }
+    auth.signInWithEmailAndPassword(email, password)
+        .catch((error) => showToast(error.message, 'error'));
+});
+logoutBtn.addEventListener('click', () => auth.signOut());
+
+// --- Balance Display Logic ---
+function updateAllBalanceDisplays(targetBalance) {
+    const elements = [document.getElementById('main-balance-amount'), document.getElementById('header-balance-amount')];
+    elements.forEach(el => {
+        if (!el) return;
+        gsap.to(el, {
+            duration: 1, innerHTML: Math.floor(targetBalance), roundProps: "innerHTML",
+            onUpdate: function() {
+                this.targets()[0].innerHTML = parseInt(this.targets()[0].innerHTML).toLocaleString();
+            },
+            ease: "power3.out"
+        });
+    });
+}
+
+// --- Tab Switching ---
+navLinks.forEach(link => {
+    link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const tabId = e.currentTarget.getAttribute('data-tab');
+        navLinks.forEach(l => l.classList.remove('active'));
+        tabContents.forEach(content => content.classList.remove('active'));
+        e.currentTarget.classList.add('active');
+        document.getElementById(tabId).classList.add('active');
+        document.querySelector('.header-balance').classList.toggle('visible', tabId !== 'balance');
+    });
+});
+
+// --- Linus Hub Logic ---
+(function setupLinusHubTab() {
+    const gameArea = document.getElementById('game-area');
+    const hubRef = db.ref('linusHub/players');
+    let playerRef = null;
+
+    const playerContainer = document.getElementById('local-player-container');
+    const playerImage = document.getElementById('player-character-img');
+    const playerState = {
+        element: playerContainer, imgElement: playerImage,
+        x: gameArea.offsetWidth / 2 - 25, y: gameArea.offsetHeight / 2 - 25,
+        width: 50, height: 50, speed: 4, direction: 1, animation: 'idle'
+    };
+    playerState.element.style.width = `${playerState.width}px`;
+    playerState.element.style.height = `${playerState.height}px`;
+
+    const keys = { w: false, a: false, s: false, d: false };
+    let isChatting = false;
+    let gameLoopId = null;
+    let otherPlayerElements = {};
+
+    function openUserPanel(targetUid, targetEmail) {
+        db.ref(`users/${targetUid}/balance`).once('value', (snapshot) => {
+            const targetBalance = snapshot.val() || 0;
+            panelUserName.textContent = targetEmail.split('@')[0];
+            panelUserBalance.textContent = targetBalance.toLocaleString();
+            userInteractionPanel.dataset.targetUid = targetUid;
+            userInteractionPanel.classList.add('visible');
+        });
+    }
+
+    async function handleGift() {
+        const recipientUid = userInteractionPanel.dataset.targetUid;
+        const senderUid = currentUser.uid;
+        const amount = parseInt(giftAmountInput.value, 10);
+
+        if (!recipientUid || isNaN(amount) || amount <= 0) {
+            showToast('Please enter a valid amount.', 'error'); return;
+        }
+        if (senderUid === recipientUid) {
+            showToast("You can't gift to yourself!", 'error'); return;
+        }
+        if (balance < amount) {
+            showToast('You do not have enough BUX.', 'error'); return;
+        }
+
+        giftBtn.disabled = true;
+        try {
+            const updates = {};
+            updates[`/users/${senderUid}/balance`] = firebase.database.ServerValue.increment(-amount);
+            updates[`/users/${recipientUid}/balance`] = firebase.database.ServerValue.increment(amount);
+            await db.ref().update(updates);
+            showToast(`Successfully gifted ${amount.toLocaleString()} BUX!`, 'success');
+            userInteractionPanel.classList.remove('visible');
+        } catch (error) {
+            showToast(error.message, 'error');
+        } finally {
+            giftBtn.disabled = false;
+        }
+    }
+
+    giftBtn.addEventListener('click', handleGift);
+    closePanelBtn.addEventListener('click', () => userInteractionPanel.classList.remove('visible'));
+    userInteractionPanel.addEventListener('click', (e) => {
+        if (e.target === userInteractionPanel) userInteractionPanel.classList.remove('visible');
+    });
+
+    function updateLocalPlayerPosition() {
+        const isMoving = keys.w || keys.a || keys.s || keys.d;
+        if (keys.w && playerState.y > 0) playerState.y -= playerState.speed;
+        if (keys.s && playerState.y < gameArea.offsetHeight - playerState.height) playerState.y += playerState.speed;
+        if (keys.a && playerState.x > 0) { playerState.x -= playerState.speed; playerState.direction = -1; }
+        if (keys.d && playerState.x < gameArea.offsetWidth - playerState.width) { playerState.x += playerState.speed; playerState.direction = 1; }
+        
+        playerState.animation = isMoving ? 'walk' : 'idle';
+        playerState.element.style.left = `${playerState.x}px`;
+        playerState.element.style.top = `${playerState.y}px`;
+        playerState.imgElement.style.transform = `scaleX(${playerState.direction})`;
+        const newSrc = playerState.animation === 'walk' ? 'WALK.gif' : 'IDLE.gif';
+        if (!playerState.imgElement.src.includes(newSrc)) playerState.imgElement.src = newSrc;
+        
+        if (playerRef) playerRef.update({ x: playerState.x, y: playerState.y, direction: playerState.direction });
+    }
+
+    function gameLoop() {
+        if (!isChatting) updateLocalPlayerPosition();
+        gameLoopId = requestAnimationFrame(gameLoop);
+    }
+    
+    function enterHub() {
+        if (!currentUser) return;
+        playerRef = hubRef.child(currentUser.uid);
+        playerRef.set({
+            x: playerState.x, y: playerState.y, direction: 1, email: currentUser.email
+        });
+        playerRef.onDisconnect().remove();
+
+        hubRef.on('child_added', (snapshot) => {
+            const pData = snapshot.val();
+            const uid = snapshot.key;
+            if (uid === currentUser.uid || otherPlayerElements[uid]) return;
+            
+            const container = document.createElement('div');
+            container.className = 'player-character';
+            container.style.cssText = `width:${playerState.width}px; height:${playerState.height}px; left:${pData.x}px; top:${pData.y}px;`;
+            container.innerHTML = `<div class="player-ui-container"><div class="player-nametag">${pData.email.split('@')[0]}</div></div><img src="IDLE.gif" alt="Player">`;
+            container.addEventListener('click', () => openUserPanel(uid, pData.email));
+            otherPlayerElements[uid] = gameArea.appendChild(container);
+        });
+
+        hubRef.on('child_changed', (snapshot) => {
+            const pData = snapshot.val(), uid = snapshot.key;
+            if (uid === currentUser.uid) return;
+            const otherPlayer = otherPlayerElements[uid];
+            if (!otherPlayer) return;
+            otherPlayer.style.left = `${pData.x}px`;
+            otherPlayer.style.top = `${pData.y}px`;
+            otherPlayer.querySelector('img').style.transform = `scaleX(${pData.direction})`;
+        });
+
+        hubRef.on('child_removed', (snapshot) => {
+            const otherPlayer = otherPlayerElements[snapshot.key];
+            if (otherPlayer) {
+                otherPlayer.remove();
+                delete otherPlayerElements[snapshot.key];
             }
         });
-        observer.observe(document.getElementById('linus-hub'), { attributes: true, attributeFilter: ['class'] });
 
-    })();
+        if (!gameLoopId) gameLoop();
+    }
+
+    function leaveHub() {
+        if (playerRef) playerRef.remove();
+        hubRef.off();
+        for (const uid in otherPlayerElements) otherPlayerElements[uid].remove();
+        otherPlayerElements = {};
+        if (gameLoopId) {
+            cancelAnimationFrame(gameLoopId);
+            gameLoopId = null;
+        }
+    }
+
+    const observer = new MutationObserver((mutations) => {
+        if (document.getElementById('linus-hub').classList.contains('active')) enterHub();
+        else leaveHub();
+    });
+    observer.observe(document.getElementById('linus-hub'), { attributes: true });
+
+})();
 });
 </script>
 </body>
