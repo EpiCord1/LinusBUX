@@ -258,7 +258,7 @@
         position: relative;
         overflow: hidden;
     }
-    #world-container, #interior-container, #pizzeria-kitchen-container, #pizzeria-restaurant-container, #bank-container, #heist-scene-container {
+    #world-container, #interior-container, #pizzeria-kitchen-container, #pizzeria-restaurant-container, #bank-container {
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     }
     .player-character, .npc-character {
@@ -639,9 +639,16 @@
     }
 
     /* --- NEW BANK HEIST MINIGAME SCENE --- */
-    #heist-scene-container {
-        display: none;
+     #heist-scene-container {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        display: none; /* Hidden by default */
         background-color: #2d3436;
+        z-index: 1000;
+    }
+    #heist-scene-container.visible {
+        display: block;
     }
     #heist-game-area {
         position: absolute;
@@ -651,6 +658,7 @@
         background-color: #454545;
         border: 10px solid #1a1a1a;
         box-shadow: inset 0 0 40px rgba(0,0,0,0.8);
+        overflow: hidden; /* Prevent elements from appearing outside */
     }
     #heist-ui-overlay {
         position: absolute; top: 0; left: 0; width: 100%;
@@ -660,7 +668,7 @@
         pointer-events: none;
         z-index: 1000;
     }
-    .heist-ui-stat { font-size: 1.5rem; font-weight: 600; }
+    .heist-ui-stat { font-size: 1.5rem; font-weight: 600; text-shadow: 1px 1px 3px #000; }
     .heist-ui-stat span { color: var(--gold); margin-left: 10px; }
     #heist-player-health-bar {
         position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
@@ -669,6 +677,7 @@
         border: 2px solid var(--light-text);
         border-radius: 12px;
         margin-bottom: 30px;
+        pointer-events: none;
     }
     #heist-player-health-bar-fill {
         width: 100%; height: 100%;
@@ -691,6 +700,7 @@
         cursor: pointer;
         display: flex; justify-content: center; align-items: center;
         transition: transform 0.1s;
+        box-shadow: 0 0 10px var(--danger);
     }
     .heist-guard:hover { transform: scale(1.1); }
     .heist-guard::before {
@@ -1002,21 +1012,6 @@
              <button id="leave-bank-btn">Leave Bank</button>
         </div>
 
-        <!-- NEW HEIST MINIGAME SCENE -->
-        <div id="heist-scene-container" style="display: none;">
-            <div id="heist-game-area">
-                <!-- Players, guards, obstacles, and money are rendered here by JS -->
-            </div>
-            <div id="heist-ui-overlay">
-                <div class="heist-ui-stat">Room: <span id="heist-room-counter">1/10</span></div>
-                <div class="heist-ui-stat">Money Collected: <span id="heist-money-counter">0</span></div>
-            </div>
-             <div id="heist-player-health-bar">
-                <div id="heist-player-health-bar-fill"></div>
-            </div>
-        </div>
-
-
         <!-- Chat Input -->
         <div id="chat-input-container" style="display: none;">
             <form id="chat-form">
@@ -1028,6 +1023,22 @@
 
 </main>
 </div>
+
+<!-- FULL SCREEN MINIGAME CONTAINER -->
+<div id="heist-scene-container">
+    <div id="heist-game-area">
+        <!-- Players, guards, obstacles, and money are rendered here by JS -->
+    </div>
+    <div id="heist-ui-overlay">
+        <div class="heist-ui-stat">Room: <span id="heist-room-counter">1/10</span></div>
+        <div class="heist-ui-stat">Money Collected: <span id="heist-money-counter">0</span></div>
+    </div>
+    <div id="heist-player-health-bar">
+        <div id="heist-player-health-bar-fill"></div>
+    </div>
+</div>
+
+
 <div id="toast-container"></div>
 <div id="dragged-item"></div>
 <div id="sauce-cursor"></div>
@@ -1787,10 +1798,10 @@ function updateAllBalanceDisplays(targetBalance) {
         playerState.isSitting = true;
         playerState.sittingOnChairId = chairEl.dataset.id;
 
-        const chairWidth = parseInt(chairEl.style.width);
-        const chairHeight = parseInt(chairEl.style.height);
-        const chairX = parseInt(chairEl.style.left);
-        const chairY = parseInt(chairEl.style.top);
+        const chairWidth = chairEl.offsetWidth;
+        const chairHeight = chairEl.offsetHeight;
+        const chairX = chairEl.offsetLeft;
+        const chairY = chairEl.offsetTop;
 
         playerState.x = chairX + (chairWidth / 2) - (playerState.width / 2);
         playerState.y = chairY + (chairHeight / 2) - (playerState.height / 2);
@@ -1816,9 +1827,9 @@ function updateAllBalanceDisplays(targetBalance) {
         }
 
         if (chairEl) {
-            const chairY = parseInt(chairEl.style.top);
-            const chairHeight = parseInt(chairEl.style.height);
-            playerState.y = chairY + chairHeight + 5; // FIX: Use Y coordinate and add a buffer
+            const chairY = chairEl.offsetTop;
+            const chairHeight = chairEl.offsetHeight;
+            playerState.y = chairY + chairHeight + 5; // FIX: Use correct coordinates
         }
 
         playerState.isSitting = false;
@@ -1988,10 +1999,7 @@ function updateAllBalanceDisplays(targetBalance) {
         return false;
     }
 
-    function updateLocalPlayerPosition() {
-        const now = performance.now();
-        const deltaTime = (now - lastFrameTime) / 1000.0;
-        lastFrameTime = now;
+    function updateLocalPlayerPosition(deltaTime) {
         let moveX = 0, moveY = 0;
         let isMoving = false;
 
@@ -2015,7 +2023,6 @@ function updateAllBalanceDisplays(targetBalance) {
         localPlayerContainer.style.top = `${playerState.y}px`;
         localPlayerContainer.style.zIndex = Math.round(playerState.y);
         
-        // FIX: Correctly handle camera transform based on world visibility
         if (worldContainer.style.display !== 'none') {
              worldContainer.style.transform = `translate(${-playerState.x + gameArea.offsetWidth / 2 - playerState.width/2}px, ${-playerState.y + gameArea.offsetHeight / 2 - playerState.height/2}px)`;
         }
@@ -2029,15 +2036,14 @@ function updateAllBalanceDisplays(targetBalance) {
         if (playerState.imgElement.src.indexOf(newSrc) === -1) { playerState.imgElement.src = newSrc; }
         
         if (playerRef && currentUser) {
-            const updates = {
-                x: playerState.x, y: playerState.y,
-                direction: playerState.direction, animation: playerState.animation,
-                inHouseId: playerState.inHouseId, inMinigame: playerState.inMinigame
-            };
             if (playerState.inMinigame === 'heist-active') {
                 activeHeistRef.child(`players/${currentUser.uid}`).update({x: playerState.x, y: playerState.y});
             } else {
-                 playerRef.update(updates);
+                 playerRef.update({
+                    x: playerState.x, y: playerState.y,
+                    direction: playerState.direction, animation: playerState.animation,
+                    inHouseId: playerState.inHouseId, inMinigame: playerState.inMinigame
+                });
             }
         }
     }
@@ -2592,7 +2598,7 @@ function leavePizzeriaRestaurant() {
                 else {
                     bankHeistTimerEl.textContent = '';
                     clearInterval(bankHeistTimerInterval);
-                    if(currentUser) bankRef.set(null);
+                    if(currentUser && Object.keys(heistData.players)[0] === currentUser.uid) bankRef.set(null);
                 }
             }, 1000);
 
@@ -2710,9 +2716,8 @@ function leavePizzeriaRestaurant() {
         if (playerState.inMinigame === 'heist-active') return;
         
         playerState.inMinigame = 'heist-active';
-        worldContainer.style.display = 'none';
-        bankContainer.style.display = 'none';
-        heistSceneContainer.style.display = 'block';
+        heistSceneContainer.classList.add('visible');
+        appContainer.style.display = 'none'; // Hide main app UI
 
         if(bankListener) bankRef.off('value', bankListener);
         bankListener = null;
@@ -2723,6 +2728,8 @@ function leavePizzeriaRestaurant() {
     }
 
     function leaveHeistScene(finalLoot = 0) {
+        if (playerState.inMinigame !== 'heist-active') return;
+
         if (activeHeistListener) activeHeistRef.off('value', activeHeistListener);
         activeHeistListener = null;
         
@@ -2733,8 +2740,8 @@ function leavePizzeriaRestaurant() {
         heistGameArea.innerHTML = '';
         heistGameState = { elements: {}, currentRoomData: null };
 
-        heistSceneContainer.style.display = 'none';
-        worldContainer.style.display = 'block';
+        heistSceneContainer.classList.remove('visible');
+        appContainer.style.display = 'flex'; // Show main app UI
         
         if(playerRef) playerRef.update({ inMinigame: null });
         
@@ -2766,14 +2773,18 @@ function leavePizzeriaRestaurant() {
         heistHealthBarFill.style.width = `${playerState.heist.health}%`;
         heistRoomCounter.textContent = `${heistData.currentRoom}/10`;
 
-        heistGameState.currentRoomData = heistData.rooms[heistData.currentRoom];
-        
-        renderHeistRoom(heistGameState.currentRoomData);
+        const newRoomData = heistData.rooms[heistData.currentRoom];
+        if (JSON.stringify(newRoomData) !== JSON.stringify(heistGameState.currentRoomData)) {
+            heistGameState.currentRoomData = newRoomData;
+            renderHeistRoom(newRoomData);
+        }
 
-        // Update other players' positions
+        // Update player positions
         Object.keys(heistData.players).forEach(uid => {
             const pData = heistData.players[uid];
-            if(otherPlayerElements[uid] && uid !== currentUser.uid) {
+            if (uid === currentUser.uid) {
+                // Local player is updated in the game loop
+            } else if(otherPlayerElements[uid]) {
                 gsap.to(otherPlayerElements[uid].container, {left: pData.x, top: pData.y, duration: 0.1});
             }
         });
@@ -2785,7 +2796,7 @@ function leavePizzeriaRestaurant() {
     }
 
     function renderHeistRoom(roomData) {
-        heistGameArea.innerHTML = '';
+        heistGameArea.innerHTML = ''; // Clear previous room
         heistGameState.elements = {};
         if(!roomData) return;
 
@@ -2807,34 +2818,37 @@ function leavePizzeriaRestaurant() {
             el.className = `heist-${type}`;
 
             if (type === 'guard' && data.health > 0) {
-                el.onclick = () => activeHeistRef.child(`rooms/${playerState.heist.currentRoom}/guards/${id}/health`).set(firebase.database.ServerValue.increment(-10));
-            } else if (type === 'money' && data.isCollected) {
+                el.onclick = () => {
+                    if(playerState.heist.health > 0) {
+                         activeHeistRef.child(`rooms/${playerState.heist.currentRoom}/guards/${id}/health`).set(firebase.database.ServerValue.increment(-10));
+                    }
+                }
+            } else if ((type === 'money' && data.isCollected) || (type === 'guard' && data.health <= 0)) {
                 el.style.display = 'none';
-            } else if (type === 'guard' && data.health <= 0) {
-                 el.style.display = 'none';
             }
 
             heistGameArea.appendChild(el);
             heistGameState.elements[id] = { el, data, type };
         }
         
-        // Append players to the heist area after rendering room objects
+        // Append all active players to the heist area
         updatePlayerScene(localPlayerContainer, { inMinigame: 'heist-active' });
         Object.values(otherPlayerElements).forEach(p => {
-            if(p.state.inMinigame === 'heist-active') {
-                updatePlayerScene(p.container, p.state);
+             if (bankRef.child('players').child(p.state.uid)) {
+                updatePlayerScene(p.container, { inMinigame: 'heist-active' });
             }
         });
     }
     
     function checkHeistRoomCompletion(heistData) {
         const room = heistData.rooms[heistData.currentRoom];
-        if (!room) return;
+        if (!room || !currentUser) return;
 
         const allGuardsDefeated = Object.values(room.guards || {}).every(g => g.health <= 0);
         const allMoneyCollected = Object.values(room.money || {}).every(m => m.isCollected);
         
-        const leaderUid = Object.keys(heistData.players)[0];
+        const playerKeys = Object.keys(heistData.players);
+        const leaderUid = playerKeys.length > 0 ? playerKeys[0] : null;
 
         if (allGuardsDefeated && allMoneyCollected && currentUser.uid === leaderUid) {
             if (heistData.currentRoom >= 10) {
@@ -2846,7 +2860,8 @@ function leavePizzeriaRestaurant() {
     }
     
     function endHeist(heistData, isSuccess) {
-        const leaderUid = Object.keys(heistData.players)[0];
+        const playerKeys = Object.keys(heistData.players);
+        const leaderUid = playerKeys.length > 0 ? playerKeys[0] : null;
         if (currentUser.uid !== leaderUid) return;
 
         if (!isSuccess) {
@@ -2875,7 +2890,7 @@ function leavePizzeriaRestaurant() {
         const now = performance.now();
         const deltaTime = (now - lastFrameTime) / 1000.0;
         
-        updateLocalPlayerPosition();
+        updateLocalPlayerPosition(deltaTime);
 
         if (playerState.inMinigame === 'pizzeria-restaurant') {
             updateNpcs(deltaTime);
@@ -2958,9 +2973,20 @@ function leavePizzeriaRestaurant() {
             const otherPlayer = otherPlayerElements[uid];
             if (!otherPlayer) return;
             
-            otherPlayer.state = pData;
-            updatePlayerScene(otherPlayer.container, pData);
-            gsap.to(otherPlayer.container, { left: pData.x, top: pData.y, duration: 0.1, ease: 'linear' });
+            const oldLocation = otherPlayer.state.inMinigame || otherPlayer.state.inHouseId || 'hub';
+            otherPlayer.state = {...otherPlayer.state, ...pData}; // Merge changes
+            const newLocation = pData.inMinigame || pData.inHouseId || 'hub';
+
+            if (newLocation === 'heist-active') {
+                // Heist listener will handle position updates
+            } else {
+                gsap.to(otherPlayer.container, { left: pData.x, top: pData.y, duration: 0.1, ease: 'linear' });
+            }
+
+            if(oldLocation !== newLocation) {
+                 updatePlayerScene(otherPlayer.container, otherPlayer.state);
+            }
+
             otherPlayer.container.style.zIndex = Math.round(pData.y);
             otherPlayer.img.style.transform = `scaleX(${pData.direction})`;
             const newSrc = (pData.animation === 'walk' ? 'WALK.gif' : 'IDLE.gif');
