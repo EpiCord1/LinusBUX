@@ -1776,7 +1776,7 @@ function updateAllBalanceDisplays(targetBalance) {
         playerState.y = playerState.hubY;
         playerState.isSitting = false;
         playerState.sittingOnChairId = null;
-        if(playerRef) playerRef.update({ inHouseId: null, x: playerState.x, y: playerState.y });
+        if(playerRef) playerRef.update({ inHouseId: null, inMinigame: null, x: playerState.x, y: playerState.y });
         decorationListener = null;
         interiorContainer.style.display = 'none';
         worldContainer.style.display = 'block';
@@ -2003,7 +2003,8 @@ function updateAllBalanceDisplays(targetBalance) {
         let moveX = 0, moveY = 0;
         let isMoving = false;
 
-        if (!isChatting && !playerState.heist.isCollecting && playerState.heist.health > 0) {
+        // BUG FIX: Prevent movement input processing while in the bank lobby
+        if (!isChatting && playerState.inMinigame !== 'bank' && !playerState.heist.isCollecting && playerState.heist.health > 0) {
             if (keys.a) moveX -= 1; if (keys.d) moveX += 1;
             if (keys.w) moveY -= 1; if (keys.s) moveY += 1;
         }
@@ -2220,21 +2221,23 @@ function updateAllBalanceDisplays(targetBalance) {
             }
         });
     }
-function leavePizzeriaKitchen() {
-    if (pizzeriaState.timerId) clearInterval(pizzeriaState.timerId);
-    if (pizzeriaOrdersListener) pizzeriaOrdersListener.off();
-    playerState.inMinigame = null;
-    if(playerRef) playerRef.update({ inMinigame: null });
-    playerState.x = playerState.hubX;
-    playerState.y = pizzeriaBuilding.y + pizzeriaBuilding.height + 10;
-    pizzeriaKitchenContainer.style.display = 'none';
-    worldContainer.style.display = 'block';
 
-    updatePlayerScene(localPlayerContainer, playerState);
-    Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.state));
+    function leavePizzeriaKitchen() {
+        if (pizzeriaState.timerId) clearInterval(pizzeriaState.timerId);
+        if (pizzeriaOrdersListener) pizzeriaOrdersListener.off();
+        playerState.inMinigame = null;
+        playerState.x = playerState.hubX;
+        playerState.y = pizzeriaBuilding.y + pizzeriaBuilding.height + 10;
+        // BUG FIX: Explicitly set both location states to null
+        if(playerRef) playerRef.update({ inMinigame: null, inHouseId: null, x: playerState.x, y: playerState.y });
+        pizzeriaKitchenContainer.style.display = 'none';
+        worldContainer.style.display = 'block';
 
-    updateLocalPlayerPosition();
-}
+        updatePlayerScene(localPlayerContainer, playerState);
+        Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.state));
+
+        updateLocalPlayerPosition();
+    }
 
     function initializeRestaurant() {
         pizzeriaRestaurantRoom.innerHTML = '';
@@ -2282,24 +2285,25 @@ function leavePizzeriaKitchen() {
         updatePlayerScene(localPlayerContainer, playerState);
     }
 
-function leavePizzeriaRestaurant() {
-    standUp();
-    playerState.inMinigame = null;
-    if(playerRef) playerRef.update({ inMinigame: null });
-    if(myOrderListener) myOrderListener.off();
-    playerState.myOrderKey = null;
+    function leavePizzeriaRestaurant() {
+        standUp();
+        playerState.inMinigame = null;
+        if(myOrderListener) myOrderListener.off();
+        playerState.myOrderKey = null;
 
-    playerState.x = playerState.hubX;
-    playerState.y = pizzeriaBuilding.y + pizzeriaBuilding.height + 10;
-    pizzeriaRestaurantContainer.style.display = 'none';
-    worldContainer.style.display = 'block';
-    npcState = []; // Clear NPCs
+        playerState.x = playerState.hubX;
+        playerState.y = pizzeriaBuilding.y + pizzeriaBuilding.height + 10;
+        // BUG FIX: Explicitly set both location states to null
+        if(playerRef) playerRef.update({ inMinigame: null, inHouseId: null, x: playerState.x, y: playerState.y });
+        pizzeriaRestaurantContainer.style.display = 'none';
+        worldContainer.style.display = 'block';
+        npcState = []; // Clear NPCs
 
-    updatePlayerScene(localPlayerContainer, playerState);
-    Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.state));
+        updatePlayerScene(localPlayerContainer, playerState);
+        Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.state));
 
-    updateLocalPlayerPosition();
-}
+        updateLocalPlayerPosition();
+    }
 
     async function placeCustomPizzaOrder() {
         if(balance < 10) return showToast("You need 10 BUX to order a pizza.", "error");
@@ -2721,10 +2725,10 @@ function leavePizzeriaRestaurant() {
         }
         
         playerState.inMinigame = null;
-        if(playerRef) playerRef.update({ inMinigame: null });
-
         playerState.x = bankBuilding.x + (bankBuilding.width / 2);
         playerState.y = bankBuilding.y + bankBuilding.height + 10;
+        // BUG FIX: Explicitly set both location states to null
+        if(playerRef) playerRef.update({ inMinigame: null, inHouseId: null, x: playerState.x, y: playerState.y });
         
         bankContainer.style.display = 'none';
         worldContainer.style.display = 'block';
@@ -2767,7 +2771,10 @@ function leavePizzeriaRestaurant() {
         heistSceneContainer.classList.remove('visible');
         appContainer.style.display = 'flex';
         
-        if(playerRef) playerRef.update({ inMinigame: null });
+        playerState.x = bankBuilding.x + (bankBuilding.width / 2);
+        playerState.y = bankBuilding.y + bankBuilding.height + 10;
+        // BUG FIX: Explicitly set both location states to null
+        if(playerRef) playerRef.update({ inMinigame: null, inHouseId: null, x: playerState.x, y: playerState.y });
         
         if (finalLoot > 0) {
             showToast(`Heist completed! You escaped with ${finalLoot.toLocaleString()} BUX!`, "success");
@@ -2775,8 +2782,6 @@ function leavePizzeriaRestaurant() {
              showToast("You have left the heist.", "info");
         }
 
-        playerState.x = bankBuilding.x + (bankBuilding.width / 2);
-        playerState.y = bankBuilding.y + bankBuilding.height + 10;
         updateLocalPlayerPosition();
     }
     
@@ -3137,6 +3142,11 @@ function leavePizzeriaRestaurant() {
             if (uid === currentUser.uid) return;
             const otherPlayer = otherPlayerElements[uid];
             if (!otherPlayer) return;
+
+            // BUG FIX: Check for new chat messages
+            if (pData.chatMessage && pData.chatMessage !== otherPlayer.state.chatMessage) {
+                handlePlayerChat(otherPlayer.container, pData.chatMessage);
+            }
             
             const oldLocation = otherPlayer.state.inMinigame || otherPlayer.state.inHouseId || 'hub';
             otherPlayer.state = {...otherPlayer.state, ...pData}; // Merge changes
