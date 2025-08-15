@@ -1236,11 +1236,15 @@ function updateAllBalanceDisplays(targetBalance) {
         { id: 8, x: -900, y: -450 }, { id: 9, x: -550, y: -750 }
     ];
 
-    function updatePlayerScene(playerElement, otherPlayerSceneId) {
-        const localPlayerSceneId = playerState.inHouseId;
-        const shouldBeVisible = (otherPlayerSceneId === localPlayerSceneId);
+    function updatePlayerScene(playerElement, otherPlayerInHouseId) {
+        const localPlayerInHouseId = playerState.inHouseId;
 
-        if (otherPlayerSceneId === null) {
+        // A player is visible if they are in the same location (scene) as the local player.
+        // Both being in the hub (null) counts as the same location.
+        const shouldBeVisible = (localPlayerInHouseId === otherPlayerInHouseId);
+
+        // Move the player element to the correct container (world or a house interior).
+        if (otherPlayerInHouseId === null) {
             if (playerElement.parentElement !== worldContainer) {
                 worldContainer.appendChild(playerElement);
             }
@@ -1249,6 +1253,8 @@ function updateAllBalanceDisplays(targetBalance) {
                 interiorRoom.appendChild(playerElement);
             }
         }
+        
+        // Apply visibility.
         playerElement.style.display = shouldBeVisible ? 'flex' : 'none';
     }
 
@@ -1291,6 +1297,7 @@ function updateAllBalanceDisplays(targetBalance) {
 
         if(playerRef) playerRef.update({ inHouseId: houseId, x: playerState.x, y: playerState.y });
         
+        // When entering a house, re-evaluate visibility for all other players.
         Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.inHouseId));
         updatePlayerScene(localPlayerContainer, playerState.inHouseId);
 
@@ -1321,6 +1328,7 @@ function updateAllBalanceDisplays(targetBalance) {
         
         if (isEditingHouse) toggleEditMode();
         
+        // When leaving a house, re-evaluate visibility for all other players.
         Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.inHouseId));
         updatePlayerScene(localPlayerContainer, playerState.inHouseId);
         
@@ -1632,11 +1640,15 @@ function updateAllBalanceDisplays(targetBalance) {
             uiContainer.append(bubble, nametag);
             container.append(uiContainer, img);
             
-            otherPlayerElements[uid] = { container, img, bubble, bubbleTimeout: null, inHouseId: pData.inHouseId };
+            // --- FIX START ---
+            // Normalize inHouseId to null if it's missing (undefined) from Firebase.
+            const otherPlayerHouseId = pData.inHouseId || null;
+            otherPlayerElements[uid] = { container, img, bubble, bubbleTimeout: null, inHouseId: otherPlayerHouseId };
+            // --- FIX END ---
             
             gsap.to(otherPlayerElements[uid].container, { left: pData.x, top: pData.y, duration: 0 });
             otherPlayerElements[uid].img.style.transform = `scaleX(${pData.direction})`;
-            updatePlayerScene(container, pData.inHouseId);
+            updatePlayerScene(container, otherPlayerHouseId);
 
             container.addEventListener('click', () => { openUserPanel(uid, pData.email); });
         });
@@ -1651,8 +1663,12 @@ function updateAllBalanceDisplays(targetBalance) {
             const otherPlayer = otherPlayerElements[uid];
             if (!otherPlayer) return;
             
-            otherPlayer.inHouseId = pData.inHouseId;
+            // --- FIX START ---
+            // Normalize inHouseId to null if it's missing (undefined) from Firebase.
+            const otherPlayerHouseId = pData.inHouseId || null;
+            otherPlayer.inHouseId = otherPlayerHouseId;
             updatePlayerScene(otherPlayer.container, otherPlayer.inHouseId);
+            // --- FIX END ---
 
             gsap.to(otherPlayer.container, { left: pData.x, top: pData.y, duration: 0.1, ease: 'linear' });
             otherPlayer.container.style.zIndex = Math.round(pData.y);
@@ -1809,4 +1825,4 @@ function updateAllBalanceDisplays(targetBalance) {
 });
 </script>
 </body>
-</html>
+</html>```
