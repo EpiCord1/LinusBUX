@@ -1990,17 +1990,22 @@ function updateAllBalanceDisplays(targetBalance) {
             }
         });
     }
-    function leavePizzeriaKitchen() {
-        if (pizzeriaState.timerId) clearInterval(pizzeriaState.timerId);
-        if (pizzeriaOrdersListener) pizzeriaOrdersListener.off();
-        playerState.inMinigame = null;
-        if(playerRef) playerRef.update({ inMinigame: null });
-        playerState.x = playerState.hubX;
-        playerState.y = pizzeriaBuilding.y + pizzeriaBuilding.height + 10;
-        pizzeriaKitchenContainer.style.display = 'none';
-        worldContainer.style.display = 'block';
-        updateLocalPlayerPosition();
-    }
+function leavePizzeriaKitchen() {
+    if (pizzeriaState.timerId) clearInterval(pizzeriaState.timerId);
+    if (pizzeriaOrdersListener) pizzeriaOrdersListener.off();
+    playerState.inMinigame = null;
+    if(playerRef) playerRef.update({ inMinigame: null });
+    playerState.x = playerState.hubX;
+    playerState.y = pizzeriaBuilding.y + pizzeriaBuilding.height + 10;
+    pizzeriaKitchenContainer.style.display = 'none';
+    worldContainer.style.display = 'block';
+
+    // ADD THESE TWO LINES: Fixes visibility for local and other players
+    updatePlayerScene(localPlayerContainer, playerState);
+    Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.state));
+
+    updateLocalPlayerPosition();
+}
 
     function initializeRestaurant() {
         pizzeriaRestaurantRoom.innerHTML = '';
@@ -2048,23 +2053,29 @@ function updateAllBalanceDisplays(targetBalance) {
         updatePlayerScene(localPlayerContainer, playerState);
     }
 
-    function leavePizzeriaRestaurant() {
-        standUp();
-        playerState.inMinigame = null;
-        if(playerRef) playerRef.update({ inMinigame: null });
-        if(myOrderListener) myOrderListener.off();
-        playerState.myOrderKey = null;
+function leavePizzeriaRestaurant() {
+    standUp();
+    playerState.inMinigame = null;
+    if(playerRef) playerRef.update({ inMinigame: null });
+    if(myOrderListener) myOrderListener.off();
+    playerState.myOrderKey = null;
 
-        playerState.x = playerState.hubX;
-        playerState.y = pizzeriaBuilding.y + pizzeriaBuilding.height + 10;
-        pizzeriaRestaurantContainer.style.display = 'none';
-        worldContainer.style.display = 'block';
-        npcState = []; // Clear NPCs
+    playerState.x = playerState.hubX;
+    playerState.y = pizzeriaBuilding.y + pizzeriaBuilding.height + 10;
+    pizzeriaRestaurantContainer.style.display = 'none';
+    worldContainer.style.display = 'block';
+    npcState = []; // Clear NPCs
 
-        updatePlayerScene(localPlayerContainer, playerState);
-        
-        updateLocalPlayerPosition();
-    }
+    // Updates the local player's scene (previous fix)
+    updatePlayerScene(localPlayerContainer, playerState);
+
+    // ADD THIS LINE: Re-evaluates visibility for all other players
+    Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.state));
+
+    updateLocalPlayerPosition();
+}
+
+  
 
     async function placeCustomPizzaOrder() {
         if(balance < 10) return showToast("You need 10 BUX to order a pizza.", "error");
@@ -2585,4 +2596,5 @@ function updateAllBalanceDisplays(targetBalance) {
 </script>
 </body>
 </html>
+
 
