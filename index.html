@@ -587,46 +587,107 @@
     /* --- BANK HEIST ADDITION START --- */
     .hub-bank {
         position: absolute; width: 280px; height: 200px;
-        background-color: #6c757d; border: 5px solid #495057;
-        border-radius: 8px; cursor: pointer; z-index: 5;
+        background-color: #4a4a4a; /* Darker, more metallic */
+        border: 8px solid #2e2e2e; /* Thicker, darker border */
+        border-radius: 12px; /* Slightly more rounded */
+        cursor: pointer; z-index: 5;
         display: flex; justify-content: center; align-items: center; flex-direction: column;
-        box-shadow: 0 0 25px rgba(108, 117, 125, 0.5);
+        box-shadow: 0 0 35px rgba(0, 200, 255, 0.3), 0 0 15px rgba(255, 255, 255, 0.1) inset; /* Blue glow and inner shadow */
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+    .hub-bank:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0 45px rgba(0, 200, 255, 0.5), 0 0 20px rgba(255, 255, 255, 0.2) inset;
     }
     .hub-bank h3 {
-        color: white; font-size: 2.2rem; margin: 0; text-shadow: 2px 2px 3px rgba(0,0,0,0.5);
+        color: #e0e0e0; /* Lighter text for contrast */
+        font-size: 2.5rem; /* Larger font */
+        margin: 0;
+        text-shadow: 0 0 10px rgba(0, 200, 255, 0.7); /* Blue text shadow */
+        font-weight: 700;
     }
     #bank-container { display: none; }
     #bank-room {
         position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-        width: 1000px; height: 600px; background-color: #ced4da;
-        border: 20px solid #495057; box-sizing: border-box;
+        width: 1000px; height: 600px;
+        background-color: #606060; /* Darker grey for interior */
+        border: 25px solid #333333; /* Very thick, dark border */
+        box-sizing: border-box;
+        border-radius: 15px; /* Slight roundness */
+        box-shadow: inset 0 0 50px rgba(0,0,0,0.7); /* Inner shadow for depth */
+        background-image:
+            linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px); /* Subtle grid pattern */
+        background-size: 40px 40px;
     }
     .bank-vault {
         position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-        width: 150px; height: 200px; background-color: #343a40;
-        border-radius: 10px; border: 10px solid #212529;
-        cursor: pointer; display: flex; justify-content: center; align-items: center;
+        width: 200px; /* Wider vault */
+        height: 250px; /* Taller vault */
+        background-color: #555555; /* Metallic grey */
+        border-radius: 15px;
+        border: 12px solid #333333; /* Thick, dark border for vault door */
+        box-shadow: 0 0 30px rgba(0,0,0,0.7), inset 0 0 20px rgba(255,255,255,0.1); /* Strong shadow and inner highlight */
+        cursor: pointer;
+        display: flex; justify-content: center; align-items: center;
+        transition: all 0.2s ease-in-out;
+    }
+    .bank-vault:hover {
+        transform: translate(-50%, -50%) scale(1.02);
+        box-shadow: 0 0 40px rgba(0,0,0,0.9), inset 0 0 25px rgba(255,255,255,0.2);
     }
     .bank-vault::before {
-        content: ''; width: 50px; height: 50px; background-color: #adb5bd;
-        border-radius: 50%; border: 5px solid #212529;
+        content: ''; width: 80px; height: 80px; background-color: #aaaaaa; /* Lighter knob */
+        border-radius: 50%; border: 8px solid #333333; /* Thicker knob border */
+        box-shadow: inset 0 0 15px rgba(0,0,0,0.5), 0 0 10px rgba(255,255,255,0.3); /* Knob details */
     }
     #bank-ui-container {
         position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
         background: var(--dark-card); padding: 1rem 2rem; border-radius: var(--border-radius);
-        z-index: 25; text-align: center; display: flex; flex-direction: column; gap: 0.5rem;
+        z-index: 25; text-align: center; display: flex; flex-direction: column; gap: 0.8rem; /* Increased gap */
+        border: 1px solid var(--dark-card-border);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        min-width: 350px; /* Ensure sufficient width */
     }
-    #bank-heist-status { font-size: 1.2rem; font-weight: 600; }
-    #bank-heist-timer { font-size: 1rem; color: var(--gold); }
+    #bank-heist-status { font-size: 1.6rem; font-weight: 700; color: var(--gold); text-shadow: 0 0 10px rgba(255,214,10,0.5); }
+    #bank-heist-timer { font-size: 1.1rem; color: var(--light-text); font-weight: 500;}
     #bank-heist-progress-bar-container {
-        width: 300px; height: 20px; background-color: #495057; border-radius: 10px;
-        overflow: hidden; border: 1px solid #212529;
+        width: 100%; /* Full width of container */
+        height: 25px; /* Taller progress bar */
+        background-color: #495057; border-radius: 12px; /* More rounded */
+        overflow: hidden; border: 2px solid #212529; /* Thicker border */
+        box-shadow: inset 0 0 8px rgba(0,0,0,0.5);
     }
     #bank-heist-progress-bar {
-        width: 0%; height: 100%; background: linear-gradient(90deg, var(--success), var(--gold));
+        width: 0%; height: 100%; background: linear-gradient(90deg, #30d158, #28a745, #ffd60a); /* Green to gold gradient */
         transition: width 0.5s ease;
+        border-radius: 10px; /* Rounded ends */
     }
-    #leave-bank-btn { position: absolute; bottom: 20px; right: 20px; z-index: 20; }
+    #bank-heist-actions {
+        margin-top: 1rem;
+    }
+    #bank-heist-actions button {
+        padding: 0.8rem 2rem; font-size: 1.1rem; font-weight: 600;
+        border-radius: 12px;
+        background: linear-gradient(45deg, var(--primary-blue), #0056b3);
+        box-shadow: 0 4px 15px rgba(10, 132, 255, 0.4);
+    }
+    #bank-heist-actions button:hover:not(:disabled) {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(10, 132, 255, 0.6);
+    }
+    #leave-bank-btn {
+        position: absolute; bottom: 20px; right: 20px; z-index: 20;
+        background-color: var(--danger);
+        padding: 0.8rem 1.5rem;
+        border-radius: 12px;
+        font-weight: 600;
+        box-shadow: 0 4px 15px rgba(255, 69, 58, 0.4);
+    }
+    #leave-bank-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(255, 69, 58, 0.6);
+    }
     /* --- BANK HEIST ADDITION END --- */
 
     #chat-input-container {
@@ -1431,7 +1492,6 @@ function updateAllBalanceDisplays(targetBalance) {
         playerHandEl.innerHTML = '';
         dealerHandEl.innerHTML = '';
         renderCard(playerHand[0], playerHandEl);
-        renderCard(playerHand[1], playerHandEl);
         renderCard(dealerHand[0], dealerHandEl, true);
         renderCard(dealerHand[1], dealerHandEl);
 
@@ -1862,9 +1922,12 @@ function updateAllBalanceDisplays(targetBalance) {
             if (nextX < 0 || nextY < 0 || nextX + playerState.width > room.offsetWidth || nextY + playerState.height > room.offsetHeight) return true;
             const vaultRect = bankVault.getBoundingClientRect();
             const roomRect = room.getBoundingClientRect();
+            // Calculate vault position relative to bankRoom
             const vaultBox = {
-                left: vaultRect.left - roomRect.left, top: vaultRect.top - roomRect.top,
-                right: (vaultRect.right - roomRect.left), bottom: (vaultRect.bottom - roomRect.top)
+                left: bankVault.offsetLeft, // Use offsetLeft for position relative to parent
+                top: bankVault.offsetTop,   // Use offsetTop for position relative to parent
+                right: bankVault.offsetLeft + bankVault.offsetWidth,
+                bottom: bankVault.offsetTop + bankVault.offsetHeight
             };
             if (playerBox.right > vaultBox.left && playerBox.left < vaultBox.right && playerBox.bottom > vaultBox.top && playerBox.top < vaultBox.bottom) return true;
         // --- BANK HEIST ADDITION END ---
@@ -2477,7 +2540,7 @@ function leavePizzeriaRestaurant() {
                 } else {
                     bankHeistTimerEl.textContent = '';
                     clearInterval(bankHeistTimerInterval);
-                    bankRef.set(null); // Reset the bank state
+                    bankRef.set(null); // Reset the bank state to idle
                 }
             }, 1000);
         } else if (heistData && heistData.status === 'preparing') {
@@ -2495,7 +2558,8 @@ function leavePizzeriaRestaurant() {
                     bankHeistTimerEl.textContent = '';
                     clearInterval(bankHeistTimerInterval);
                     // The first player in the list transitions the state to active
-                    if (Object.keys(heistData.players)[0] === currentUser.uid) {
+                    // This uses a "leader election" approach to avoid race conditions
+                    if (Object.keys(heistData.players || {})[0] === currentUser.uid) {
                         bankRef.update({ status: 'active', startTime: firebase.database.ServerValue.TIMESTAMP });
                     }
                 }
@@ -2511,7 +2575,7 @@ function leavePizzeriaRestaurant() {
 
         } else if (heistData && heistData.status === 'active') {
             const playersCount = Object.keys(heistData.players).length;
-            const CLICKS_NEEDED = 50 * playersCount; // More players = more clicks needed
+            const CLICKS_NEEDED = 50 + (playersCount * 25); // Base 50 clicks + 25 per player
             const HEIST_TIME = 30000; // 30 seconds to complete
 
             bankHeistStatusEl.textContent = `Drilling the Vault!`;
@@ -2528,9 +2592,10 @@ function leavePizzeriaRestaurant() {
                 } else {
                     bankHeistTimerEl.textContent = 'TIME UP!';
                     clearInterval(bankHeistTimerInterval);
+                    // Only the leader processes failure
                     if (Object.keys(heistData.players)[0] === currentUser.uid) {
                         showToast('Heist failed! The vault remains sealed.', 'error');
-                        bankRef.update({ cooldownUntil: firebase.database.ServerValue.TIMESTAMP + 120000 }); // 2 min cooldown
+                        bankRef.update({ cooldownUntil: firebase.database.ServerValue.TIMESTAMP + 120000 }); // 2 min cooldown for failure
                     }
                 }
             }, 1000);
@@ -2548,8 +2613,9 @@ function leavePizzeriaRestaurant() {
             // Check for success
             if (progress >= 1) {
                 clearInterval(bankHeistTimerInterval);
+                // Only the leader processes success and distributes loot
                 if (Object.keys(heistData.players)[0] === currentUser.uid) {
-                    const totalLoot = 500 + Math.floor(Math.random() * 500 * playersCount);
+                    const totalLoot = 500 + Math.floor(Math.random() * 500 * playersCount); // More players = more potential loot
                     const perPlayerLoot = Math.floor(totalLoot / playersCount);
                     const updates = {};
                     Object.keys(heistData.players).forEach(uid => {
@@ -2557,18 +2623,18 @@ function leavePizzeriaRestaurant() {
                     });
                     db.ref().update(updates);
                     showToast(`SUCCESS! Your crew stole ${totalLoot.toLocaleString()} BUX! Each robber gets ${perPlayerLoot.toLocaleString()}.`, 'success');
-                    bankRef.update({ cooldownUntil: firebase.database.ServerValue.TIMESTAMP + 300000 }); // 5 min cooldown
+                    bankRef.update({ cooldownUntil: firebase.database.ServerValue.TIMESTAMP + 300000 }); // 5 min cooldown for success
                 }
             }
 
-        } else { // Default state
+        } else { // Default (idle) state
             bankHeistStatusEl.textContent = "The Vault";
             bankHeistTimerEl.textContent = "Seems quiet...";
             bankHeistProgressBarContainer.style.display = 'none';
             bankHeistActionsEl.innerHTML = '<button id="start-heist-btn">Start Robbery</button>';
             document.getElementById('start-heist-btn').onclick = () => {
                  bankRef.transaction(currentData => {
-                    if (currentData === null) {
+                    if (currentData === null || (currentData.cooldownUntil && Date.now() >= currentData.cooldownUntil) || !currentData.status) {
                         return {
                             status: 'preparing',
                             startTime: firebase.database.ServerValue.TIMESTAMP,
@@ -2576,7 +2642,7 @@ function leavePizzeriaRestaurant() {
                             clicks: 0
                         };
                     }
-                    return; // Abort if not null
+                    return; // Abort if not null or still on cooldown
                 });
             };
         }
@@ -2587,6 +2653,7 @@ function leavePizzeriaRestaurant() {
         playerState.hubX = playerState.x;
         playerState.hubY = playerState.y;
         playerState.inMinigame = 'bank';
+        // Position player near the entrance of the bank room
         playerState.x = bankRoom.offsetWidth / 2;
         playerState.y = bankRoom.offsetHeight - playerState.height - 20;
 
@@ -2606,11 +2673,14 @@ function leavePizzeriaRestaurant() {
         if(bankHeistTimerInterval) clearInterval(bankHeistTimerInterval);
         bankListener = null;
 
-        // If player leaves during a heist, remove them
-        bankRef.child(`players/${currentUser.uid}`).remove();
+        // If player leaves during a heist, remove them from the players list
+        if (currentUser) { // Check if currentUser exists before trying to remove
+            bankRef.child(`players/${currentUser.uid}`).remove();
+        }
         
         playerState.inMinigame = null;
         if(playerRef) playerRef.update({ inMinigame: null });
+        // Set player position near the bank entrance in the hub
         playerState.x = bankBuilding.x + (bankBuilding.width / 2);
         playerState.y = bankBuilding.y + bankBuilding.height + 10;
         
@@ -2623,7 +2693,7 @@ function leavePizzeriaRestaurant() {
     }
 
     bankVault.addEventListener('click', () => {
-        // The UI buttons will now handle this logic, but we can keep this for proximity checks in the future
+        // The UI buttons now handle the interaction logic
         showToast("Interact via the panel at the top.", "info");
     });
     leaveBankBtn.addEventListener('click', leaveBank);
@@ -2758,6 +2828,7 @@ function leavePizzeriaRestaurant() {
         if (pizzeriaOrdersListener) pizzeriaOrdersListener.off();
         // --- BANK HEIST ADDITION START ---
         if (bankListener) bankRef.off('value', bankListener);
+        if(bankHeistTimerInterval) clearInterval(bankHeistTimerInterval); // Clear any active bank timers
         // --- BANK HEIST ADDITION END ---
         document.removeEventListener('keydown', handleGlobalKeyDown);
         document.removeEventListener('keyup', handleGlobalKeyUp);
