@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -258,7 +259,7 @@
         position: relative;
         overflow: hidden;
     }
-    #world-container, #interior-container, #pizzeria-container {
+    #world-container, #interior-container, #pizzeria-container, #restaurant-container {
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     }
     .player-character {
@@ -344,7 +345,7 @@
 
     /* --- Pizza Minigame Styles --- */
     #pizzeria-container {
-        display: none; /* Hidden by default */
+        display: none;
         background-color: rgba(0,0,0,0.8);
         backdrop-filter: blur(8px);
         justify-content: center;
@@ -382,7 +383,7 @@
         width: 90%;
         height: 90%;
         border-radius: 50%;
-        background-color: #f2dcb3; /* Dough color */
+        background-color: #f2dcb3;
         box-shadow: inset 0 0 15px rgba(0,0,0,0.2);
         position: relative;
         overflow: hidden;
@@ -406,7 +407,7 @@
         transform: translate(-50%, -50%);
     }
     #pizza-cheese-layer {
-        background-color: #f1c40f; /* Cheese color */
+        background-color: #f1c40f;
         transform: scale(0);
         transition: transform 0.3s ease;
         opacity: 0.9;
@@ -484,13 +485,11 @@
         border-radius: 50%;
     }
 
-    /* --- Primitive Ingredient Shapes --- */
     .shape-sauce { width: 90%; height: 90%; background: #c0392b; border-radius: 50%; }
     .shape-cheese { width: 90%; height: 90%; background: #f1c40f; border-radius: 50%; opacity: 0.9; }
-    .shape-pepperoni { width: 25px; height: 25px; background: #e84393; border: 2px solid #d63031; border-radius: 50%; }
+    .shape-pepperoni { width: 25px; height: 25px; background: #c44536; border-radius: 50%; }
     .shape-mushrooms { width: 25px; height: 18px; background: #a4b0be; border-radius: 12px 12px 0 0; }
     .shape-olives { width: 25px; height: 25px; border-radius: 50%; border: 6px solid #2f3542; }
-
 
     .hub-pizzeria {
         position: absolute; width: 250px; height: 180px;
@@ -504,7 +503,35 @@
         color: white; font-size: 1.8rem; margin: 0;
         text-shadow: 2px 2px 3px rgba(0,0,0,0.5); font-style: italic;
     }
-
+    
+    #restaurant-container {
+        display: none;
+        background: #3d352e;
+        padding: 2rem;
+    }
+    .restaurant-table {
+        position: absolute;
+        width: 150px; height: 100px;
+        background-color: #8B4513;
+        border: 5px solid #5C4033;
+        border-radius: 10px;
+    }
+    .restaurant-chair {
+        position: absolute;
+        width: 40px; height: 40px;
+        background-color: #5C4033;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+    #restaurant-ui {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 1rem;
+    }
+    
     #chat-input-container {
         position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
         width: 80%; max-width: 600px; z-index: 100;
@@ -552,13 +579,15 @@
         box-shadow: 0 4px 15px rgba(48, 209, 88, 0.4); transform: translateY(-2px);
     }
 
-    /* Confirmation Panel */
-    #confirmation-panel .panel-content { max-width: 420px; }
-    #confirmation-panel h3 { font-size: 1.6rem; margin-bottom: 1rem; color: white; }
+    /* Confirmation Panel & Pizzeria Choice Panel*/
+    #confirmation-panel .panel-content, #pizzeria-choice-panel .panel-content { max-width: 420px; }
+    #confirmation-panel h3, #pizzeria-choice-panel h3 { font-size: 1.6rem; margin-bottom: 1rem; color: white; }
     #confirmation-panel p { font-size: 1.1rem; color: var(--medium-text); margin-bottom: 2.5rem; }
     .confirmation-buttons { display: flex; gap: 1rem; justify-content: center; }
     #confirm-action-btn { background: var(--success); }
     #cancel-action-btn { background: var(--danger); }
+    #pizzeria-choice-panel .choice-buttons { display: flex; flex-direction: column; gap: 1rem; }
+
 
     /* Toast Notifications */
     #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 3000; display: flex; flex-direction: column; gap: 10px; }
@@ -747,6 +776,15 @@
                 </div>
             </div>
         </div>
+        
+        <!-- NEW: Scene for Restaurant -->
+        <div id="restaurant-container" style="display: none;">
+            <!-- Restaurant items will be populated by JS -->
+            <div id="restaurant-ui">
+                 <button id="leave-restaurant-btn">Leave Restaurant</button>
+                 <button id="order-pizza-btn" style="display: none;">Order Pizza</button>
+            </div>
+        </div>
 
         <!-- Chat Input -->
         <div id="chat-input-container" style="display: none;">
@@ -785,6 +823,18 @@
             <button id="cancel-action-btn">Cancel</button>
             <button id="confirm-action-btn">Confirm</button>
         </div>
+    </div>
+</div>
+
+<!-- Pizzeria Choice Panel -->
+<div id="pizzeria-choice-panel" class="panel-overlay">
+    <div class="panel-content">
+         <button class="close-panel-btn">&times;</button>
+         <h3>Welcome to the Pizzeria!</h3>
+         <div class="choice-buttons">
+             <button id="enter-kitchen-btn">Enter Kitchen (Work)</button>
+             <button id="enter-restaurant-btn">Enter Restaurant (Dine)</button>
+         </div>
     </div>
 </div>
 
@@ -1324,6 +1374,11 @@ function updateAllBalanceDisplays(targetBalance) {
     const draggedItem = document.getElementById('dragged-item');
     const sauceCursor = document.getElementById('sauce-cursor');
     const orderTimerBar = document.getElementById('order-timer-bar');
+    const restaurantContainer = document.getElementById('restaurant-container');
+    const leaveRestaurantBtn = document.getElementById('leave-restaurant-btn');
+    const orderPizzaBtn = document.getElementById('order-pizza-btn');
+    const pizzeriaChoicePanel = document.getElementById('pizzeria-choice-panel');
+
 
     const localPlayerContainer = document.createElement('div');
     localPlayerContainer.id = 'local-player-container';
@@ -1354,17 +1409,30 @@ function updateAllBalanceDisplays(targetBalance) {
     const HOUSE_WIDTH = 200, HOUSE_HEIGHT = 200;
     const houseLayout = [ { id: 0, x: -200, y: -200 }, { id: 1, x: 250, y: -450 }, { id: 2, x: 650, y: -200 }, { id: 3, x: 900, y: 250 }, { id: 4, x: 650, y: 650 }, { id: 5, x: 250, y: 900 }, { id: 6, x: -200, y: 650 }, { id: 7, x: -650, y: 250 }, { id: 8, x: -900, y: -450 }, { id: 9, x: -550, y: -750 } ];
     const pizzeriaBuilding = { x: 0, y: 250, width: 250, height: 180 };
+    const restaurantLayout = [
+        { type: 'table', x: 200, y: 150 }, { type: 'chair', x: 150, y: 180 }, { type: 'chair', x: 360, y: 180 },
+        { type: 'table', x: 600, y: 150 }, { type: 'chair', x: 550, y: 180 }, { type: 'chair', x: 760, y: 180 },
+        { type: 'table', x: 400, y: 400 }, { type: 'chair', x: 350, y: 430 }, { type: 'chair', x: 560, y: 430 },
+    ];
 
-    function updatePlayerScene(playerElement, otherPlayerInHouseId) {
-        const localPlayerInHouseId = playerState.inHouseId;
-        const shouldBeVisible = (localPlayerInHouseId === otherPlayerInHouseId);
-        if (otherPlayerInHouseId === null) {
-            if (playerElement.parentElement !== worldContainer) worldContainer.appendChild(playerElement);
-        } else { 
-            if (playerElement.parentElement !== interiorRoom) interiorRoom.appendChild(playerElement);
+
+    function updatePlayerScene(playerElement, pData) {
+        const localScene = playerState.inMinigame || (playerState.inHouseId ? `house-${playerState.inHouseId}` : 'hub');
+        const remoteScene = pData.inMinigame || (pData.inHouseId ? `house-${pData.inHouseId}` : 'hub');
+        
+        let container;
+        if (remoteScene === 'hub') container = worldContainer;
+        else if (remoteScene.startsWith('house-')) container = interiorRoom;
+        else if (remoteScene === 'restaurant') container = restaurantContainer;
+        else container = null; // Player is in a non-visible scene like the kitchen
+
+        if (container && playerElement.parentElement !== container) {
+            container.appendChild(playerElement);
         }
-        playerElement.style.display = shouldBeVisible ? 'flex' : 'none';
+        
+        playerElement.style.display = (localScene === remoteScene) ? 'flex' : 'none';
     }
+
 
     function populateFurniturePanel() {
         furniturePanel.innerHTML = '';
@@ -1388,6 +1456,7 @@ function updateAllBalanceDisplays(targetBalance) {
         playerState.hubX = playerState.x;
         playerState.hubY = playerState.y;
         playerState.inHouseId = houseId;
+        playerState.inMinigame = null;
         playerState.x = interiorRoom.offsetWidth / 2;
         playerState.y = interiorRoom.offsetHeight / 2;
         const isOwner = allHouses[houseId]?.ownerUid === currentUser.uid;
@@ -1398,9 +1467,11 @@ function updateAllBalanceDisplays(targetBalance) {
         toggleHouseLockBtn.textContent = isOpen ? 'Close House' : 'Open House';
         worldContainer.style.display = 'none';
         interiorContainer.style.display = 'block';
-        if(playerRef) playerRef.update({ inHouseId: houseId, x: playerState.x, y: playerState.y });
-        Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.inHouseId));
-        updatePlayerScene(localPlayerContainer, playerState.inHouseId);
+        if(playerRef) playerRef.update({ inHouseId: houseId, inMinigame: null, x: playerState.x, y: playerState.y });
+        
+        Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.data));
+        updatePlayerScene(localPlayerContainer, playerState);
+
         decorationListener = decorationsRef.child(houseId);
         decorationListener.on('value', snapshot => {
             interiorRoom.querySelectorAll('.placed-item').forEach(el => el.remove());
@@ -1424,8 +1495,9 @@ function updateAllBalanceDisplays(targetBalance) {
         interiorContainer.style.display = 'none';
         worldContainer.style.display = 'block';
         if (isEditingHouse) toggleEditMode();
-        Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.inHouseId));
-        updatePlayerScene(localPlayerContainer, playerState.inHouseId);
+        
+        Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.data));
+        updatePlayerScene(localPlayerContainer, playerState);
         updateLocalPlayerPosition();
     }
 
@@ -1446,27 +1518,37 @@ function updateAllBalanceDisplays(targetBalance) {
         if (playerState.isSitting) return;
         playerState.isSitting = true;
         playerState.sittingOnChairId = chairEl.dataset.id;
-        showToast("Press SPACE to stand up", "info");
-        const chairDef = FURNITURE_CATALOG[chairData.type];
+        
+        const chairDef = FURNITURE_CATALOG[chairData.type] || { width: 40, height: 40 };
         playerState.x = chairData.x + (chairDef.width / 2) - (playerState.width / 2);
         playerState.y = chairData.y + (chairDef.height / 2) - (playerState.height / 2);
         updateLocalPlayerPosition(); 
+        
+        if (playerState.inMinigame === 'restaurant') {
+            orderPizzaBtn.style.display = 'block';
+        } else {
+            showToast("Press SPACE to stand up", "info");
+        }
     }
 
     function standUp() {
-        if (!playerState.isSitting || !playerState.sittingOnChairId) return;
-        const chairEl = placedItemElements[playerState.sittingOnChairId];
-        if (!chairEl) {
-            playerState.isSitting = false;
-            playerState.sittingOnChairId = null;
-            return;
+        if (!playerState.isSitting) return;
+        
+        let chairEl;
+        if(playerState.inMinigame === 'restaurant') {
+            chairEl = restaurantContainer.querySelector(`[data-id='${playerState.sittingOnChairId}']`);
+        } else {
+            chairEl = placedItemElements[playerState.sittingOnChairId];
         }
-        const chairDef = FURNITURE_CATALOG[chairEl.dataset.type];
-        const chairBox = { x: parseInt(chairEl.style.left), y: parseInt(chairEl.style.top) };
-        playerState.x = chairBox.x + (chairDef.width / 2) - (playerState.width / 2);
-        playerState.y = chairBox.y + chairDef.height;
+
+        if (chairEl) {
+            const chairBox = { x: parseInt(chairEl.style.left), y: parseInt(chairEl.style.top), height: parseInt(chairEl.style.height) };
+            playerState.y = chairBox.y + chairBox.height + 5;
+        }
+
         playerState.isSitting = false;
         playerState.sittingOnChairId = null; 
+        orderPizzaBtn.style.display = 'none';
         keys.w = keys.a = keys.s = keys.d = false;
         updateLocalPlayerPosition();
     }
@@ -1547,7 +1629,7 @@ function updateAllBalanceDisplays(targetBalance) {
         pizzeriaEl.style.left = `${pizzeriaBuilding.x}px`;
         pizzeriaEl.style.top = `${pizzeriaBuilding.y}px`;
         pizzeriaEl.innerHTML = `<h3>PIZZERIA</h3>`;
-        pizzeriaEl.addEventListener('click', enterPizzeria);
+        pizzeriaEl.addEventListener('click', () => pizzeriaChoicePanel.classList.add('visible'));
         worldContainer.appendChild(pizzeriaEl);
     }
     
@@ -1575,7 +1657,7 @@ function updateAllBalanceDisplays(targetBalance) {
 
     function checkCollision(nextX, nextY) {
         const playerBox = { left: nextX, top: nextY, right: nextX + playerState.width, bottom: nextY + playerState.height };
-        if (playerState.inHouseId === null) { // Hub collision
+        if (playerState.inHouseId === null && playerState.inMinigame === null) { // Hub collision
             for (const house of houseLayout) {
                 const houseBox = { left: house.x, top: house.y, right: house.x + HOUSE_WIDTH, bottom: house.y + HOUSE_HEIGHT };
                 if (playerBox.right > houseBox.left && playerBox.left < houseBox.right && playerBox.bottom > houseBox.top && playerBox.top < houseBox.bottom) return true;
@@ -1583,7 +1665,7 @@ function updateAllBalanceDisplays(targetBalance) {
             const pizzeriaBox = { left: pizzeriaBuilding.x, top: pizzeriaBuilding.y, right: pizzeriaBuilding.x + pizzeriaBuilding.width, bottom: pizzeriaBuilding.y + pizzeriaBuilding.height };
             if (playerBox.right > pizzeriaBox.left && playerBox.left < pizzeriaBox.right && playerBox.bottom > pizzeriaBox.top && playerBox.top < pizzeriaBox.bottom) return true;
 
-        } else { // Interior collision
+        } else if(playerState.inHouseId !== null) { // Interior collision
             if (nextX < 0 || nextY < 0 || nextX + playerState.width > interiorRoom.offsetWidth || nextY + playerState.height > interiorRoom.offsetHeight) return true;
             for (const itemId in placedItemElements) {
                 const itemEl = placedItemElements[itemId];
@@ -1616,7 +1698,13 @@ function updateAllBalanceDisplays(targetBalance) {
         localPlayerContainer.style.left = `${playerState.x}px`;
         localPlayerContainer.style.top = `${playerState.y}px`;
         localPlayerContainer.style.zIndex = Math.round(playerState.y);
-        worldContainer.style.transform = `translate(${-playerState.x + gameArea.offsetWidth / 2 - playerState.width/2}px, ${-playerState.y + gameArea.offsetHeight / 2 - playerState.height/2}px)`;
+        
+        let activeContainer = worldContainer;
+        if (playerState.inHouseId) activeContainer = interiorContainer;
+        else if (playerState.inMinigame === 'restaurant') activeContainer = restaurantContainer;
+
+        activeContainer.style.transform = `translate(${-playerState.x + gameArea.offsetWidth / 2 - playerState.width/2}px, ${-playerState.y + gameArea.offsetHeight / 2 - playerState.height/2}px)`;
+        
         const isMoving = (moveX !== 0 || moveY !== 0);
         if (keys.a) playerState.direction = -1;
         if (keys.d) playerState.direction = 1;
@@ -1628,17 +1716,20 @@ function updateAllBalanceDisplays(targetBalance) {
             playerRef.update({ 
                 x: playerState.x, y: playerState.y, 
                 direction: playerState.direction, animation: playerState.animation,
-                inHouseId: playerState.inHouseId 
+                inHouseId: playerState.inHouseId,
+                inMinigame: playerState.inMinigame
             });
         }
     }
     
-    // --- Pizzeria Minigame Logic ---
-    const PIZZA_PAYOUT = 8;
+    // --- Pizzeria Logic ---
+    const PIZZA_PAYOUT = 15;
+    const PENALTY_PER_TOPPING = 2;
     const SAUCE_SPLAT_REQUIREMENT = 30;
     const allToppings = ['Pepperoni', 'Mushrooms', 'Olives'];
     const pizzeriaState = {
         currentOrder: {},
+        orderFrom: null,
         placedIngredients: {},
         timerId: null,
         timeLeft: 0,
@@ -1662,32 +1753,51 @@ function updateAllBalanceDisplays(targetBalance) {
         });
     }
 
-    function generateNewPizzaOrder() {
+    function generatePracticeOrder() {
         pizzeriaState.placedIngredients = {};
         pizzeriaState.currentOrder = {};
+        pizzeriaState.orderFrom = "Practice";
         pizzeriaState.isSpreadingSauce = false;
         pizzeriaState.isReadyToSpreadSauce = false;
         let orderComplexity = 0;
-        
         const shuffled = allToppings.sort(() => 0.5 - Math.random());
-        const toppingCount = Math.floor(Math.random() * 3) + 1;
+        const toppingCount = Math.floor(Math.random() * 2) + 1; // 1 or 2 toppings for practice
         for (let i = 0; i < toppingCount; i++) {
             const toppingName = shuffled[i];
-            const quantity = Math.floor(Math.random() * 5) + 2;
+            const quantity = Math.floor(Math.random() * 4) + 2; // 2 to 5 of each
             pizzeriaState.currentOrder[toppingName] = quantity;
             orderComplexity += quantity;
         }
-        
-        pizzeriaState.totalTime = 15000 + (orderComplexity * 1500);
+        pizzeriaState.totalTime = 20000 + (orderComplexity * 1500);
         pizzeriaState.timeLeft = pizzeriaState.totalTime;
-        
         updateOrderTicketUI();
         resetPizzaVisuals();
         startOrderTimer();
     }
 
+    function receivePlayerOrder(orderData) {
+        if (!orderData) return generatePracticeOrder();
+        pizzeriaState.placedIngredients = {};
+        pizzeriaState.isSpreadingSauce = false;
+        pizzeriaState.isReadyToSpreadSauce = false;
+        pizzeriaState.currentOrder = orderData.order;
+        pizzeriaState.orderFrom = orderData.from;
+        let orderComplexity = Object.values(orderData.order).reduce((sum, val) => sum + val, 0);
+        
+        pizzeriaState.totalTime = 15000 + (orderComplexity * 1500);
+        pizzeriaState.timeLeft = pizzeriaState.totalTime;
+        updateOrderTicketUI();
+        resetPizzaVisuals();
+        startOrderTimer();
+    }
+
+
     function updateOrderTicketUI() {
         pizzaOrderList.innerHTML = '';
+        const orderFor = document.createElement('li');
+        orderFor.innerHTML = `<strong>Order for: ${pizzeriaState.orderFrom}</strong>`;
+        pizzaOrderList.appendChild(orderFor);
+
         ['Sauce', 'Cheese'].forEach(base => {
              const li = document.createElement('li');
              li.textContent = base;
@@ -1717,16 +1827,15 @@ function updateAllBalanceDisplays(targetBalance) {
             pizzeriaState.timeLeft -= 100;
             const progress = Math.max(0, pizzeriaState.timeLeft / pizzeriaState.totalTime);
             orderTimerBar.style.width = `${progress * 100}%`;
-            
             if(progress < 0.25) orderTimerBar.style.background = 'var(--danger)';
             else if (progress < 0.5) orderTimerBar.style.background = 'var(--gold)';
             else orderTimerBar.style.background = 'linear-gradient(90deg, var(--success), var(--gold))';
-            
             if (pizzeriaState.timeLeft <= 0) {
                 clearInterval(pizzeriaState.timerId);
                 finishPizzaBtn.disabled = true;
                 showToast("Time's up! New order.", 'error');
-                setTimeout(generateNewPizzaOrder, 1500);
+                db.ref(`pizzeria/orders/${currentUser.uid}`).off();
+                db.ref(`pizzeria/orders/${currentUser.uid}`).on('value', snapshot => receivePlayerOrder(snapshot.val()));
             }
         }, 100);
     }
@@ -1734,55 +1843,48 @@ function updateAllBalanceDisplays(targetBalance) {
     function finishPizza() {
         clearInterval(pizzeriaState.timerId);
         finishPizzaBtn.disabled = true;
+        let penalty = 0;
+        let allRequiredPresent = pizzeriaState.placedIngredients['Sauce'] && pizzeriaState.placedIngredients['Cheese'];
 
-        let hasAllRequired = true;
-        if (!pizzeriaState.placedIngredients['Sauce'] || !pizzeriaState.placedIngredients['Cheese']) {
-            hasAllRequired = false;
-        }
-        for (const [name, needed] of Object.entries(pizzeriaState.currentOrder)) {
-            if ((pizzeriaState.placedIngredients[name] || 0) !== needed) {
-                hasAllRequired = false;
-                break;
+        const allInvolvedToppings = new Set([...Object.keys(pizzeriaState.currentOrder), ...Object.keys(pizzeriaState.placedIngredients)]);
+
+        allInvolvedToppings.forEach(topping => {
+            if (!allToppings.includes(topping)) return;
+            const needed = pizzeriaState.currentOrder[topping] || 0;
+            const placed = pizzeriaState.placedIngredients[topping] || 0;
+            if (placed < needed) allRequiredPresent = false;
+            penalty += Math.abs(needed - placed) * PENALTY_PER_TOPPING;
+        });
+
+        if (allRequiredPresent) {
+            const finalPayout = Math.max(0, PIZZA_PAYOUT - penalty);
+            showToast(`Order complete! +${finalPayout} BUX`, 'success');
+             if (penalty > 0) {
+                setTimeout(() => showToast(`Mistakes cost you! -${penalty} BUX penalty.`, 'error'), 500);
             }
-        }
-
-        if (hasAllRequired) {
-            let penalty = 0;
-            for (const placedIngredient in pizzeriaState.placedIngredients) {
-                if (allToppings.includes(placedIngredient) && !pizzeriaState.currentOrder.hasOwnProperty(placedIngredient)) {
-                    penalty += 5; 
-                }
-            }
-            
-            const bonus = Object.keys(pizzeriaState.currentOrder).length;
-            const finalPayout = Math.max(0, PIZZA_PAYOUT + bonus - penalty);
-
             if (finalPayout > 0) {
-                 showToast(`Good enough! +${finalPayout} BUX`, 'success');
                  db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(finalPayout));
-            } else {
-                 showToast(`Good enough, but the penalties cost you! +0 BUX`, 'info');
             }
-            
-            if (penalty > 0) {
-                setTimeout(() => showToast(`Wasted ingredients! -${penalty} BUX penalty.`, 'error'), 500);
-            }
-
         } else {
              showToast("Incorrect order!", 'error');
         }
 
-        setTimeout(generateNewPizzaOrder, 2000);
+        if (pizzeriaState.orderFrom !== "Practice") {
+            db.ref(`pizzeria/orders/${currentUser.uid}`).remove();
+        } else {
+            setTimeout(generatePracticeOrder, 2000);
+        }
     }
     
     function enterPizzeria() {
+        pizzeriaChoicePanel.classList.remove('visible');
         playerState.hubX = playerState.x;
         playerState.hubY = playerState.y;
         playerState.inMinigame = 'pizzeria';
         worldContainer.style.display = 'none';
         pizzeriaContainer.style.display = 'flex';
         populateIngredientsBin();
-        generateNewPizzaOrder();
+        db.ref(`pizzeria/orders/${currentUser.uid}`).on('value', snapshot => receivePlayerOrder(snapshot.val()));
     }
     function leavePizzeria() {
         if (pizzeriaState.timerId) clearInterval(pizzeriaState.timerId);
@@ -1792,8 +1894,46 @@ function updateAllBalanceDisplays(targetBalance) {
         pizzeriaContainer.style.display = 'none';
         worldContainer.style.display = 'block';
         updateLocalPlayerPosition();
+        db.ref(`pizzeria/orders/${currentUser.uid}`).off();
+    }
+    
+    function enterRestaurant() {
+        pizzeriaChoicePanel.classList.remove('visible');
+        playerState.hubX = playerState.x;
+        playerState.hubY = playerState.y;
+        playerState.inMinigame = 'restaurant';
+        playerState.x = 200;
+        playerState.y = 300;
+        worldContainer.style.display = 'none';
+        restaurantContainer.style.display = 'block';
+        restaurantContainer.appendChild(localPlayerContainer);
+        if(playerRef) playerRef.update({ inMinigame: 'restaurant', x: playerState.x, y: playerState.y });
+        
+        restaurantLayout.forEach((item, index) => {
+            const el = document.createElement('div');
+            el.className = `restaurant-${item.type}`;
+            el.style.left = `${item.x}px`;
+            el.style.top = `${item.y}px`;
+            if (item.type === 'chair') {
+                el.dataset.id = `rest-chair-${index}`;
+                el.addEventListener('click', () => sitOnChair(el, { type: 'chair', x: item.x, y: item.y }));
+            }
+            restaurantContainer.appendChild(el);
+        });
     }
 
+    function leaveRestaurant() {
+        if (playerState.isSitting) standUp();
+        playerState.inMinigame = null;
+        playerState.x = playerState.hubX;
+        playerState.y = pizzeriaBuilding.y + pizzeriaBuilding.height + 10;
+        restaurantContainer.style.display = 'none';
+        restaurantContainer.innerHTML = '';
+        worldContainer.style.display = 'block';
+        worldContainer.appendChild(localPlayerContainer);
+        updateLocalPlayerPosition();
+    }
+    
     let isDragging = false;
     let draggedIngredient = null;
     ingredientsBin.addEventListener('mousedown', e => {
@@ -1809,22 +1949,6 @@ function updateAllBalanceDisplays(targetBalance) {
         draggedItem.style.display = 'block';
         draggedItem.style.left = `${e.clientX}px`;
         draggedItem.style.top = `${e.clientY}px`;
-    });
-
-    ingredientsBin.addEventListener('click', e => {
-        const ingredientDiv = e.target.closest('.ingredient');
-        if (!ingredientDiv || ingredientDiv.classList.contains('draggable')) return;
-        const ingredientName = ingredientDiv.dataset.ingredient;
-
-        if (ingredientName === 'Cheese') {
-            document.getElementById('pizza-cheese-layer').style.transform = 'scale(0.95)';
-            pizzeriaState.placedIngredients['Cheese'] = true;
-        } else if (ingredientName === 'Sauce') {
-            pizzeriaState.isReadyToSpreadSauce = true;
-            pizzeriaState.placedIngredients['SauceSplats'] = 0;
-            showToast('Click and drag on the pizza to spread the sauce!', 'info');
-        }
-        updateOrderTicketUI();
     });
 
     window.addEventListener('mousemove', e => {
@@ -1857,8 +1981,13 @@ function updateAllBalanceDisplays(targetBalance) {
             isDragging = false;
             draggedIngredient = null;
         }
+        if (pizzeriaState.isSpreadingSauce) {
+            pizzeriaState.isSpreadingSauce = false;
+            pizzaBase.classList.remove('spreading-sauce');
+            sauceCursor.style.display = 'none';
+        }
     });
-
+    
     pizzaBase.addEventListener('mousedown', e => {
         if (pizzeriaState.isReadyToSpreadSauce) {
             pizzeriaState.isSpreadingSauce = true;
@@ -1880,25 +2009,49 @@ function updateAllBalanceDisplays(targetBalance) {
             pizzeriaState.placedIngredients['SauceSplats']++;
             if(pizzeriaState.placedIngredients['SauceSplats'] >= SAUCE_SPLAT_REQUIREMENT && !pizzeriaState.placedIngredients['Sauce']) {
                 pizzeriaState.placedIngredients['Sauce'] = true;
+                pizzeriaState.isReadyToSpreadSauce = false;
                 updateOrderTicketUI();
             }
         }
     });
 
-    window.addEventListener('mouseup', () => {
-        if (pizzeriaState.isSpreadingSauce) {
-            pizzeriaState.isSpreadingSauce = false;
-            pizzeriaState.isReadyToSpreadSauce = false;
-            pizzaBase.classList.remove('spreading-sauce');
-            sauceCursor.style.display = 'none';
-        }
-    });
-
     finishPizzaBtn.addEventListener('click', finishPizza);
     leavePizzeriaBtn.addEventListener('click', leavePizzeria);
+    document.getElementById('enter-kitchen-btn').addEventListener('click', enterPizzeria);
+    document.getElementById('enter-restaurant-btn').addEventListener('click', enterRestaurant);
+    document.getElementById('pizzeria-choice-panel').querySelector('.close-panel-btn').addEventListener('click', () => pizzeriaChoicePanel.classList.remove('visible'));
+    leaveRestaurantBtn.addEventListener('click', leaveRestaurant);
+
+    orderPizzaBtn.addEventListener('click', async () => {
+        orderPizzaBtn.disabled = true;
+        const playersSnapshot = await playersRef.orderByChild('inMinigame').equalTo('pizzeria').once('value');
+        const chefs = playersSnapshot.val();
+        if(chefs) {
+            const chefUids = Object.keys(chefs);
+            const randomChefUid = chefUids[Math.floor(Math.random() * chefUids.length)];
+            
+            const newOrder = {};
+            const shuffled = allToppings.sort(() => 0.5 - Math.random());
+            const toppingCount = Math.floor(Math.random() * 3) + 1;
+            for (let i = 0; i < toppingCount; i++) {
+                newOrder[shuffled[i]] = Math.floor(Math.random() * 5) + 2;
+            }
+            
+            const orderPayload = {
+                from: currentUser.email.split('@')[0],
+                order: newOrder
+            };
+
+            db.ref(`pizzeria/orders/${randomChefUid}`).set(orderPayload);
+            showToast('Order sent to the kitchen!', 'success');
+        } else {
+            showToast('No chefs are working right now. Try again later!', 'error');
+        }
+        setTimeout(() => { orderPizzaBtn.disabled = false; }, 5000);
+    });
 
     function gameLoop() {
-        if (!isChatting && !playerState.inMinigame) {
+        if (!isChatting && !playerState.inMinigame && !playerState.inHouseId) {
             updateLocalPlayerPosition();
         }
         gameLoopId = requestAnimationFrame(gameLoop);
@@ -1912,7 +2065,7 @@ function updateAllBalanceDisplays(targetBalance) {
         playerRef.set({ 
             x: playerState.x, y: playerState.y, width: playerState.width, height: playerState.height, 
             direction: 1, animation: 'idle', email: currentUser.email || 'guest',
-            inHouseId: null
+            inHouseId: null, inMinigame: null
         });
         playerRef.onDisconnect().remove();
 
@@ -1968,11 +2121,13 @@ function updateAllBalanceDisplays(targetBalance) {
             img.src = 'IDLE.gif';
             uiContainer.append(bubble, nametag);
             container.append(uiContainer, img);
-            const otherPlayerHouseId = pData.inHouseId || null;
-            otherPlayerElements[uid] = { container, img, bubble, bubbleTimeout: null, inHouseId: otherPlayerHouseId };
+            
+            otherPlayerElements[uid] = { container, img, bubble, bubbleTimeout: null, data: pData };
+            
             gsap.to(otherPlayerElements[uid].container, { left: pData.x, top: pData.y, duration: 0 });
             otherPlayerElements[uid].img.style.transform = `scaleX(${pData.direction})`;
-            updatePlayerScene(container, otherPlayerHouseId);
+            updatePlayerScene(container, pData);
+
             container.addEventListener('click', () => { openUserPanel(uid, pData.email); });
         });
 
@@ -1985,9 +2140,10 @@ function updateAllBalanceDisplays(targetBalance) {
             }
             const otherPlayer = otherPlayerElements[uid];
             if (!otherPlayer) return;
-            const otherPlayerHouseId = pData.inHouseId || null;
-            otherPlayer.inHouseId = otherPlayerHouseId;
-            updatePlayerScene(otherPlayer.container, otherPlayer.inHouseId);
+            
+            otherPlayer.data = pData;
+            updatePlayerScene(otherPlayer.container, pData);
+
             gsap.to(otherPlayer.container, { left: pData.x, top: pData.y, duration: 0.1, ease: 'linear' });
             otherPlayer.container.style.zIndex = Math.round(pData.y);
             otherPlayer.img.style.transform = `scaleX(${pData.direction})`;
@@ -2026,7 +2182,8 @@ function updateAllBalanceDisplays(targetBalance) {
         isChatting = false;
         chatInputContainer.style.display = 'none';
         if (playerState.inHouseId) leaveHouse();
-        if (playerState.inMinigame) leavePizzeria();
+        if (playerState.inMinigame === 'pizzeria') leavePizzeria();
+        if (playerState.inMinigame === 'restaurant') leaveRestaurant();
     }
 
     function showConfirmationModal(message, onConfirm) {
@@ -2130,3 +2287,4 @@ function updateAllBalanceDisplays(targetBalance) {
 </script>
 </body>
 </html>
+```
