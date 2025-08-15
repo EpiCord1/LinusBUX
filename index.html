@@ -1724,7 +1724,8 @@ function updateAllBalanceDisplays(targetBalance) {
     let lastFrameTime = performance.now();
     let heistGameState = { 
         elements: {}, 
-        currentRoomData: null, 
+        currentRoomData: null,
+        currentRoomGrid: null,
         fullData: null,
         guards: {}
     };
@@ -2004,6 +2005,7 @@ function updateAllBalanceDisplays(targetBalance) {
 
         for(const id in heistGameState.elements) {
             const item = heistGameState.elements[id];
+            // NEW: Guards do not collide with money
             if(item.type !== 'obstacle') continue;
             
             const itemBox = { left: item.data.x, top: item.data.y, right: item.data.x + item.data.w, bottom: item.data.y + item.data.h };
@@ -2633,72 +2635,65 @@ function updateAllBalanceDisplays(targetBalance) {
         });
     }
 
-    // --- BANK & HEIST LOGIC ---
+    // --- BANK & HEIST LOGIC (REWORKED) ---
+    
+    // New Maze and Pathfinding Utilities
+    function generateHeistMaze(cols, rows) {
+        let grid = Array.from({ length: rows }, () => Array.from({ length: cols }, () => ({ isWall: true, visited: false })));
+        let history = [];
+        let current = { x: 1, y: 1 }; // Start carving from an odd-numbered cell
 
-    function generateCohesiveWalls(width, height) {
-        const obstacles = {};
-        let obsCount = 0;
-        const wallThickness = 25;
-        // Create three main vertical dividing walls
-        const wallPositions = [
-            { x: width * 0.25, y: 0, w: wallThickness, h: height },
-            { x: width * 0.5, y: 0, w: wallThickness, h: height },
-            { x: width * 0.75, y: 0, w: wallThickness, h: height },
-        ];
+        grid[current.y][current.x].isWall = false;
+        grid[current.y][current.x].visited = true;
+        history.push(current);
 
-        wallPositions.forEach(wall => {
-            const gapSize = 150 + Math.random() * 100; // Random gap size
-            const gapPosition = Math.random() * (height - gapSize); // Random gap position
-
-            // Add wall segment above the gap
-            if (gapPosition > 0) {
-                obstacles['obs' + obsCount++] = { ...wall, h: gapPosition };
-            }
-            // Add wall segment below the gap
-            if (gapPosition + gapSize < height) {
-                obstacles['obs' + obsCount++] = { ...wall, y: gapPosition + gapSize, h: height - (gapPosition + gapSize) };
-            }
-        });
-
-        // Add a few random horizontal walls to connect/block paths
-        for (let i = 0; i < 3; i++) {
-            obstacles['obs' + obsCount++] = {
-                x: Math.random() * (width - 250),
-                y: Math.random() * (height - 100),
-                w: 150 + Math.random() * 150,
-                h: wallThickness
-            };
+        function getNeighbors(cell) {
+            const { x, y } = cell;
+            const neighbors = [];
+            if (y > 1 && !grid[y - 2][x].visited) neighbors.push({ x, y: y - 2 });
+            if (y < rows - 2 && !grid[y + 2][x].visited) neighbors.push({ x, y: y + 2 });
+            if (x > 1 && !grid[y][x - 2].visited) neighbors.push({ x: x - 2, y });
+            if (x < cols - 2 && !grid[y][x + 2].visited) neighbors.push({ x: x + 2, y });
+            return neighbors;
         }
 
-        return obstacles;
+        while (history.length > 0) {
+            current = history[history.length - 1];
+            let neighbors = getNeighbors(current);
+
+            if (neighbors.length > 0) {
+                const next = neighbors[Math.floor(Math.random() * neighbors.length)];
+                grid[next.y][next.x].isWall = false;
+                grid[next.y][next.x].visited = true;
+                grid[(current.y + next.y) / 2][(current.x + next.x) / 2].isWall = false; // Carve wall between
+                history.push(next);
+            } else {
+                history.pop();
+            }
+        }
+        
+        // Clear a dedicated spawn area on the left
+        const midY = Math.floor(rows / 2);
+        for(let y = midY - 2; y <= midY + 2; y++) {
+            for(let x = 1; x < 5; x++) {
+                if(grid[y] && grid[y][x]) grid[y][x].isWall = false;
+            }
+        }
+
+        return grid;
     }
 
-    function findSafeSpawnPoint(obstacles, entityW, entityH, area) {
-        const gameWidth = 1200;
-        const gameHeight = 700;
-        let spawnX, spawnY, isSafe;
-        let attempts = 0;
-        const searchArea = area || { x: 0, y: 0, w: gameWidth, h: gameHeight };
-
-        do {
-            isSafe = true;
-            spawnX = searchArea.x + Math.random() * (searchArea.w - entityW);
-            spawnY = searchArea.y + Math.random() * (searchArea.h - entityH);
-            const entityBox = { left: spawnX, top: spawnY, right: spawnX + entityW, bottom: spawnY + entityH };
-
-            for (const obsId in obstacles) {
-                const obs = obstacles[obsId];
-                const obsBox = { left: obs.x, top: obs.y, right: obs.x + obs.w, bottom: obs.y + obs.h };
-                if (entityBox.right > obsBox.left && entityBox.left < obsBox.right && entityBox.bottom > obsBox.top && entityBox.top < obsBox.bottom) {
-                    isSafe = false;
-                    break;
+    function gridToObstacles(grid, cellWidth, cellHeight) {
+        const obstacles = {};
+        let obsCount = 0;
+        for (let y = 0; y < grid.length; y++) {
+            for (let x = 0; x < grid[y].length; x++) {
+                if (grid[y][x].isWall) {
+                    obstacles['obs' + obsCount++] = { x: x * cellWidth, y: y * cellHeight, w: cellWidth, h: cellHeight };
                 }
             }
-            attempts++;
-        } while (!isSafe && attempts < 100);
-
-        if (!isSafe) { return { x: 50, y: gameHeight / 2 }; } // Fallback
-        return { x: spawnX, y: spawnY };
+        }
+        return obstacles;
     }
     
     function updateBankLobbyUI(snapshot) {
@@ -2707,7 +2702,6 @@ function updateAllBalanceDisplays(targetBalance) {
 
         const currentHeistId = heistData ? (heistData.activeHeistId || null) : null;
         if (currentHeistId) {
-            // A heist is active. Check if this player is part of it.
             activeHeistRef.child('players').child(currentUser.uid).once('value', (playerSnap) => {
                 if(playerSnap.exists()) {
                      enterHeistScene();
@@ -2729,14 +2723,14 @@ function updateAllBalanceDisplays(targetBalance) {
                 else {
                     bankHeistTimerEl.textContent = '';
                     clearInterval(bankHeistTimerInterval);
-                    bankRef.child('cooldownUntil').remove(); // Leader can clean up
+                    bankRef.child('cooldownUntil').remove();
                 }
             }, 1000);
 
         } else if (heistData && heistData.status === 'preparing') {
             const playersCount = Object.keys(heistData.players || {}).length;
             bankHeistStatusEl.textContent = `Heist Preparing (${playersCount} robbers)`;
-            const PREP_TIME = 20000; // 20 seconds
+            const PREP_TIME = 20000;
              bankHeistTimerInterval = setInterval(() => {
                 const timePassed = Date.now() - heistData.startTime;
                 const timeLeft = Math.ceil((PREP_TIME - timePassed) / 1000);
@@ -2759,7 +2753,7 @@ function updateAllBalanceDisplays(targetBalance) {
                 bankHeistActionsEl.innerHTML = '<p>You have joined the heist!</p>';
             }
 
-        } else { // Idle state
+        } else {
             bankHeistStatusEl.textContent = "The Vault";
             bankHeistTimerEl.textContent = "Ready to be robbed.";
             bankHeistActionsEl.innerHTML = '<button id="start-heist-btn">Start Robbery</button>';
@@ -2783,26 +2777,39 @@ function updateAllBalanceDisplays(targetBalance) {
             players: {},
             rooms: {}
         };
+        
+        const cols = 30; // 1200 / 40
+        const rows = 17; // 700 / ~41 -> adjust for integer
+        const cellWidth = 1200 / cols;
+        const cellHeight = 700 / rows;
 
         for (let i = 1; i <= 10; i++) {
-            const roomObstacles = generateCohesiveWalls(1200, 700);
-            const roomData = { guards: {}, money: {}, obstacles: roomObstacles };
+            const grid = generateHeistMaze(cols, rows);
+            const obstacles = gridToObstacles(grid, cellWidth, cellHeight);
+            const roomData = { guards: {}, money: {}, obstacles, grid }; // Store grid for pathfinding
             const numGuards = 3 + Math.floor(Math.random() * 4);
             const numMoney = 8 + Math.floor(Math.random() * 3);
+            
+            const floorTiles = [];
+            for (let y = 0; y < grid.length; y++) {
+                for (let x = 0; x < grid[y].length; x++) {
+                    if (!grid[y][x].isWall) floorTiles.push({x, y});
+                }
+            }
 
             for (let g = 0; g < numGuards; g++) {
-                const spawnPoint = findSafeSpawnPoint(roomObstacles, 80, 80);
+                const tile = floorTiles.splice(Math.floor(Math.random() * floorTiles.length), 1)[0];
                 roomData.guards['guard' + g] = { 
-                    x: spawnPoint.x, y: spawnPoint.y, 
+                    x: tile.x * cellWidth, y: tile.y * cellHeight, 
                     w: 80, h: 80, health: 150, animation: 'idle'
                 };
             }
 
             for (let m = 0; m < numMoney; m++) {
+                const tile = floorTiles.splice(Math.floor(Math.random() * floorTiles.length), 1)[0];
                 const isTrapped = Math.random() < 0.3;
-                const spawnPoint = findSafeSpawnPoint(roomObstacles, 60, 35);
                 roomData.money['money' + m] = { 
-                    x: spawnPoint.x, y: spawnPoint.y, 
+                    x: tile.x * cellWidth, y: tile.y * cellHeight, 
                     w: 60, h: 35, value: 100, isCollected: false,
                     isTrapped: isTrapped, glassHealth: isTrapped ? 5 : 0 
                 };
@@ -2810,13 +2817,13 @@ function updateAllBalanceDisplays(targetBalance) {
             newHeistData.rooms[i] = roomData;
         }
         
-        const startArea = { x: 0, y: 0, w: 100, h: 700 };
-        const firstRoomObstacles = newHeistData.rooms[1].obstacles;
+        const spawnX = cellWidth * 1.5;
+        const spawnY = cellHeight * Math.floor(rows/2);
+
         playerKeys.forEach(uid => {
-            const spawnPoint = findSafeSpawnPoint(firstRoomObstacles, playerState.width, playerState.height, startArea);
             newHeistData.players[uid] = { 
                 health: 100, moneyCollected: 0, 
-                x: spawnPoint.x, y: spawnPoint.y 
+                x: spawnX, y: spawnY
             };
         });
         
@@ -2904,7 +2911,7 @@ function updateAllBalanceDisplays(targetBalance) {
         playerState.heist.health = 100;
         
         heistGameArea.innerHTML = '';
-        heistGameState = { elements: {}, currentRoomData: null, fullData: null, guards: {} };
+        heistGameState = { elements: {}, currentRoomData: null, currentRoomGrid: null, fullData: null, guards: {} };
 
         heistSceneContainer.classList.remove('visible');
         appContainer.style.display = 'flex';
@@ -2961,16 +2968,14 @@ function updateAllBalanceDisplays(targetBalance) {
     
     function handlePlayerShoot(e) {
         const now = performance.now();
-        if (now - playerState.heist.lastShotTime < 250) return; // Cooldown
+        if (now - playerState.heist.lastShotTime < 250) return;
         playerState.heist.lastShotTime = now;
 
         const rect = heistGameArea.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
-
         const playerCenterX = playerState.x + playerState.width / 2;
         const playerCenterY = playerState.y + playerState.height / 2;
-
         const angle = Math.atan2(mouseY - playerCenterY, mouseX - playerCenterX);
         
         const bullet = document.createElement('div');
@@ -2980,26 +2985,36 @@ function updateAllBalanceDisplays(targetBalance) {
         gsap.fromTo(bullet, 
             { x: playerCenterX, y: playerCenterY, rotation: angle * (180 / Math.PI) },
             { 
-                x: `+=${Math.cos(angle) * 1500}`, 
-                y: `+=${Math.sin(angle) * 1500}`, 
-                duration: 1.5,
-                ease: "linear",
+                x: `+=${Math.cos(angle) * 1500}`, y: `+=${Math.sin(angle) * 1500}`, 
+                duration: 1.5, ease: "linear",
                 onUpdate: function() {
-                    const bulletRect = bullet.getBoundingClientRect();
+                    const currentPos = this.targets()[0];
+                    const bulletBox = { left: currentPos.offsetLeft, top: currentPos.offsetTop, right: currentPos.offsetLeft + 10, bottom: currentPos.offsetTop + 4 };
+                    
+                    let hit = false;
+                    // Check wall collision
+                    for (const id in heistGameState.elements) {
+                        if (heistGameState.elements[id].type === 'obstacle') {
+                            const obs = heistGameState.elements[id].data;
+                            const obsBox = { left: obs.x, top: obs.y, right: obs.x + obs.w, bottom: obs.y + obs.h };
+                            if (bulletBox.right > obsBox.left && bulletBox.left < obsBox.right && bulletBox.bottom > obsBox.top && bulletBox.top < obsBox.bottom) {
+                                hit = true; break;
+                            }
+                        }
+                    }
+                    if(hit) { this.kill(); bullet.remove(); return; }
+
+                    // Check guard collision
                     for(const guardId in heistGameState.guards) {
                         const guard = heistGameState.guards[guardId];
                         if (guard.health <= 0) continue;
-                        
-                        const guardRect = guard.el.getBoundingClientRect();
-                        if (bulletRect.right > guardRect.left && bulletRect.left < guardRect.right &&
-                            bulletRect.bottom > guardRect.top && bulletRect.top < guardRect.bottom) {
-                            
-                            this.kill(); // Stop the animation
-                            bullet.remove();
+                        const guardBox = { left: guard.el.offsetLeft, top: guard.el.offsetTop, right: guard.el.offsetLeft + guard.w, bottom: guard.el.offsetTop + guard.h };
+                        if (bulletBox.right > guardBox.left && bulletBox.left < guardBox.right && bulletBox.bottom > guardBox.top && bulletBox.top < guardBox.bottom) {
                             activeHeistRef.child(`rooms/${playerState.heist.currentRoom}/guards/${guardId}/health`).set(firebase.database.ServerValue.increment(-25));
-                            break;
+                            hit = true; break;
                         }
                     }
+                    if(hit) { this.kill(); bullet.remove(); }
                 },
                 onComplete: () => bullet.remove()
             }
@@ -3042,6 +3057,7 @@ function updateAllBalanceDisplays(targetBalance) {
         const newRoomData = heistData.rooms[heistData.currentRoom];
         if (JSON.stringify(newRoomData?.obstacles) !== JSON.stringify(heistGameState.currentRoomData?.obstacles)) {
             heistGameState.currentRoomData = newRoomData;
+            heistGameState.currentRoomGrid = newRoomData.grid;
             renderHeistRoom(newRoomData);
              const startPos = heistData.players[currentUser.uid];
              if(startPos) {
@@ -3050,6 +3066,7 @@ function updateAllBalanceDisplays(targetBalance) {
              }
         } else {
              heistGameState.currentRoomData = newRoomData;
+             heistGameState.currentRoomGrid = newRoomData.grid;
              for(const id in heistGameState.elements) {
                  const item = heistGameState.elements[id];
                  if (item.type === 'guard' && newRoomData.guards && newRoomData.guards[id]) {
@@ -3063,7 +3080,7 @@ function updateAllBalanceDisplays(targetBalance) {
                      
                      const guardImg = item.el.querySelector('.heist-guard-character');
                      const newSrc = (guardData.animation === 'walk') ? 'WALK.gif' : 'IDLE.gif';
-                     if (guardImg.src.indexOf(newSrc) === -1) guardImg.src = newSrc;
+                     if (guardImg && guardImg.src.indexOf(newSrc) === -1) guardImg.src = newSrc;
                      item.el.classList.toggle('attacking', guardData.animation === 'attacking');
                      
                      if(guardData.health <= 0 && item.el.style.display !== 'none') {
@@ -3175,12 +3192,16 @@ function updateAllBalanceDisplays(targetBalance) {
                  const nextRoomNum = heistData.currentRoom + 1;
                 const updates = { currentRoom: nextRoomNum };
                 
-                const nextRoomObstacles = heistData.rooms[nextRoomNum].obstacles;
-                const startArea = { x: 0, y: 0, w: 100, h: 700 };
+                const cols = 30;
+                const rows = 17;
+                const cellWidth = 1200 / cols;
+                const cellHeight = 700 / rows;
+                const spawnX = cellWidth * 1.5;
+                const spawnY = cellHeight * Math.floor(rows/2);
+
                 Object.keys(heistData.players).forEach(uid => {
-                    const spawnPoint = findSafeSpawnPoint(nextRoomObstacles, playerState.width, playerState.height, startArea);
-                    updates[`players/${uid}/x`] = spawnPoint.x;
-                    updates[`players/${uid}/y`] = spawnPoint.y;
+                    updates[`players/${uid}/x`] = spawnX;
+                    updates[`players/${uid}/y`] = spawnY;
                 });
                 
                 activeHeistRef.update(updates);
@@ -3215,7 +3236,6 @@ function updateAllBalanceDisplays(targetBalance) {
             return;
         }
 
-        // --- Handle Money Collection ---
         const playerBox = { x: playerState.x, y: playerState.y, w: playerState.width, h: playerState.height };
         let currentlyCollidingWithMoneyId = null;
         for (const id in heistGameState.currentRoomData.money) {
@@ -3294,13 +3314,20 @@ function updateAllBalanceDisplays(targetBalance) {
                 } else {
                     if (guard.state !== 'patrolling') {
                         guard.state = 'patrolling';
-                        guard.stateTimer = -1; // Force new target
+                        guard.stateTimer = -1;
                     }
                     newAnimation = 'walk';
                 }
                 
                 if (guard.state === 'patrolling' && guard.stateTimer <= 0) {
-                    guard.target = findSafeSpawnPoint(heistGameState.currentRoomData.obstacles, guard.w, guard.h);
+                     const floorTiles = [];
+                    for (let y = 0; y < heistGameState.currentRoomGrid.length; y++) {
+                        for (let x = 0; x < heistGameState.currentRoomGrid[y].length; x++) {
+                            if (!heistGameState.currentRoomGrid[y][x].isWall) floorTiles.push({x, y});
+                        }
+                    }
+                    const tile = floorTiles[Math.floor(Math.random() * floorTiles.length)];
+                    guard.target = { x: tile.x * (1200/30), y: tile.y * (700/17) };
                     guard.stateTimer = 4 + Math.random() * 4;
                 }
                 
@@ -3342,22 +3369,29 @@ function updateAllBalanceDisplays(targetBalance) {
                             x: `+=${Math.cos(angle) * 1200}`, y: `+=${Math.sin(angle) * 1200}`, 
                             duration: 1, ease: "linear",
                             onUpdate: function() {
-                                 const laserRect = laser.getBoundingClientRect();
-                                 let hit = false;
-                                 Object.entries(heistGameState.fullData.players).forEach(([uid, p]) => {
+                                const currentPos = this.targets()[0];
+                                const laserBox = { left: currentPos.offsetLeft, top: currentPos.offsetTop, right: currentPos.offsetLeft + 10, bottom: currentPos.offsetTop + 4 };
+                                let hit = false;
+                                for (const id in heistGameState.elements) {
+                                    if (heistGameState.elements[id].type === 'obstacle') {
+                                        const obs = heistGameState.elements[id].data;
+                                        const obsBox = { left: obs.x, top: obs.y, right: obs.x + obs.w, bottom: obs.y + obs.h };
+                                        if (laserBox.right > obsBox.left && laserBox.left < obsBox.right && laserBox.bottom > obsBox.top && laserBox.top < obsBox.bottom) {
+                                            hit = true; break;
+                                        }
+                                    }
+                                }
+                                if(hit) { this.kill(); laser.remove(); return; }
+
+                                Object.entries(heistGameState.fullData.players).forEach(([uid, p]) => {
                                     if(hit) return;
-                                    const pRectWorld = {
-                                        left: p.x + heistGameArea.getBoundingClientRect().left, 
-                                        top: p.y + heistGameArea.getBoundingClientRect().top, 
-                                        right: p.x + playerState.width + heistGameArea.getBoundingClientRect().left, 
-                                        bottom: p.y + playerState.height + heistGameArea.getBoundingClientRect().top
-                                    };
-                                    if (laserRect.right > pRectWorld.left && laserRect.left < pRectWorld.right && laserRect.bottom > pRectWorld.top && laserRect.top < pRectWorld.bottom) {
+                                    const pBox = { left: p.x, top: p.y, right: p.x + playerState.width, bottom: p.y + playerState.height };
+                                    if (laserBox.right > pBox.left && laserBox.left < pBox.right && laserBox.bottom > pBox.top && laserBox.top < pBox.bottom) {
                                         activeHeistRef.child(`players/${uid}/health`).set(firebase.database.ServerValue.increment(-5));
                                         hit = true;
                                     }
-                                 });
-                                 if(hit) { this.kill(); laser.remove(); }
+                                });
+                                if(hit) { this.kill(); laser.remove(); }
                             },
                             onComplete: () => laser.remove()
                         }
