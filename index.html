@@ -658,7 +658,8 @@
         background-color: #454545;
         border: 10px solid #1a1a1a;
         box-shadow: inset 0 0 40px rgba(0,0,0,0.8);
-        overflow: hidden; /* Prevent elements from appearing outside */
+        overflow: hidden;
+        cursor: crosshair;
     }
     #heist-ui-overlay {
         position: absolute; top: 0; left: 0; width: 100%;
@@ -670,6 +671,13 @@
     }
     .heist-ui-stat { font-size: 1.5rem; font-weight: 600; text-shadow: 1px 1px 3px #000; }
     .heist-ui-stat span { color: var(--gold); margin-left: 10px; }
+    #heist-abandon-btn {
+        pointer-events: all;
+        background-color: var(--danger);
+        font-size: 1rem;
+        padding: 0.5rem 1rem;
+    }
+
     #heist-player-health-bar {
         position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
         width: 300px; height: 25px;
@@ -687,39 +695,58 @@
     }
 
     /* HEIST GAME ELEMENTS */
-    .heist-obstacle {
-        position: absolute;
-        background-color: #333;
-        border: 4px solid #111;
-    }
     .heist-guard {
         position: absolute;
-        width: 60px; height: 60px;
-        background-color: var(--danger);
-        border-radius: 50%;
-        cursor: pointer;
-        display: flex; justify-content: center; align-items: center;
-        transition: transform 0.1s;
-        box-shadow: 0 0 10px var(--danger);
+        width: 80px; height: 80px;
         user-select: none;
+        pointer-events: none; /* Parent div does not capture clicks */
     }
-    .heist-guard:hover { transform: scale(1.1); }
-    .heist-guard::before {
-        content: '!!'; font-size: 2rem; font-weight: bold; color: white; pointer-events: none;
+    .heist-guard-character {
+        width: 100%; height: 100%;
+        filter: hue-rotate(300deg) brightness(0.8);
     }
+    .heist-guard-alert {
+        position: absolute;
+        top: -25px; left: 50%;
+        transform: translateX(-50%);
+        font-size: 2rem; color: var(--danger);
+        font-weight: bold;
+        text-shadow: 0 0 5px black;
+    }
+
     .heist-money {
         position: absolute;
-        width: 50px; height: 50px;
-        background-color: var(--gold);
-        border-radius: 50%;
-        box-shadow: 0 0 15px var(--gold);
+        width: 60px; height: 35px;
+        background-color: var(--success);
+        border: 2px solid #1e824c;
+        border-radius: 5px;
+        box-shadow: 0 0 15px var(--success);
     }
-    .money-collection-progress {
-        position: absolute; bottom: 105%; left: 50%; transform: translateX(-50%);
-        width: 60px; height: 8px; background-color: #555; border-radius: 4px; overflow: hidden; display: none;
+     .heist-money.trapped { cursor: pointer; }
+    .glass-case {
+        position: absolute; width: 100%; height: 100%;
+        background-color: rgba(200, 220, 255, 0.5);
+        backdrop-filter: blur(2px);
+        border-radius: 5px;
+        border: 2px solid white;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1rem; color: white;
+        font-weight: bold;
+        pointer-events: none; /* Pass clicks to parent */
     }
-    .money-collection-progress-fill {
-        width: 0%; height: 100%; background-color: var(--success); transition: width 0.1s linear;
+
+    .heist-bullet, .heist-laser {
+        position: absolute;
+        background-color: yellow;
+        width: 10px; height: 4px;
+        border-radius: 2px;
+        box-shadow: 0 0 10px yellow;
+        pointer-events: none;
+    }
+    .heist-laser {
+        background-color: var(--danger);
+        box-shadow: 0 0 10px var(--danger);
+        height: 3px;
     }
 
 
@@ -1032,6 +1059,7 @@
     </div>
     <div id="heist-ui-overlay">
         <div class="heist-ui-stat">Room: <span id="heist-room-counter">1/10</span></div>
+        <button id="heist-abandon-btn">Abandon Heist</button>
         <div class="heist-ui-stat">My Money: <span id="heist-money-counter">0 BUX</span></div>
     </div>
     <div id="heist-player-health-bar">
@@ -1634,6 +1662,7 @@ function updateAllBalanceDisplays(targetBalance) {
     const heistRoomCounter = document.getElementById('heist-room-counter');
     const heistMoneyCounter = document.getElementById('heist-money-counter');
     const heistHealthBarFill = document.getElementById('heist-player-health-bar-fill');
+    const heistAbandonBtn = document.getElementById('heist-abandon-btn');
 
 
     // --- Firebase References ---
@@ -1670,7 +1699,8 @@ function updateAllBalanceDisplays(targetBalance) {
         hubX: 0, hubY: 0, isSitting: false, sittingOnChairId: null, myOrderKey: null,
         heist: {
             health: 100, moneyCollected: 0, isCollecting: false, 
-            collectionTimer: 0, collectionTargetId: null, currentRoom: 1
+            collectionTimer: 0, collectionTargetId: null, currentRoom: 1,
+            isHoldingClick: false, glassDamageInterval: null, lastShotTime: 0
         }
     };
     localPlayerContainer.style.width = `${playerState.width}px`;
@@ -1686,7 +1716,7 @@ function updateAllBalanceDisplays(targetBalance) {
         elements: {}, 
         currentRoomData: null, 
         fullData: null,
-        lastGuardAttackTime: 0 
+        guards: {}
     };
 
     // --- Constants and Catalogs ---
@@ -2272,8 +2302,9 @@ function updateAllBalanceDisplays(targetBalance) {
         playerState.hubX = playerState.x;
         playerState.hubY = playerState.y;
         playerState.inMinigame = 'pizzeria-restaurant';
+        // BUG FIX: Spawn in the middle of the restaurant
         playerState.x = pizzeriaRestaurantRoom.offsetWidth / 2;
-        playerState.y = pizzeriaRestaurantRoom.offsetHeight - playerState.height - 10;
+        playerState.y = pizzeriaRestaurantRoom.offsetHeight / 2;
         if(playerRef) playerRef.update({ inMinigame: 'pizzeria-restaurant', inHouseId: null, x: playerState.x, y: playerState.y });
 
         worldContainer.style.display = 'none';
@@ -2678,7 +2709,7 @@ function updateAllBalanceDisplays(targetBalance) {
             for (let g = 0; g < numGuards; g++) {
                 roomData.guards['guard' + g] = { 
                     x: 300 + Math.random() * 800, y: 50 + Math.random() * 600, 
-                    w: 60, h: 60, health: 150
+                    w: 80, h: 80, health: 150
                 };
             }
 
@@ -2686,7 +2717,7 @@ function updateAllBalanceDisplays(targetBalance) {
                 const isTrapped = Math.random() < 0.3;
                 roomData.money['money' + m] = { 
                     x: 200 + Math.random() * 900, y: 50 + Math.random() * 600, 
-                    w: 50, h: 50, value: 100, isCollected: false,
+                    w: 60, h: 35, value: 100, isCollected: false,
                     isTrapped: isTrapped, glassHealth: isTrapped ? 5 : 0 
                 };
             }
@@ -2698,7 +2729,15 @@ function updateAllBalanceDisplays(targetBalance) {
         });
     }
 
-    function enterBank() {
+    async function enterBank() {
+        // BUG FIX: Check for active heist before entering
+        const bankSnapshot = await bankRef.once('value');
+        const bankData = bankSnapshot.val();
+        if (bankData && bankData.activeHeistId) {
+            showToast("Sorry, there's a heist going on right now", 'error');
+            return;
+        }
+
         playerState.hubX = playerState.x;
         playerState.hubY = playerState.y;
         playerState.inMinigame = 'bank';
@@ -2749,7 +2788,10 @@ function updateAllBalanceDisplays(targetBalance) {
         bankListener = null;
 
         activeHeistListener = activeHeistRef.on('value', updateHeistGameState);
-        heistGameArea.onclick = handleHeistClick;
+        heistGameArea.addEventListener('mousedown', handleHeistMouseDown);
+        heistGameArea.addEventListener('mouseup', handleHeistMouseUp);
+        heistGameArea.addEventListener('mouseleave', handleHeistMouseUp);
+
 
         if(playerRef) playerRef.update({ inMinigame: 'heist-active' });
     }
@@ -2759,21 +2801,23 @@ function updateAllBalanceDisplays(targetBalance) {
 
         if (activeHeistListener) activeHeistRef.off('value', activeHeistListener);
         activeHeistListener = null;
-        heistGameArea.onclick = null;
-        
+        heistGameArea.removeEventListener('mousedown', handleHeistMouseDown);
+        heistGameArea.removeEventListener('mouseup', handleHeistMouseUp);
+        heistGameArea.removeEventListener('mouseleave', handleHeistMouseUp);
+
         playerState.inMinigame = null;
         playerState.heist.moneyCollected = 0;
         playerState.heist.health = 100;
         
         heistGameArea.innerHTML = '';
-        heistGameState = { elements: {}, currentRoomData: null, fullData: null, lastGuardAttackTime: 0 };
+        heistGameState = { elements: {}, currentRoomData: null, fullData: null, guards: {} };
 
         heistSceneContainer.classList.remove('visible');
         appContainer.style.display = 'flex';
         
         playerState.x = bankBuilding.x + (bankBuilding.width / 2);
         playerState.y = bankBuilding.y + bankBuilding.height + 10;
-        // BUG FIX: Explicitly set both location states to null
+        // BUG FIX: Explicitly set both location states to null and update position
         if(playerRef) playerRef.update({ inMinigame: null, inHouseId: null, x: playerState.x, y: playerState.y });
         
         if (finalLoot > 0) {
@@ -2784,36 +2828,108 @@ function updateAllBalanceDisplays(targetBalance) {
 
         updateLocalPlayerPosition();
     }
-    
-    function handleHeistClick(e) {
-        if (!heistGameState.currentRoomData || playerState.heist.health <= 0) return;
 
-        const target = e.target;
-        const id = target.dataset.id;
-        const type = target.dataset.type;
-        const currentRoomNum = playerState.heist.currentRoom;
-        if(!id || !type) return;
-
-        if (type === 'guard') {
-            activeHeistRef.child(`rooms/${currentRoomNum}/guards/${id}/health`).set(firebase.database.ServerValue.increment(-25));
-        } else if (type === 'money' && target.dataset.trapped === 'true') {
-            const glassHealthRef = activeHeistRef.child(`rooms/${currentRoomNum}/money/${id}/glassHealth`);
-            glassHealthRef.transaction(currentHealth => {
-                if (currentHealth === null || currentHealth <= 0) return 0;
-                return currentHealth - 1;
+    function handleAbandonHeist() {
+        if(playerState.inMinigame === 'heist-active') {
+             showConfirmationModal("Are you sure you want to abandon the heist? You'll lose any money collected.", () => {
+                activeHeistRef.child(`players/${currentUser.uid}`).remove();
+                leaveHeistScene(0);
             });
         }
     }
 
+    function handleHeistMouseDown(e) {
+        if (playerState.heist.health <= 0) return;
+        
+        const target = e.target;
+        if (target.classList.contains('heist-money') && target.dataset.trapped === 'true') {
+            playerState.heist.isHoldingClick = true;
+            const moneyId = target.dataset.id;
+            const currentRoomNum = playerState.heist.currentRoom;
+            
+            if (playerState.heist.glassDamageInterval) clearInterval(playerState.heist.glassDamageInterval);
+            playerState.heist.glassDamageInterval = setInterval(() => {
+                 if (playerState.heist.isHoldingClick) {
+                     const glassHealthRef = activeHeistRef.child(`rooms/${currentRoomNum}/money/${moneyId}/glassHealth`);
+                     glassHealthRef.transaction(currentHealth => (currentHealth > 0) ? currentHealth - 1 : 0);
+                 } else {
+                     clearInterval(playerState.heist.glassDamageInterval);
+                 }
+            }, 200);
+        } else {
+             handlePlayerShoot(e);
+        }
+    }
+    
+    function handleHeistMouseUp(e) {
+        playerState.heist.isHoldingClick = false;
+        if (playerState.heist.glassDamageInterval) clearInterval(playerState.heist.glassDamageInterval);
+    }
+    
+    function handlePlayerShoot(e) {
+        const now = performance.now();
+        if (now - playerState.heist.lastShotTime < 250) return; // Cooldown
+        playerState.heist.lastShotTime = now;
+
+        const rect = heistGameArea.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        const playerCenterX = playerState.x + playerState.width / 2;
+        const playerCenterY = playerState.y + playerState.height / 2;
+
+        const angle = Math.atan2(mouseY - playerCenterY, mouseX - playerCenterX);
+        
+        const bullet = document.createElement('div');
+        bullet.className = 'heist-bullet';
+        heistGameArea.appendChild(bullet);
+
+        gsap.fromTo(bullet, 
+            { x: playerCenterX, y: playerCenterY, rotation: angle * (180 / Math.PI) },
+            { 
+                x: `+=${Math.cos(angle) * 1500}`, 
+                y: `+=${Math.sin(angle) * 1500}`, 
+                duration: 1.5,
+                ease: "linear",
+                onUpdate: function() {
+                    const bulletRect = bullet.getBoundingClientRect();
+                    for(const guardId in heistGameState.guards) {
+                        const guard = heistGameState.guards[guardId];
+                        if (guard.health <= 0) continue;
+                        
+                        const guardRect = guard.el.getBoundingClientRect();
+                        if (bulletRect.right > guardRect.left && bulletRect.left < guardRect.right &&
+                            bulletRect.bottom > guardRect.top && bulletRect.top < guardRect.bottom) {
+                            
+                            this.kill(); // Stop the animation
+                            bullet.remove();
+                            activeHeistRef.child(`rooms/${playerState.heist.currentRoom}/guards/${guardId}/health`).set(firebase.database.ServerValue.increment(-25));
+                            break;
+                        }
+                    }
+                },
+                onComplete: () => bullet.remove()
+            }
+        );
+    }
+
+
     function updateHeistGameState(snapshot) {
         const heistData = snapshot.val();
-        heistGameState.fullData = heistData;
         
-        if (!heistData || !heistData.players || !heistData.players[currentUser.uid]) {
+        if (!heistData || !heistData.players) {
             if(playerState.inMinigame === 'heist-active') leaveHeistScene(playerState.heist.moneyCollected);
             return;
         }
 
+        if (!heistData.players[currentUser.uid]) {
+             if(playerState.inMinigame === 'heist-active') {
+                leaveHeistScene(playerState.heist.moneyCollected);
+             }
+             return;
+        }
+
+        heistGameState.fullData = heistData;
         const myData = heistData.players[currentUser.uid];
         playerState.heist.health = myData.health;
         playerState.heist.moneyCollected = myData.moneyCollected;
@@ -2821,8 +2937,8 @@ function updateAllBalanceDisplays(targetBalance) {
         
         if (myData.health <= 0 && playerState.inMinigame === 'heist-active') {
             showToast("You were downed!", "error");
-            leaveHeistScene(0);
             activeHeistRef.child(`players/${currentUser.uid}`).remove();
+            leaveHeistScene(0);
             return;
         }
 
@@ -2845,13 +2961,11 @@ function updateAllBalanceDisplays(targetBalance) {
                  const item = heistGameState.elements[id];
                  if (item.type === 'guard' && newRoomData.guards && newRoomData.guards[id]) {
                      const guardData = newRoomData.guards[id];
+                     heistGameState.guards[id].health = guardData.health; // Update local state
                      const healthFill = item.el.querySelector('.heist-guard-health-fill');
                      if(healthFill) healthFill.style.width = `${Math.max(0, guardData.health / 150) * 100}%`;
                      if(guardData.health <= 0 && item.el.style.backgroundColor !== 'rgb(85, 85, 85)') {
-                        item.el.style.backgroundColor = '#555';
-                        item.el.style.boxShadow = 'none';
-                        item.el.style.cursor = 'default';
-                        item.el.innerHTML = '';
+                        renderHeistRoom(newRoomData);
                      }
                  }
                  if (item.type === 'money' && newRoomData.money && newRoomData.money[id]) {
@@ -2881,6 +2995,7 @@ function updateAllBalanceDisplays(targetBalance) {
     function renderHeistRoom(roomData) {
         heistGameArea.innerHTML = ''; 
         heistGameState.elements = {};
+        heistGameState.guards = {};
         if(!roomData) return;
 
         const allItems = {...roomData.guards, ...roomData.money};
@@ -2894,18 +3009,13 @@ function updateAllBalanceDisplays(targetBalance) {
             if (id.startsWith('guard')) {
                 type = 'guard';
                 el.className = 'heist-guard';
-                if (data.health <= 0) {
-                    el.style.backgroundColor = '#555';
-                    el.style.boxShadow = 'none';
-                    el.style.cursor = 'default';
-                } else {
-                    const healthBar = document.createElement('div');
-                    healthBar.style.cssText = 'position: absolute; bottom: -15px; left: 0; width: 100%; height: 8px; background-color: #333; border-radius: 4px; pointer-events: none;';
-                    const healthFill = document.createElement('div');
-                    healthFill.className = 'heist-guard-health-fill';
-                    healthFill.style.cssText = `width: ${Math.max(0, data.health / 150) * 100}%; height: 100%; background-color: var(--success); border-radius: 4px;`;
-                    healthBar.appendChild(healthFill);
-                    el.appendChild(healthBar);
+                if(data.health > 0) {
+                     el.innerHTML = `
+                        <div class="heist-guard-alert">!</div>
+                        <img src="WALK.gif" class="heist-guard-character">
+                        <div style="position: absolute; bottom: -15px; left: 0; width: 100%; height: 8px; background-color: #333; border-radius: 4px;"><div class="heist-guard-health-fill" style="width: ${Math.max(0, data.health / 150) * 100}%; height: 100%; background-color: var(--success); border-radius: 4px;"></div></div>
+                    `;
+                    heistGameState.guards[id] = { el, ...data, state: 'patrolling', stateTimer: 2 + Math.random() * 3, target: {x: data.x, y: data.y} };
                 }
             } else if (id.startsWith('money')) {
                 type = 'money';
@@ -2913,10 +3023,10 @@ function updateAllBalanceDisplays(targetBalance) {
                 if (data.isCollected) {
                     el.style.display = 'none';
                 } else if (data.isTrapped && data.glassHealth > 0) {
+                    el.classList.add('trapped');
                     el.dataset.trapped = 'true';
-                    el.style.cursor = 'pointer';
                     const glass = document.createElement('div');
-                    glass.style.cssText = 'position: absolute; width: 100%; height: 100%; background-color: rgba(200, 220, 255, 0.5); backdrop-filter: blur(2px); border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: white; pointer-events: none;';
+                    glass.className = 'glass-case';
                     glass.textContent = `${data.glassHealth}`;
                     el.appendChild(glass);
                 }
@@ -2925,8 +3035,6 @@ function updateAllBalanceDisplays(targetBalance) {
             el.dataset.type = type;
             el.style.left = `${data.x}px`;
             el.style.top = `${data.y}px`;
-            el.style.width = `${data.w}px`;
-            el.style.height = `${data.h}px`;
             
             heistGameArea.appendChild(el);
             heistGameState.elements[id] = { el, data, type };
@@ -2955,32 +3063,6 @@ function updateAllBalanceDisplays(targetBalance) {
             }
             return;
         }
-
-        const now = Date.now();
-        if (!heistGameState.lastGuardAttackTime || now - heistGameState.lastGuardAttackTime > 2000) {
-            heistGameState.lastGuardAttackTime = now;
-            const updates = {};
-            const activeGuards = Object.values(room.guards || {}).filter(g => g.health > 0);
-            
-            activeGuards.forEach(guardData => {
-                Object.entries(heistData.players).forEach(([playerId, playerData]) => {
-                    if (playerData.health <= 0) return;
-                    const dx = guardData.x - playerData.x;
-                    const dy = guardData.y - playerData.y;
-                    const distance = Math.sqrt(dx*dx + dy*dy);
-                    
-                    if (distance < 150) {
-                        const path = `/players/${playerId}/health`;
-                        const currentHealth = updates[path] !== undefined ? updates[path] : playerData.health;
-                        updates[path] = Math.max(0, currentHealth - 5);
-                    }
-                });
-            });
-            
-            if (Object.keys(updates).length > 0) {
-                activeHeistRef.update(updates);
-            }
-        }
     }
     
     function endHeist(heistData) {
@@ -2997,9 +3079,9 @@ function updateAllBalanceDisplays(targetBalance) {
             activeHeistRef.remove();
         });
     }
-    
+
     function updateHeistLogic(deltaTime) {
-        if (playerState.inMinigame !== 'heist-active' || !heistGameState.currentRoomData || playerState.heist.health <= 0) {
+        if (playerState.inMinigame !== 'heist-active' || !heistGameState.fullData || !heistGameState.currentRoomData || playerState.heist.health <= 0) {
             if(playerState.heist.isCollecting) {
                  playerState.heist.isCollecting = false; playerState.heist.collectionTimer = 0;
                  playerState.heist.collectionTargetId = null; moneyCollectionProgress.style.display = 'none';
@@ -3007,9 +3089,9 @@ function updateAllBalanceDisplays(targetBalance) {
             return;
         }
 
+        // --- Handle Money Collection ---
         const playerBox = { x: playerState.x, y: playerState.y, w: playerState.width, h: playerState.height };
         let currentlyCollidingWithMoneyId = null;
-
         for (const id in heistGameState.currentRoomData.money) {
             const moneyData = heistGameState.currentRoomData.money[id];
             if (moneyData.isCollected || (moneyData.isTrapped && moneyData.glassHealth > 0)) continue;
@@ -3051,6 +3133,82 @@ function updateAllBalanceDisplays(targetBalance) {
         } else {
             playerState.heist.isCollecting = false; playerState.heist.collectionTimer = 0;
             playerState.heist.collectionTargetId = null; moneyCollectionProgress.style.display = 'none';
+        }
+
+        // --- Handle Guard AI ---
+        for (const guardId in heistGameState.guards) {
+            const guard = heistGameState.guards[guardId];
+            if (guard.health <= 0) continue;
+
+            guard.stateTimer -= deltaTime;
+
+            let closestPlayer = null;
+            let minDistance = Infinity;
+
+            Object.values(heistGameState.fullData.players).forEach(p => {
+                 const dx = guard.x - p.x;
+                 const dy = guard.y - p.y;
+                 const dist = Math.sqrt(dx*dx + dy*dy);
+                 if (dist < minDistance) {
+                     minDistance = dist;
+                     closestPlayer = p;
+                 }
+            });
+
+            if (minDistance < 350) { // Attack range
+                guard.state = 'attacking';
+                if (guard.stateTimer <= 0) {
+                    guard.stateTimer = 2.0; // Attack every 2 seconds
+                    
+                    const laser = document.createElement('div');
+                    laser.className = 'heist-laser';
+                    heistGameArea.appendChild(laser);
+                    const angle = Math.atan2(closestPlayer.y + 40 - (guard.y + 40), closestPlayer.x + 40 - (guard.x + 40));
+                    gsap.fromTo(laser, 
+                        { x: guard.x + 40, y: guard.y + 40, rotation: angle * (180 / Math.PI) },
+                        { 
+                            x: closestPlayer.x + 40, 
+                            y: closestPlayer.y + 40, 
+                            duration: 0.3,
+                            ease: "linear",
+                            onComplete: () => {
+                                laser.remove();
+                                const playerRect = {x: closestPlayer.x, y: closestPlayer.y, w: 80, h: 80};
+                                const laserTip = {x: closestPlayer.x + 40, y: closestPlayer.y + 40};
+                                if (laserTip.x > playerRect.x && laserTip.x < playerRect.x + playerRect.w &&
+                                    laserTip.y > playerRect.y && laserTip.y < playerRect.y + playerRect.h) {
+                                     // Damage is applied by the leader client to maintain authority
+                                    const playerKeys = Object.keys(heistGameState.fullData.players);
+                                    if(playerKeys.length > 0 && playerKeys[0] === currentUser.uid) {
+                                        activeHeistRef.child(`players/${closestPlayer.uid}/health`).set(firebase.database.ServerValue.increment(-5));
+                                    }
+                                }
+                            }
+                        }
+                    );
+                }
+            } else {
+                guard.state = 'patrolling';
+                if (guard.stateTimer <= 0) {
+                    guard.stateTimer = 3 + Math.random() * 4;
+                    guard.target = {
+                        x: 100 + Math.random() * (heistGameArea.offsetWidth - 200),
+                        y: 100 + Math.random() * (heistGameArea.offsetHeight - 200)
+                    };
+                }
+            }
+
+            if (guard.state === 'patrolling') {
+                const dx = guard.target.x - guard.x;
+                const dy = guard.target.y - guard.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist > 5) {
+                    guard.x += (dx / dist) * 50 * deltaTime;
+                    guard.y += (dy / dist) * 50 * deltaTime;
+                    guard.el.style.left = `${guard.x}px`;
+                    guard.el.style.top = `${guard.y}px`;
+                }
+            }
         }
     }
 
@@ -3298,6 +3456,9 @@ function updateAllBalanceDisplays(targetBalance) {
         }
     }
     function handleGlobalKeyUp(e) { if (e.key.toLowerCase() in keys) keys[e.key.toLowerCase()] = false; }
+
+    leaveBankBtn.addEventListener('click', leaveBank);
+    heistAbandonBtn.addEventListener('click', handleAbandonHeist);
 
     const linusHubTab = document.getElementById('linus-hub');
     const observer = new MutationObserver(() => {
