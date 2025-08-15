@@ -1367,6 +1367,14 @@ function updateAllBalanceDisplays(targetBalance) {
         
         playerState.y += playerState.height / 2;
         playerState.isSitting = false;
+        
+        // --- FIX START ---
+        // Reset movement keys state to prevent getting stuck.
+        keys.w = false;
+        keys.a = false;
+        keys.s = false;
+        keys.d = false;
+        // --- FIX END ---
 
         updateLocalPlayerPosition();
     }
@@ -1640,11 +1648,8 @@ function updateAllBalanceDisplays(targetBalance) {
             uiContainer.append(bubble, nametag);
             container.append(uiContainer, img);
             
-            // --- FIX START ---
-            // Normalize inHouseId to null if it's missing (undefined) from Firebase.
             const otherPlayerHouseId = pData.inHouseId || null;
             otherPlayerElements[uid] = { container, img, bubble, bubbleTimeout: null, inHouseId: otherPlayerHouseId };
-            // --- FIX END ---
             
             gsap.to(otherPlayerElements[uid].container, { left: pData.x, top: pData.y, duration: 0 });
             otherPlayerElements[uid].img.style.transform = `scaleX(${pData.direction})`;
@@ -1663,12 +1668,9 @@ function updateAllBalanceDisplays(targetBalance) {
             const otherPlayer = otherPlayerElements[uid];
             if (!otherPlayer) return;
             
-            // --- FIX START ---
-            // Normalize inHouseId to null if it's missing (undefined) from Firebase.
             const otherPlayerHouseId = pData.inHouseId || null;
             otherPlayer.inHouseId = otherPlayerHouseId;
             updatePlayerScene(otherPlayer.container, otherPlayer.inHouseId);
-            // --- FIX END ---
 
             gsap.to(otherPlayer.container, { left: pData.x, top: pData.y, duration: 0.1, ease: 'linear' });
             otherPlayer.container.style.zIndex = Math.round(pData.y);
@@ -1825,4 +1827,4 @@ function updateAllBalanceDisplays(targetBalance) {
 });
 </script>
 </body>
-</html>```
+</html>
