@@ -1816,9 +1816,9 @@ function updateAllBalanceDisplays(targetBalance) {
         }
 
         if (chairEl) {
-            const chairBoxX = parseInt(chairEl.style.left);
-            const chairBoxHeight = parseInt(chairEl.style.height);
-            playerState.y = chairBoxX + chairBoxHeight;
+            const chairY = parseInt(chairEl.style.top);
+            const chairHeight = parseInt(chairEl.style.height);
+            playerState.y = chairY + chairHeight + 5; // FIX: Use Y coordinate and add a buffer
         }
 
         playerState.isSitting = false;
@@ -2015,8 +2015,9 @@ function updateAllBalanceDisplays(targetBalance) {
         localPlayerContainer.style.top = `${playerState.y}px`;
         localPlayerContainer.style.zIndex = Math.round(playerState.y);
         
-        if (playerState.inMinigame !== 'heist-active' && playerState.inMinigame !== 'pizzeria-kitchen') {
-            worldContainer.style.transform = `translate(${-playerState.x + gameArea.offsetWidth / 2 - playerState.width/2}px, ${-playerState.y + gameArea.offsetHeight / 2 - playerState.height/2}px)`;
+        // FIX: Correctly handle camera transform based on world visibility
+        if (worldContainer.style.display !== 'none') {
+             worldContainer.style.transform = `translate(${-playerState.x + gameArea.offsetWidth / 2 - playerState.width/2}px, ${-playerState.y + gameArea.offsetHeight / 2 - playerState.height/2}px)`;
         }
 
         if (keys.a) playerState.direction = -1;
@@ -2027,7 +2028,7 @@ function updateAllBalanceDisplays(targetBalance) {
         const newSrc = (playerState.animation === 'walk') ? 'WALK.gif' : 'IDLE.gif';
         if (playerState.imgElement.src.indexOf(newSrc) === -1) { playerState.imgElement.src = newSrc; }
         
-        if (playerRef) {
+        if (playerRef && currentUser) {
             const updates = {
                 x: playerState.x, y: playerState.y,
                 direction: playerState.direction, animation: playerState.animation,
@@ -2636,9 +2637,8 @@ function leavePizzeriaRestaurant() {
     }
     
     function generateAndStartHeist(players) {
-        const heistId = "heist_" + Date.now();
         const newHeistData = {
-            id: heistId,
+            id: "heist_" + Date.now(),
             currentRoom: 1,
             players: {},
             rooms: {}
@@ -2662,7 +2662,7 @@ function leavePizzeriaRestaurant() {
         }
 
         activeHeistRef.set(newHeistData).then(() => {
-            bankRef.update({ status: 'active', activeHeistId: heistId });
+            bankRef.update({ status: 'active', activeHeistId: newHeistData.id });
         });
     }
 
@@ -2671,11 +2671,15 @@ function leavePizzeriaRestaurant() {
         playerState.hubY = playerState.y;
         playerState.inMinigame = 'bank';
         playerState.x = 500; playerState.y = 500;
+        
         worldContainer.style.display = 'none';
         bankContainer.style.display = 'block';
+
         if(playerRef) playerRef.update({ inMinigame: 'bank', inHouseId: null, x: playerState.x, y: playerState.y });
+        
         updatePlayerScene(localPlayerContainer, playerState);
         Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.state));
+        
         bankListener = bankRef.on('value', updateBankLobbyUI);
     }
 
@@ -2683,21 +2687,28 @@ function leavePizzeriaRestaurant() {
         if(bankListener) bankRef.off('value', bankListener);
         if(bankHeistTimerInterval) clearInterval(bankHeistTimerInterval);
         bankListener = null;
+
         if (currentUser) {
-            bankRef.child(`players/${currentUser.uid}`).remove();
+            bankRef.child(`players/${currentUser.uid}`).remove().catch(()=>{});
         }
+        
         playerState.inMinigame = null;
         if(playerRef) playerRef.update({ inMinigame: null });
+
         playerState.x = bankBuilding.x + (bankBuilding.width / 2);
         playerState.y = bankBuilding.y + bankBuilding.height + 10;
+        
         bankContainer.style.display = 'none';
         worldContainer.style.display = 'block';
+
         updatePlayerScene(localPlayerContainer, playerState);
         Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.state));
         updateLocalPlayerPosition();
     }
     
     function enterHeistScene() {
+        if (playerState.inMinigame === 'heist-active') return;
+        
         playerState.inMinigame = 'heist-active';
         worldContainer.style.display = 'none';
         bankContainer.style.display = 'none';
@@ -2728,7 +2739,7 @@ function leavePizzeriaRestaurant() {
         if(playerRef) playerRef.update({ inMinigame: null });
         
         if (finalLoot > 0) {
-            showToast(`Heist completed! You collected ${finalLoot.toLocaleString()} BUX!`, "success");
+            showToast(`Heist completed! You escaped with ${finalLoot.toLocaleString()} BUX!`, "success");
         } else {
              showToast("You have left the heist.", "info");
         }
@@ -2757,16 +2768,18 @@ function leavePizzeriaRestaurant() {
 
         heistGameState.currentRoomData = heistData.rooms[heistData.currentRoom];
         
-        // Render room and players
         renderHeistRoom(heistGameState.currentRoomData);
+
+        // Update other players' positions
         Object.keys(heistData.players).forEach(uid => {
             const pData = heistData.players[uid];
-            if(otherPlayerElements[uid]) {
+            if(otherPlayerElements[uid] && uid !== currentUser.uid) {
                 gsap.to(otherPlayerElements[uid].container, {left: pData.x, top: pData.y, duration: 0.1});
             }
         });
         
-        if (heistData.players[Object.keys(heistData.players)[0]] === currentUser.uid) {
+        const playerKeys = Object.keys(heistData.players);
+        if (playerKeys.length > 0 && playerKeys[0] === currentUser.uid) {
             checkHeistRoomCompletion(heistData);
         }
     }
@@ -2804,6 +2817,14 @@ function leavePizzeriaRestaurant() {
             heistGameArea.appendChild(el);
             heistGameState.elements[id] = { el, data, type };
         }
+        
+        // Append players to the heist area after rendering room objects
+        updatePlayerScene(localPlayerContainer, { inMinigame: 'heist-active' });
+        Object.values(otherPlayerElements).forEach(p => {
+            if(p.state.inMinigame === 'heist-active') {
+                updatePlayerScene(p.container, p.state);
+            }
+        });
     }
     
     function checkHeistRoomCompletion(heistData) {
@@ -2850,18 +2871,13 @@ function leavePizzeriaRestaurant() {
         });
     }
 
-    leaveBankBtn.addEventListener('click', leaveBank);
-
-
     function gameLoop() {
         const now = performance.now();
         const deltaTime = (now - lastFrameTime) / 1000.0;
         
         updateLocalPlayerPosition();
 
-        if (playerState.inMinigame === 'heist-active') {
-             // Heist Game Logic
-        } else if (playerState.inMinigame === 'pizzeria-restaurant') {
+        if (playerState.inMinigame === 'pizzeria-restaurant') {
             updateNpcs(deltaTime);
         }
         
@@ -2922,21 +2938,15 @@ function leavePizzeriaRestaurant() {
             container.className = 'player-character';
             container.style.width = `${pData.width}px`;
             container.style.height = `${pData.height}px`;
-            const uiContainer = document.createElement('div');
-            uiContainer.className = 'player-ui-container';
-            const bubble = document.createElement('div');
-            bubble.className = 'chat-bubble';
-            const nametag = document.createElement('div');
-            nametag.className = 'player-nametag';
-            nametag.textContent = pData.email.split('@')[0];
-            const img = document.createElement('img');
-            img.src = 'IDLE.gif';
-            uiContainer.append(bubble, nametag);
-            container.append(uiContainer, img);
+            container.innerHTML = `<div class="player-ui-container"><div class="chat-bubble"></div><div class="player-nametag">${pData.email.split('@')[0]}</div><div class="money-collection-progress"><div class="money-collection-progress-fill"></div></div></div><img src="IDLE.gif">`;
 
-            otherPlayerElements[uid] = { container, img, bubble, state: pData };
-            gsap.to(otherPlayerElements[uid].container, { left: pData.x, top: pData.y, duration: 0 });
-            otherPlayerElements[uid].img.style.transform = `scaleX(${pData.direction})`;
+            otherPlayerElements[uid] = { 
+                container, 
+                img: container.querySelector('img'), 
+                bubble: container.querySelector('.chat-bubble'), 
+                state: pData 
+            };
+            
             updatePlayerScene(container, pData);
             container.addEventListener('click', () => { openUserPanel(uid, pData.email); });
         });
@@ -2944,12 +2954,10 @@ function leavePizzeriaRestaurant() {
         playersRef.on('child_changed', (snapshot) => {
             const pData = snapshot.val();
             const uid = snapshot.key;
-            if (uid === currentUser.uid) {
-                if (pData.chatMessage) playerRef.child('chatMessage').remove();
-                return;
-            }
+            if (uid === currentUser.uid) return;
             const otherPlayer = otherPlayerElements[uid];
             if (!otherPlayer) return;
+            
             otherPlayer.state = pData;
             updatePlayerScene(otherPlayer.container, pData);
             gsap.to(otherPlayer.container, { left: pData.x, top: pData.y, duration: 0.1, ease: 'linear' });
@@ -2957,14 +2965,12 @@ function leavePizzeriaRestaurant() {
             otherPlayer.img.style.transform = `scaleX(${pData.direction})`;
             const newSrc = (pData.animation === 'walk' ? 'WALK.gif' : 'IDLE.gif');
             if (otherPlayer.img.src.indexOf(newSrc) === -1) otherPlayer.img.src = newSrc;
-            if (pData.chatMessage) handlePlayerChat(otherPlayer.container, pData.chatMessage);
         });
 
         playersRef.on('child_removed', (snapshot) => {
             const uid = snapshot.key;
-            const otherPlayer = otherPlayerElements[uid];
-            if (otherPlayer) {
-                otherPlayer.container.remove();
+            if (otherPlayerElements[uid]) {
+                otherPlayerElements[uid].container.remove();
                 delete otherPlayerElements[uid];
             }
         });
