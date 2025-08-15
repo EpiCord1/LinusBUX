@@ -2003,12 +2003,21 @@ function updateAllBalanceDisplays(targetBalance) {
         let moveX = 0, moveY = 0;
         let isMoving = false;
 
+        // Player can move if not chatting and not in the process of collecting money
         if (!isChatting && !playerState.heist.isCollecting) {
             if (keys.a) moveX -= 1; if (keys.d) moveX += 1;
             if (keys.w) moveY -= 1; if (keys.s) moveY += 1;
         }
 
         isMoving = (moveX !== 0 || moveY !== 0);
+
+        // If player starts moving, cancel any ongoing money collection
+        if (isMoving && playerState.heist.isCollecting) {
+            clearTimeout(playerState.heist.collectionTimer);
+            playerState.heist.isCollecting = false;
+            moneyCollectionProgress.style.display = 'none';
+            moneyCollectionProgressFill.style.width = '0%';
+        }
 
         if (isMoving) {
             let moveSpeed = playerState.speed * deltaTime;
@@ -2023,6 +2032,7 @@ function updateAllBalanceDisplays(targetBalance) {
         localPlayerContainer.style.top = `${playerState.y}px`;
         localPlayerContainer.style.zIndex = Math.round(playerState.y);
         
+        // FIX: Only transform the world container when it's visible
         if (worldContainer.style.display !== 'none') {
              worldContainer.style.transform = `translate(${-playerState.x + gameArea.offsetWidth / 2 - playerState.width/2}px, ${-playerState.y + gameArea.offsetHeight / 2 - playerState.height/2}px)`;
         }
@@ -2035,6 +2045,7 @@ function updateAllBalanceDisplays(targetBalance) {
         const newSrc = (playerState.animation === 'walk') ? 'WALK.gif' : 'IDLE.gif';
         if (playerState.imgElement.src.indexOf(newSrc) === -1) { playerState.imgElement.src = newSrc; }
         
+        // Send position updates to Firebase
         if (playerRef && currentUser) {
             if (playerState.inMinigame === 'heist-active') {
                 activeHeistRef.child(`players/${currentUser.uid}`).update({x: playerState.x, y: playerState.y});
@@ -2203,7 +2214,6 @@ function updateAllBalanceDisplays(targetBalance) {
     }
 
     function enterPizzeriaKitchen() {
-        pizzeriaChoicePanel.classList.remove('visible');
         playerState.hubX = playerState.x;
         playerState.hubY = playerState.y;
         playerState.inMinigame = 'pizzeria-kitchen';
@@ -2779,12 +2789,10 @@ function leavePizzeriaRestaurant() {
             renderHeistRoom(newRoomData);
         }
 
-        // Update player positions
+        // Update other players' positions
         Object.keys(heistData.players).forEach(uid => {
             const pData = heistData.players[uid];
-            if (uid === currentUser.uid) {
-                // Local player is updated in the game loop
-            } else if(otherPlayerElements[uid]) {
+            if(otherPlayerElements[uid] && uid !== currentUser.uid) {
                 gsap.to(otherPlayerElements[uid].container, {left: pData.x, top: pData.y, duration: 0.1});
             }
         });
@@ -2834,7 +2842,7 @@ function leavePizzeriaRestaurant() {
         // Append all active players to the heist area
         updatePlayerScene(localPlayerContainer, { inMinigame: 'heist-active' });
         Object.values(otherPlayerElements).forEach(p => {
-             if (bankRef.child('players').child(p.state.uid)) {
+             if (bankRef.child('players').child(p.state.uid)) { 
                 updatePlayerScene(p.container, { inMinigame: 'heist-active' });
             }
         });
