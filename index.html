@@ -399,8 +399,8 @@
         position: absolute;
         background-color: #c0392b;
         border-radius: 50%;
-        width: 25px;
-        height: 25px;
+        width: 50px; /* MODIFIED */
+        height: 50px; /* MODIFIED */
         pointer-events: none;
         transform: translate(-50%, -50%);
     }
@@ -477,7 +477,7 @@
     /* --- Primitive Ingredient Shapes --- */
     .shape-sauce { width: 90%; height: 90%; background: #c0392b; border-radius: 50%; }
     .shape-cheese { width: 90%; height: 90%; background: #f1c40f; border-radius: 50%; opacity: 0.9; }
-    .shape-pepperoni { width: 25px; height: 25px; background: #e74c3c; border: 2px solid #c0392b; border-radius: 50%; }
+    .shape-pepperoni { width: 25px; height: 25px; background: #e84393; border: 2px solid #d63031; border-radius: 50%; } /* MODIFIED COLOR */
     .shape-mushrooms { width: 25px; height: 18px; background: #a4b0be; border-radius: 12px 12px 0 0; }
     .shape-olives { width: 25px; height: 25px; border-radius: 50%; border: 6px solid #2f3542; }
 
@@ -1717,25 +1717,43 @@ function updateAllBalanceDisplays(targetBalance) {
     function finishPizza() {
         clearInterval(pizzeriaState.timerId);
         finishPizzaBtn.disabled = true;
-        let correct = true;
+
+        let hasAllRequired = true;
         if (!pizzeriaState.placedIngredients['Sauce'] || !pizzeriaState.placedIngredients['Cheese']) {
-            correct = false;
+            hasAllRequired = false;
         }
         for (const [name, needed] of Object.entries(pizzeriaState.currentOrder)) {
             if ((pizzeriaState.placedIngredients[name] || 0) !== needed) {
-                correct = false;
+                hasAllRequired = false;
                 break;
             }
         }
 
-        if (correct) {
-            const payout = PIZZA_PAYOUT + Object.keys(pizzeriaState.currentOrder).length;
-            showToast(`Perfect! +${payout} BUX`, 'success');
-            db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(payout));
+        if (hasAllRequired) {
+            let penalty = 0;
+            for (const placedTopping in pizzeriaState.placedIngredients) {
+                if (allToppings.includes(placedTopping) && !pizzeriaState.currentOrder.hasOwnProperty(placedTopping)) {
+                    penalty += 5; 
+                }
+            }
+            
+            const bonus = Object.keys(pizzeriaState.currentOrder).length;
+            const finalPayout = Math.max(0, PIZZA_PAYOUT + bonus - penalty);
+
+            showToast(`Good enough! +${finalPayout} BUX`, 'success');
+            if (penalty > 0) {
+                setTimeout(() => showToast(`Wasted ingredients! -${penalty} BUX penalty.`, 'error'), 500);
+            }
+
+            if (finalPayout > 0) {
+                 db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(finalPayout));
+            }
+
         } else {
-            showToast("Incorrect order!", 'error');
+             showToast("Incorrect order!", 'error');
         }
-        setTimeout(generateNewPizzaOrder, 1500);
+
+        setTimeout(generateNewPizzaOrder, 2000);
     }
     
     function enterPizzeria() {
@@ -1805,17 +1823,15 @@ function updateAllBalanceDisplays(targetBalance) {
     });
 
     pizzaBase.addEventListener('mousemove', e => {
-        if (pizzeriaState.isSpreadingSauce && e.buttons === 1) { // e.buttons === 1 means left mouse is held down
+        if (pizzeriaState.isSpreadingSauce && e.buttons === 1) { 
             const pizzaRect = pizzaBase.getBoundingClientRect();
             const x = e.clientX - pizzaRect.left;
             const y = e.clientY - pizzaRect.top;
-
             const splat = document.createElement('div');
             splat.className = 'sauce-splat';
             splat.style.left = `${x}px`;
             splat.style.top = `${y}px`;
             pizzaBase.appendChild(splat);
-            
             pizzeriaState.placedIngredients['SauceSplats']++;
             if(pizzeriaState.placedIngredients['SauceSplats'] >= SAUCE_SPLAT_REQUIREMENT && !pizzeriaState.placedIngredients['Sauce']) {
                 pizzeriaState.placedIngredients['Sauce'] = true;
@@ -1823,7 +1839,6 @@ function updateAllBalanceDisplays(targetBalance) {
             }
         }
     });
-
     pizzaBase.addEventListener('mouseup', () => {
         pizzeriaState.isSpreadingSauce = false;
     });
