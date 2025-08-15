@@ -2060,6 +2060,9 @@ function updateAllBalanceDisplays(targetBalance) {
         pizzeriaRestaurantContainer.style.display = 'none';
         worldContainer.style.display = 'block';
         npcState = []; // Clear NPCs
+
+        updatePlayerScene(localPlayerContainer, playerState);
+        
         updateLocalPlayerPosition();
     }
 
@@ -2582,3 +2585,4 @@ function updateAllBalanceDisplays(targetBalance) {
 </script>
 </body>
 </html>
+
