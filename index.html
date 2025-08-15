@@ -2069,17 +2069,37 @@ function updateAllBalanceDisplays(targetBalance) {
             if (!checkCollision(nextX, playerState.y)) { playerState.x = nextX; }
             if (!checkCollision(playerState.x, nextY)) { playerState.y = nextY; }
         }
-
+        
+        // ============================ FIX STARTS HERE ============================
+        // The call to the non-existent 'resolvePlayerCollision' is replaced with this simple anti-stuck logic.
         if (playerState.inMinigame === 'heist-active') {
-            resolvePlayerCollision(); // Anti-stuck failsafe
+            const maxTries = 5;
+            let tries = 0;
+            // If the player somehow spawns or moves inside an object, this will nudge them down until they are free.
+            while(checkCollision(playerState.x, playerState.y, false) && tries < maxTries) {
+                playerState.y += 2; 
+                tries++;
+            }
         }
+        // ========================== END OF FIX ===========================
         
         localPlayerContainer.style.left = `${playerState.x}px`;
         localPlayerContainer.style.top = `${playerState.y}px`;
         localPlayerContainer.style.zIndex = Math.round(playerState.y);
         
+        // Corrected camera logic for all game states
         if (worldContainer.style.display !== 'none') {
+             // Hub camera
              worldContainer.style.transform = `translate(${-playerState.x + gameArea.offsetWidth / 2 - playerState.width/2}px, ${-playerState.y + gameArea.offsetHeight / 2 - playerState.height/2}px)`;
+             heistGameArea.style.transform = 'translate(0px, 0px)';
+        } else if (playerState.inMinigame === 'heist-active') {
+             // Heist camera
+             heistGameArea.style.transform = `translate(${-playerState.x + heistGameArea.offsetWidth / 2 - playerState.width/2}px, ${-playerState.y + heistGameArea.offsetHeight / 2 - playerState.height/2}px)`;
+             worldContainer.style.transform = 'translate(0px, 0px)';
+        } else {
+             // Reset transforms for static scenes like houses or the pizzeria kitchen
+             worldContainer.style.transform = 'translate(0px, 0px)';
+             heistGameArea.style.transform = 'translate(0px, 0px)';
         }
 
         if (keys.a) playerState.direction = -1;
@@ -2659,7 +2679,6 @@ function updateAllBalanceDisplays(targetBalance) {
         return obstacles;
     }
     
-    // ================== FIX IS HERE ==================
     function findSafeSpawnPoint(obstacles, entityW, entityH, area) {
         const gameWidth = 1200;
         const gameHeight = 700;
@@ -2687,8 +2706,7 @@ function updateAllBalanceDisplays(targetBalance) {
         if (!isSafe) { return { x: 50, y: gameHeight / 2 }; } // Fallback
         return { x: spawnX, y: spawnY };
     }
-    // ================== END OF FIX ===================
-
+    
     function updateBankLobbyUI(snapshot) {
         const heistData = snapshot.val();
         if (bankHeistTimerInterval) clearInterval(bankHeistTimerInterval);
@@ -3045,7 +3063,6 @@ function updateAllBalanceDisplays(targetBalance) {
                  playerState.x = startPos.x;
                  playerState.y = startPos.y;
              }
-             resolvePlayerCollision();
         } else {
              heistGameState.currentRoomData = newRoomData;
              for(const id in heistGameState.elements) {
@@ -3647,4 +3664,3 @@ function updateAllBalanceDisplays(targetBalance) {
 </script>
 </body>
 </html>
-```
