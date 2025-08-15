@@ -1725,7 +1725,6 @@ function updateAllBalanceDisplays(targetBalance) {
     let heistGameState = { 
         elements: {}, 
         currentRoomData: null,
-        currentRoomGrid: null, // For pathfinding
         fullData: null,
         guards: {}
     };
@@ -2069,6 +2068,10 @@ function updateAllBalanceDisplays(targetBalance) {
             const nextY = playerState.y + moveY * moveSpeed;
             if (!checkCollision(nextX, playerState.y)) { playerState.x = nextX; }
             if (!checkCollision(playerState.x, nextY)) { playerState.y = nextY; }
+        }
+
+        if (playerState.inMinigame === 'heist-active') {
+            resolvePlayerCollision(); // Anti-stuck failsafe
         }
         
         localPlayerContainer.style.left = `${playerState.x}px`;
@@ -2635,10 +2638,6 @@ function updateAllBalanceDisplays(targetBalance) {
     }
 
     // --- BANK & HEIST LOGIC (REWORKED) ---
-    
-    // Pathfinding and Maze Generation
-    //... (A* implementation and maze generator would go here if needed, but for simplicity we use a simpler wall layout)
-
     function generateSimpleWalls(gameWidth, gameHeight, spawnAreaWidth) {
         const obstacles = {};
         const wallCount = Math.floor(Math.random() * 3) + 2; // 2 to 4 walls
@@ -2647,10 +2646,11 @@ function updateAllBalanceDisplays(targetBalance) {
         for (let i = 0; i < wallCount; i++) {
             const isVertical = Math.random() > 0.5;
             const wall = {
-                w: isVertical ? 25 : 200 + Math.random() * 200,
-                h: isVertical ? 200 + Math.random() * 200 : 25,
+                w: isVertical ? 30 : 250 + Math.random() * 200,
+                h: isVertical ? 250 + Math.random() * 200 : 30,
                 x: 0, y: 0
             };
+            // Ensure walls don't spawn in the dedicated safe zone on the left
             wall.x = spawnAreaWidth + Math.random() * (gameWidth - spawnAreaWidth - wall.w);
             wall.y = Math.random() * (gameHeight - wall.h);
 
@@ -2658,33 +2658,6 @@ function updateAllBalanceDisplays(targetBalance) {
         }
         return obstacles;
     }
-
-    function findSafeSpawnPoint(obstacles, entityW, entityH, area) {
-        let spawnX, spawnY, isSafe;
-        let attempts = 0;
-        const searchArea = area || { x: 0, y: 0, w: 1200, h: 700 };
-
-        do {
-            isSafe = true;
-            spawnX = searchArea.x + Math.random() * (searchArea.w - entityW);
-            spawnY = searchArea.y + Math.random() * (searchArea.h - entityH);
-            const entityBox = { left: spawnX, top: spawnY, right: spawnX + entityW, bottom: spawnY + entityH };
-
-            for (const obsId in obstacles) {
-                const obs = obstacles[obsId];
-                const obsBox = { left: obs.x, top: obs.y, right: obs.x + obs.w, bottom: obs.y + obs.h };
-                if (entityBox.right > obsBox.left && entityBox.left < obsBox.right && entityBox.bottom > obsBox.top && entityBox.top < obsBox.bottom) {
-                    isSafe = false;
-                    break;
-                }
-            }
-            attempts++;
-        } while (!isSafe && attempts < 100);
-
-        if (!isSafe) { return { x: 50, y: 350 }; } // Fallback
-        return { x: spawnX, y: spawnY };
-    }
-
     
     function updateBankLobbyUI(snapshot) {
         const heistData = snapshot.val();
@@ -2775,7 +2748,7 @@ function updateAllBalanceDisplays(targetBalance) {
             const numMoney = 8 + Math.floor(Math.random() * 3);
 
             for (let g = 0; g < numGuards; g++) {
-                const spawnPoint = findSafeSpawnPoint(obstacles, 80, 80);
+                 const spawnPoint = findSafeSpawnPoint(obstacles, 80, 80);
                 roomData.guards['guard' + g] = { 
                     x: spawnPoint.x, y: spawnPoint.y, 
                     w: 80, h: 80, health: 150, animation: 'idle'
@@ -2784,7 +2757,7 @@ function updateAllBalanceDisplays(targetBalance) {
 
             for (let m = 0; m < numMoney; m++) {
                 const isTrapped = Math.random() < 0.3;
-                const spawnPoint = findSafeSpawnPoint(obstacles, 60, 35);
+                 const spawnPoint = findSafeSpawnPoint(obstacles, 60, 35);
                 roomData.money['money' + m] = { 
                     x: spawnPoint.x, y: spawnPoint.y, 
                     w: 60, h: 35, value: 100, isCollected: false,
@@ -2886,7 +2859,7 @@ function updateAllBalanceDisplays(targetBalance) {
         playerState.heist.health = 100;
         
         heistGameArea.innerHTML = '';
-        heistGameState = { elements: {}, currentRoomData: null, currentRoomGrid: null, fullData: null, guards: {} };
+        heistGameState = { elements: {}, currentRoomData: null, fullData: null, guards: {} };
 
         heistSceneContainer.classList.remove('visible');
         appContainer.style.display = 'flex';
@@ -2963,8 +2936,9 @@ function updateAllBalanceDisplays(targetBalance) {
                 x: `+=${Math.cos(angle) * 1500}`, y: `+=${Math.sin(angle) * 1500}`, 
                 duration: 1.5, ease: "linear",
                 onUpdate: function() {
-                    const currentPos = this.targets()[0];
-                    const bulletBox = { left: currentPos.offsetLeft, top: currentPos.offsetTop, right: currentPos.offsetLeft + 10, bottom: currentPos.offsetTop + 4 };
+                    const bulletX = gsap.getProperty(bullet, "x");
+                    const bulletY = gsap.getProperty(bullet, "y");
+                    const bulletBox = { left: bulletX, top: bulletY, right: bulletX + 10, bottom: bulletY + 4 };
                     
                     let hit = false;
                     for (const id in heistGameState.elements) {
@@ -2981,7 +2955,7 @@ function updateAllBalanceDisplays(targetBalance) {
                     for(const guardId in heistGameState.guards) {
                         const guard = heistGameState.guards[guardId];
                         if (guard.health <= 0) continue;
-                        const guardBox = { left: guard.el.offsetLeft, top: guard.el.offsetTop, right: guard.el.offsetLeft + guard.w, bottom: guard.el.offsetTop + guard.h };
+                        const guardBox = { left: guard.x, top: guard.y, right: guard.x + guard.w, bottom: guard.y + guard.h };
                         if (bulletBox.right > guardBox.left && bulletBox.left < guardBox.right && bulletBox.bottom > guardBox.top && bulletBox.top < guardBox.bottom) {
                             activeHeistRef.child(`rooms/${playerState.heist.currentRoom}/guards/${guardId}/health`).set(firebase.database.ServerValue.increment(-25));
                             hit = true; break;
@@ -2994,41 +2968,16 @@ function updateAllBalanceDisplays(targetBalance) {
         );
     }
 
-    function resolvePlayerCollision() {
-        const pBox = { left: playerState.x, top: playerState.y, right: playerState.x + playerState.width, bottom: playerState.y + playerState.height };
-
-        for (const id in heistGameState.elements) {
-            const item = heistGameState.elements[id];
-            if (item.type !== 'obstacle') continue;
-
-            const oBox = { left: item.data.x, top: item.data.y, right: item.data.x + item.data.w, bottom: item.data.y + item.data.h };
-
-            if (pBox.right > oBox.left && pBox.left < oBox.right && pBox.bottom > oBox.top && pBox.top < oBox.bottom) {
-                // Collision detected
-                const dx1 = oBox.right - pBox.left; // Push right
-                const dx2 = pBox.right - oBox.left; // Push left
-                const dy1 = oBox.bottom - pBox.top; // Push down
-                const dy2 = pBox.bottom - oBox.top; // Push up
-
-                const minDx = dx1 < dx2 ? dx1 : -dx2;
-                const minDy = dy1 < dy2 ? dy1 : -dy2;
-
-                if (Math.abs(minDx) < Math.abs(minDy)) {
-                    playerState.x += minDx;
-                } else {
-                    playerState.y += minDy;
-                }
-                return; // Resolve one collision at a time
-            }
-        }
-    }
-
-
     function updateHeistGameState(snapshot) {
         const heistData = snapshot.val();
         
         const players = heistData ? heistData.players : null;
         if (!heistData || !players || Object.keys(players).length === 0) {
+            const wasLeader = heistGameState.fullData && Object.keys(heistGameState.fullData.players || {})[0] === currentUser.uid;
+            if (wasLeader) {
+                bankRef.set({ cooldownUntil: Date.now() + 300000 });
+                activeHeistRef.remove();
+            }
             if(playerState.inMinigame === 'heist-active') leaveHeistScene(playerState.heist.moneyCollected);
             return;
         }
@@ -3060,22 +3009,24 @@ function updateAllBalanceDisplays(targetBalance) {
         const newRoomData = heistData.rooms[heistData.currentRoom];
         if (JSON.stringify(newRoomData?.obstacles) !== JSON.stringify(heistGameState.currentRoomData?.obstacles)) {
             heistGameState.currentRoomData = newRoomData;
-            heistGameState.currentRoomGrid = null; // No longer needed
             renderHeistRoom(newRoomData);
              const startPos = heistData.players[currentUser.uid];
              if(startPos) {
                  playerState.x = startPos.x;
                  playerState.y = startPos.y;
              }
-             resolvePlayerCollision(); // Failsafe if spawn is bad
+             resolvePlayerCollision();
         } else {
              heistGameState.currentRoomData = newRoomData;
-             heistGameState.currentRoomGrid = null;
              for(const id in heistGameState.elements) {
                  const item = heistGameState.elements[id];
                  if (item.type === 'guard' && newRoomData.guards && newRoomData.guards[id]) {
                      const guardData = newRoomData.guards[id];
-                     if(heistGameState.guards[id]) heistGameState.guards[id].health = guardData.health;
+                     if(heistGameState.guards[id]) {
+                        heistGameState.guards[id].health = guardData.health;
+                        heistGameState.guards[id].x = guardData.x;
+                        heistGameState.guards[id].y = guardData.y;
+                     }
                      
                      gsap.to(item.el, { left: guardData.x, top: guardData.y, duration: 0.1, ease: 'linear' });
 
@@ -3193,10 +3144,9 @@ function updateAllBalanceDisplays(targetBalance) {
             if (heistData.currentRoom >= 10) {
                 endHeist(heistData);
             } else {
-                const nextRoomNum = heistData.currentRoom + 1;
+                 const nextRoomNum = heistData.currentRoom + 1;
                 const updates = { currentRoom: nextRoomNum };
                 const spawnPoint = { x: 80, y: 350 };
-
                 Object.keys(heistData.players).forEach(uid => {
                     updates[`players/${uid}/x`] = spawnPoint.x;
                     updates[`players/${uid}/y`] = spawnPoint.y;
@@ -3209,7 +3159,7 @@ function updateAllBalanceDisplays(targetBalance) {
     }
     
     function endHeist(heistData) {
-        if(!heistData) return; // Already ended
+        if(!heistData) return;
         const updates = {};
         const playerKeys = Object.keys(heistData.players || {});
         
@@ -3362,7 +3312,9 @@ function updateAllBalanceDisplays(targetBalance) {
                             duration: 1, ease: "linear",
                             onUpdate: function() {
                                 const currentPos = this.targets()[0];
-                                const laserBox = { left: currentPos.offsetLeft, top: currentPos.offsetTop, right: currentPos.offsetLeft + 10, bottom: currentPos.offsetTop + 4 };
+                                const laserX = gsap.getProperty(currentPos, "x");
+                                const laserY = gsap.getProperty(currentPos, "y");
+                                const laserBox = { left: laserX, top: laserY, right: laserX + 10, bottom: laserY + 4 };
                                 let hit = false;
                                 for (const id in heistGameState.elements) {
                                     if (heistGameState.elements[id].type === 'obstacle') {
