@@ -2069,11 +2069,11 @@ function updateAllBalanceDisplays(targetBalance) {
         return false;
     }
 
-    // ============================ COMPLETE FUNCTION REPLACEMENT (FIX #2) ============================
     function updateLocalPlayerPosition(deltaTime) {
         let moveX = 0, moveY = 0;
         let isMoving = false;
 
+        // Player movement is disabled while collecting money
         if (!isChatting && !playerState.heist.isCollecting && playerState.heist.health > 0) {
             if (keys.a) moveX -= 1; if (keys.d) moveX += 1;
             if (keys.w) moveY -= 1; if (keys.s) moveY += 1;
@@ -2090,7 +2090,7 @@ function updateAllBalanceDisplays(targetBalance) {
             if (!checkCollision(playerState.x, nextY)) { playerState.y = nextY; }
         }
         
-        // Anti-stuck logic for the heist (replaces the broken resolvePlayerCollision call)
+        // Anti-stuck logic for the heist
         if (playerState.inMinigame === 'heist-active') {
             const maxTries = 5;
             let tries = 0;
@@ -2104,17 +2104,17 @@ function updateAllBalanceDisplays(targetBalance) {
         localPlayerContainer.style.top = `${playerState.y}px`;
         localPlayerContainer.style.zIndex = Math.round(playerState.y);
         
-        // Corrected camera logic for all game states
+        // --- CAMERA LOGIC FIX ---
         if (worldContainer.style.display !== 'none') {
              // Hub camera follows player
              worldContainer.style.transform = `translate(${-playerState.x + gameArea.offsetWidth / 2 - playerState.width/2}px, ${-playerState.y + gameArea.offsetHeight / 2 - playerState.height/2}px)`;
-             heistGameArea.style.transform = 'translate(0px, 0px)'; // Reset heist area
-        } else if (playerState.inMinigame === 'heist-active') {
-             // Heist camera is now STATIC and centered
              heistGameArea.style.transform = 'translate(0px, 0px)';
-             worldContainer.style.transform = 'translate(0px, 0px)'; // Reset hub area
+        } else if (playerState.inMinigame === 'heist-active') {
+             // Heist camera is STATIC and centered on the room
+             heistGameArea.style.transform = 'translate(0px, 0px)';
+             worldContainer.style.transform = 'translate(0px, 0px)';
         } else {
-             // Reset transforms for static scenes like houses
+             // Reset transforms for other static scenes like houses
              worldContainer.style.transform = 'translate(0px, 0px)';
              heistGameArea.style.transform = 'translate(0px, 0px)';
         }
@@ -2139,7 +2139,6 @@ function updateAllBalanceDisplays(targetBalance) {
             }
         }
     }
-    // =========================================================================================
 
     // --- Pizzeria Logic (Kitchen, Restaurant, Ordering) ---
     const PIZZA_PAYOUT = 8;
@@ -2952,8 +2951,10 @@ function updateAllBalanceDisplays(targetBalance) {
         }
     }
 
+    // ============================ SHOOTING FIX (FIX #2) ============================
     function handleHeistMouseDown(e) {
-        if (playerState.heist.health <= 0) return;
+        // Stop all actions if player is dead or collecting money
+        if (playerState.heist.health <= 0 || playerState.heist.isCollecting) return;
         
         const target = e.target;
         if (target.classList.contains('heist-money') && target.dataset.trapped === 'true') {
@@ -2974,6 +2975,7 @@ function updateAllBalanceDisplays(targetBalance) {
              handlePlayerShoot(e);
         }
     }
+    // ============================ END OF FIX ============================
     
     function handleHeistMouseUp(e) {
         playerState.heist.isHoldingClick = false;
@@ -3291,8 +3293,10 @@ function updateAllBalanceDisplays(targetBalance) {
                 playerState.heist.collectionTargetId = null; moneyCollectionProgress.style.display = 'none';
             }
         } else {
-            playerState.heist.isCollecting = false; playerState.heist.collectionTimer = 0;
-            playerState.heist.collectionTargetId = null; moneyCollectionProgress.style.display = 'none';
+            playerState.heist.isCollecting = false;
+            playerState.heist.collectionTimer = 0;
+            playerState.heist.collectionTargetId = null;
+            moneyCollectionProgress.style.display = 'none';
         }
 
         const playerKeys = Object.keys(heistGameState.fullData.players);
