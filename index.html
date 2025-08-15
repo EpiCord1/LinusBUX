@@ -253,7 +253,6 @@
     #world-container, #interior-container {
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     }
-    #world-container { transition: transform 0.1s linear; }
     .player-character {
         position: absolute;
         user-select: none;
@@ -688,7 +687,7 @@ auth.onAuthStateChanged(user => {
                 balanceRef.set({ balance: balance, email: user.email });
             }
             updateAllBalanceDisplays(balance);
-            isBalanceInitialized = true; // Confirmation that balance is synced with server
+            isBalanceInitialized = true; 
         });
         appContainer.classList.add('visible');
         authContainer.style.display = 'none';
@@ -1530,6 +1529,8 @@ function updateAllBalanceDisplays(targetBalance) {
         localPlayerContainer.style.left = `${playerState.x}px`;
         localPlayerContainer.style.top = `${playerState.y}px`;
         localPlayerContainer.style.zIndex = Math.round(playerState.y);
+        
+        // The world moves INVERSELY to the player's position to keep them centered.
         worldContainer.style.transform = `translate(${-playerState.x + gameArea.offsetWidth / 2 - playerState.width/2}px, ${-playerState.y + gameArea.offsetHeight / 2 - playerState.height/2}px)`;
         
         // Animation and Direction
