@@ -399,6 +399,58 @@
     #confirm-action-btn { background: var(--success); }
     #cancel-action-btn { background: var(--danger); }
 
+    /* --- NEW: Job Feature Styles --- */
+    .hub-job-center {
+        position: absolute;
+        width: 250px; height: 150px;
+        background-color: #1a1a1d;
+        border: 5px solid var(--gold);
+        border-radius: 8px; cursor: pointer; z-index: 5;
+        display: flex; justify-content: center; align-items: center;
+        flex-direction: column; gap: 5px;
+        box-shadow: 0 0 25px rgba(255, 214, 10, 0.5);
+    }
+    .hub-job-center h3 {
+        color: var(--gold); font-size: 1.5rem; margin: 0;
+        text-shadow: 0 0 5px black;
+    }
+    #job-panel .job-list {
+        list-style: none; margin: 1.5rem 0; padding: 0;
+        display: flex; flex-direction: column; gap: 1rem;
+    }
+    #job-panel .job-item {
+        background: #1c1c1e; padding: 1rem; border-radius: 10px;
+        text-align: left; display: flex; justify-content: space-between; align-items: center;
+        border: 1px solid #38383a;
+    }
+    #job-panel .job-item .job-details {
+        font-size: 1rem;
+    }
+    #job-panel .job-item .job-details span {
+        display: block; color: var(--medium-text); font-size: 0.9rem;
+    }
+    #job-panel .job-item .start-job-btn {
+        background-color: var(--success);
+        padding: 0.5rem 1rem; font-size: 0.9rem;
+    }
+    #job-status-display {
+        position: absolute; top: 20px; left: 50%;
+        transform: translateX(-50%);
+        background: var(--dark-card);
+        padding: 0.8rem 1.5rem;
+        border-radius: var(--border-radius);
+        border: 1px solid var(--dark-card-border);
+        z-index: 150;
+        text-align: center;
+    }
+    #job-status-display .job-progress-bar {
+        width: 100%; background-color: #1c1c1e; border-radius: 5px;
+        height: 8px; margin-top: 8px; overflow: hidden;
+    }
+    #job-status-display .job-progress-bar-inner {
+        width: 0%; height: 100%; background-color: var(--gold);
+        transition: width 0.5s linear;
+    }
 
     /* Toast Notifications */
     #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 3000; display: flex; flex-direction: column; gap: 10px; }
@@ -565,6 +617,13 @@
         </div>
         
         <!-- Local player character is NOT here by default. JS moves it into the correct scene. -->
+        <!-- NEW: Job Status Display -->
+        <div id="job-status-display" style="display: none;">
+            <div id="job-status-text"></div>
+            <div class="job-progress-bar">
+                <div class="job-progress-bar-inner" id="job-progress-bar-inner"></div>
+            </div>
+        </div>
 
         <!-- Chat Input -->
         <div id="chat-input-container" style="display: none;">
@@ -601,6 +660,17 @@
             <button id="cancel-action-btn">Cancel</button>
             <button id="confirm-action-btn">Confirm</button>
         </div>
+    </div>
+</div>
+
+<!-- NEW: Job Panel -->
+<div id="job-panel" class="panel-overlay">
+    <div class="panel-content">
+        <button class="close-panel-btn">&times;</button>
+        <h3>Job Center</h3>
+        <ul class="job-list" id="job-list">
+            <!-- Jobs will be populated by JavaScript -->
+        </ul>
     </div>
 </div>
 
@@ -1197,6 +1267,14 @@ function updateAllBalanceDisplays(targetBalance) {
     const chatInputContainer = document.getElementById('chat-input-container');
     const chatInput = document.getElementById('chat-input');
     
+    // --- NEW: Job Feature UI Elements ---
+    const jobPanel = document.getElementById('job-panel');
+    const jobList = document.getElementById('job-list');
+    const closeJobPanelBtn = jobPanel.querySelector('.close-panel-btn');
+    const jobStatusDisplay = document.getElementById('job-status-display');
+    const jobStatusText = document.getElementById('job-status-text');
+    const jobProgressBarInner = document.getElementById('job-progress-bar-inner');
+    
     const localPlayerContainer = document.createElement('div');
     localPlayerContainer.id = 'local-player-container';
     localPlayerContainer.className = 'player-character';
@@ -1216,7 +1294,8 @@ function updateAllBalanceDisplays(targetBalance) {
         inHouseId: null,
         hubX: 0, hubY: 0, 
         isSitting: false,
-        sittingOnChairId: null // <-- ADDED to track which chair is being used
+        sittingOnChairId: null,
+        job: null // <-- NEW: To store current job info {id, name, payout, startTime, endTime}
     };
     localPlayerContainer.style.width = `${playerState.width}px`;
     localPlayerContainer.style.height = `${playerState.height}px`;
@@ -1229,6 +1308,12 @@ function updateAllBalanceDisplays(targetBalance) {
         'rug': { name: 'Rug', width: 200, height: 120, color: '#006400' },
         'lamp': { name: 'Lamp', width: 40, height: 40, color: '#FFFF00' }
     };
+    // --- NEW: Job Definitions ---
+    const JOBS = {
+        'code-monkey': { name: 'Code Monkey', duration: 30 * 1000, payout: 25 },
+        'data-miner': { name: 'Data Miner', duration: 2 * 60 * 1000, payout: 120 },
+        'tech-guru': { name: 'Tech Guru', duration: 5 * 60 * 1000, payout: 350 }
+    };
     const GRID_SIZE = 40;
     const HOUSE_WIDTH = 200, HOUSE_HEIGHT = 200;
     const houseLayout = [
@@ -1236,6 +1321,9 @@ function updateAllBalanceDisplays(targetBalance) {
         { id: 4, x: 650, y: 650 }, { id: 5, x: 250, y: 900 }, { id: 6, x: -200, y: 650 }, { id: 7, x: -650, y: 250 },
         { id: 8, x: -900, y: -450 }, { id: 9, x: -550, y: -750 }
     ];
+    // --- NEW: Job Center Definition ---
+    const jobCenter = { x: 0, y: 250, width: 250, height: 150 };
+
 
     function updatePlayerScene(playerElement, otherPlayerInHouseId) {
         const localPlayerInHouseId = playerState.inHouseId;
@@ -1472,6 +1560,14 @@ function updateAllBalanceDisplays(targetBalance) {
             worldContainer.appendChild(houseEl);
             houseElements[layout.id] = houseEl;
         });
+        // --- NEW: Initialize Job Center ---
+        const jobCenterEl = document.createElement('div');
+        jobCenterEl.className = 'hub-job-center';
+        jobCenterEl.style.left = `${jobCenter.x}px`;
+        jobCenterEl.style.top = `${jobCenter.y}px`;
+        jobCenterEl.innerHTML = `<h3>JOB CENTER</h3>`;
+        jobCenterEl.addEventListener('click', onJobCenterClick);
+        worldContainer.appendChild(jobCenterEl);
     }
     
     function onHouseClick(houseId) {
@@ -1520,6 +1616,10 @@ function updateAllBalanceDisplays(targetBalance) {
                 const houseBox = { left: house.x, top: house.y, right: house.x + HOUSE_WIDTH, bottom: house.y + HOUSE_HEIGHT };
                 if (playerBox.right > houseBox.left && playerBox.left < houseBox.right && playerBox.bottom > houseBox.top && playerBox.top < houseBox.bottom) return true;
             }
+            // --- NEW: Job Center Collision ---
+            const jobCenterBox = { left: jobCenter.x, top: jobCenter.y, right: jobCenter.x + jobCenter.width, bottom: jobCenter.y + jobCenter.height };
+            if (playerBox.right > jobCenterBox.left && playerBox.left < jobCenterBox.right && playerBox.bottom > jobCenterBox.top && playerBox.top < jobCenterBox.bottom) return true;
+
         } else { // Interior collision
             if (nextX < 0 || nextY < 0 || nextX + playerState.width > interiorRoom.offsetWidth || nextY + playerState.height > interiorRoom.offsetHeight) return true;
             for (const itemId in placedItemElements) {
@@ -1586,9 +1686,97 @@ function updateAllBalanceDisplays(targetBalance) {
             });
         }
     }
+    
+    // --- NEW: Job Feature Functions ---
+    function formatTime(ms) {
+        const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    function updateJobStatusUI() {
+        const job = playerState.job;
+        if (!job) {
+            jobStatusDisplay.style.display = 'none';
+            return;
+        }
+
+        jobStatusDisplay.style.display = 'block';
+        const now = Date.now();
+        const timeRemaining = job.endTime - now;
+
+        if (timeRemaining > 0) {
+            jobStatusText.textContent = `Working: ${job.name} (${formatTime(timeRemaining)})`;
+            const totalDuration = job.endTime - job.startTime;
+            const progress = ((totalDuration - timeRemaining) / totalDuration) * 100;
+            jobProgressBarInner.style.width = `${progress}%`;
+        } else {
+            jobStatusText.textContent = `${job.name} Complete! Collect your pay.`;
+            jobProgressBarInner.style.width = `100%`;
+        }
+    }
+
+    function onJobCenterClick() {
+        const job = playerState.job;
+        const now = Date.now();
+
+        if (job && now < job.endTime) {
+            showToast("You are still working. Come back when your job is finished.", 'info');
+            return;
+        }
+        
+        if (job && now >= job.endTime) { // Job is complete
+            db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(job.payout));
+            playerRef.child('job').remove();
+            showToast(`You earned ${job.payout} BUX for completing your job!`, 'success');
+            return;
+        }
+        
+        // No job or job was collected, show the panel to pick a new one
+        populateJobPanel();
+        jobPanel.classList.add('visible');
+    }
+
+    function populateJobPanel() {
+        jobList.innerHTML = '';
+        for (const jobId in JOBS) {
+            const job = JOBS[jobId];
+            const li = document.createElement('li');
+            li.className = 'job-item';
+            li.innerHTML = `
+                <div class="job-details">
+                    <strong>${job.name}</strong>
+                    <span>Payout: ${job.payout} BUX, Duration: ${job.duration / 1000 / 60} min</span>
+                </div>
+                <button class="start-job-btn" data-job-id="${jobId}">Start</button>
+            `;
+            jobList.appendChild(li);
+        }
+    }
+    
+    jobPanel.addEventListener('click', (e) => {
+        if (e.target.classList.contains('start-job-btn')) {
+            const jobId = e.target.dataset.jobId;
+            const jobData = JOBS[jobId];
+            const now = Date.now();
+            const jobInfo = {
+                id: jobId,
+                name: jobData.name,
+                payout: jobData.payout,
+                startTime: now,
+                endTime: now + jobData.duration
+            };
+            playerRef.child('job').set(jobInfo);
+            jobPanel.classList.remove('visible');
+            showToast(`You started working as a ${jobData.name}.`, 'info');
+        }
+    });
+    closeJobPanelBtn.addEventListener('click', () => jobPanel.classList.remove('visible'));
 
     function gameLoop() {
         if(!isChatting) updateLocalPlayerPosition();
+        if(playerState.job) updateJobStatusUI();
         gameLoopId = requestAnimationFrame(gameLoop);
     }
     
@@ -1605,6 +1793,17 @@ function updateAllBalanceDisplays(targetBalance) {
             inHouseId: null
         });
         playerRef.onDisconnect().remove();
+
+        // --- NEW: Listen for changes to own player data (including jobs) ---
+        playerRef.on('value', snapshot => {
+            const data = snapshot.val();
+            if (data && data.job) {
+                playerState.job = data.job;
+            } else {
+                playerState.job = null;
+            }
+            updateJobStatusUI(); // Update UI whenever job data changes
+        });
 
         housesRef.on('value', snapshot => {
             const newHousesData = snapshot.val() || {};
@@ -1676,8 +1875,8 @@ function updateAllBalanceDisplays(targetBalance) {
         playersRef.on('child_changed', (snapshot) => {
             const pData = snapshot.val();
             const uid = snapshot.key;
-            if (uid === currentUser.uid) {
-                if (pData.chatMessage) playerRef.child('chatMessage').remove();
+            if (uid === currentUser.uid) { // This check prevents local updates from re-triggering
+                if (pData.chatMessage) playerRef.child('chatMessage').remove(); // Clear chat after sending
                 return;
             }
             const otherPlayer = otherPlayerElements[uid];
@@ -1712,7 +1911,10 @@ function updateAllBalanceDisplays(targetBalance) {
     }
 
     function leaveHub() {
-        if (playerRef) playerRef.remove();
+        if (playerRef) {
+            playerRef.off(); // <-- Important: Remove the .on('value') listener
+            playerRef.remove();
+        }
         playersRef.off(); housesRef.off();
         if (decorationListener) decorationListener.off();
         document.removeEventListener('keydown', handleGlobalKeyDown);
@@ -1726,6 +1928,7 @@ function updateAllBalanceDisplays(targetBalance) {
         houseElements = {}; 
         isChatting = false;
         chatInputContainer.style.display = 'none';
+        jobPanel.classList.remove('visible'); // Close job panel on exit
         if (playerState.inHouseId) leaveHouse();
     }
 
@@ -1806,7 +2009,7 @@ function updateAllBalanceDisplays(targetBalance) {
     }
 
     function handleGlobalKeyDown(e) {
-        const isPanelVisible = userInteractionPanel.classList.contains('visible') || confirmationPanel.classList.contains('visible');
+        const isPanelVisible = userInteractionPanel.classList.contains('visible') || confirmationPanel.classList.contains('visible') || jobPanel.classList.contains('visible');
         if (isPanelVisible) return;
 
         if (playerState.isSitting) {
@@ -1843,4 +2046,3 @@ function updateAllBalanceDisplays(targetBalance) {
 </script>
 </body>
 </html>```
-
