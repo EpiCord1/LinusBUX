@@ -749,6 +749,12 @@
         height: 3px;
     }
 
+    .heist-obstacle {
+        position: absolute;
+        background-color: #333;
+        border: 4px solid #111;
+    }
+
 
     #chat-input-container {
         position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
@@ -1987,15 +1993,26 @@ function updateAllBalanceDisplays(targetBalance) {
         }
     }
 
+    function checkHeistCollision(entityX, entityY, entityW, entityH) {
+        if (entityX < 0 || entityY < 0 || entityX + entityW > heistGameArea.offsetWidth || entityY + entityH > heistGameArea.offsetHeight) return true;
+        
+        const entityBox = { left: entityX, top: entityY, right: entityX + entityW, bottom: entityY + entityH };
+
+        for(const id in heistGameState.elements) {
+            const item = heistGameState.elements[id];
+            if(item.type !== 'obstacle') continue;
+            
+            const itemBox = { left: item.data.x, top: item.data.y, right: item.data.x + item.data.w, bottom: item.data.y + item.data.h };
+            if (entityBox.right > itemBox.left && entityBox.left < itemBox.right && entityBox.bottom > itemBox.top && entityBox.top < itemBox.bottom) return true;
+        }
+        return false;
+    }
+
     function checkCollision(nextX, nextY, forNpc = false) {
         const playerBox = { left: nextX, top: nextY, right: nextX + playerState.width, bottom: nextY + playerState.height };
 
         if (playerState.inMinigame === 'heist-active') {
-            const room = heistGameArea;
-            if (nextX < 0 || nextY < 0 || nextX + playerState.width > room.offsetWidth || nextY + playerState.height > room.offsetHeight) return true;
-             // In heist, we don't do client-side collision with dynamic objects, just walls
-             return false;
-
+             return checkHeistCollision(nextX, nextY, playerState.width, playerState.height);
         } else if (playerState.inMinigame === 'pizzeria-restaurant' || forNpc) {
             const room = pizzeriaRestaurantRoom;
             if (nextX < 0 || nextY < 0 || nextX + playerState.width > room.offsetWidth || nextY + playerState.height > room.offsetHeight) return true;
@@ -2033,8 +2050,7 @@ function updateAllBalanceDisplays(targetBalance) {
         let moveX = 0, moveY = 0;
         let isMoving = false;
 
-        // BUG FIX: Prevent movement input processing while in the bank lobby
-        if (!isChatting && playerState.inMinigame !== 'bank' && !playerState.heist.isCollecting && playerState.heist.health > 0) {
+        if (!isChatting && !playerState.heist.isCollecting && playerState.heist.health > 0) {
             if (keys.a) moveX -= 1; if (keys.d) moveX += 1;
             if (keys.w) moveY -= 1; if (keys.s) moveY += 1;
         }
@@ -2625,6 +2641,10 @@ function updateAllBalanceDisplays(targetBalance) {
             activeHeistRef.child('players').child(currentUser.uid).once('value', (playerSnap) => {
                 if(playerSnap.exists()) {
                      enterHeistScene();
+                } else {
+                    bankHeistStatusEl.textContent = "Heist in Progress";
+                    bankHeistTimerEl.textContent = "Please wait for it to finish.";
+                    bankHeistActionsEl.innerHTML = '';
                 }
             });
             return;
@@ -2702,9 +2722,10 @@ function updateAllBalanceDisplays(targetBalance) {
         });
 
         for (let i = 1; i <= 10; i++) {
-            const roomData = { guards: {}, money: {} };
+            const roomData = { guards: {}, money: {}, obstacles: {} };
             const numGuards = 3 + Math.floor(Math.random() * 4);
             const numMoney = 8 + Math.floor(Math.random() * 3);
+            const numObstacles = 3 + Math.floor(Math.random() * 3);
 
             for (let g = 0; g < numGuards; g++) {
                 roomData.guards['guard' + g] = { 
@@ -2720,6 +2741,15 @@ function updateAllBalanceDisplays(targetBalance) {
                     w: 60, h: 35, value: 100, isCollected: false,
                     isTrapped: isTrapped, glassHealth: isTrapped ? 5 : 0 
                 };
+            }
+
+            for(let o = 0; o < numObstacles; o++) {
+                 roomData.obstacles['obs' + o] = {
+                    x: 150 + Math.random() * 850,
+                    y: Math.random() * 550,
+                    w: 80 + Math.random() * 120,
+                    h: 50 + Math.random() * 80
+                 };
             }
             newHeistData.rooms[i] = roomData;
         }
@@ -2961,7 +2991,7 @@ function updateAllBalanceDisplays(targetBalance) {
                  const item = heistGameState.elements[id];
                  if (item.type === 'guard' && newRoomData.guards && newRoomData.guards[id]) {
                      const guardData = newRoomData.guards[id];
-                     heistGameState.guards[id].health = guardData.health; // Update local state
+                     if(heistGameState.guards[id]) heistGameState.guards[id].health = guardData.health; // Update local state
                      const healthFill = item.el.querySelector('.heist-guard-health-fill');
                      if(healthFill) healthFill.style.width = `${Math.max(0, guardData.health / 150) * 100}%`;
                      if(guardData.health <= 0 && item.el.style.backgroundColor !== 'rgb(85, 85, 85)') {
@@ -2998,7 +3028,7 @@ function updateAllBalanceDisplays(targetBalance) {
         heistGameState.guards = {};
         if(!roomData) return;
 
-        const allItems = {...roomData.guards, ...roomData.money};
+        const allItems = {...roomData.guards, ...roomData.money, ...roomData.obstacles};
 
         for(const id in allItems) {
             const data = allItems[id];
@@ -3030,11 +3060,16 @@ function updateAllBalanceDisplays(targetBalance) {
                     glass.textContent = `${data.glassHealth}`;
                     el.appendChild(glass);
                 }
+            } else if (id.startsWith('obs')) {
+                type = 'obstacle';
+                el.className = 'heist-obstacle';
             }
             
             el.dataset.type = type;
             el.style.left = `${data.x}px`;
             el.style.top = `${data.y}px`;
+            el.style.width = `${data.w}px`;
+            el.style.height = `${data.h}px`;
             
             heistGameArea.appendChild(el);
             heistGameState.elements[id] = { el, data, type };
@@ -3067,13 +3102,15 @@ function updateAllBalanceDisplays(targetBalance) {
     
     function endHeist(heistData) {
         const updates = {};
-        Object.keys(heistData.players).forEach(uid => {
+        const playerKeys = Object.keys(heistData.players || {});
+        
+        playerKeys.forEach(uid => {
             const loot = heistData.players[uid].moneyCollected;
             if(loot > 0) {
                 updates[`/users/${uid}/balance`] = firebase.database.ServerValue.increment(loot);
             }
         });
-
+        
         db.ref().update(updates).then(() => {
             bankRef.set({ cooldownUntil: Date.now() + 300000 }); // 5 min cooldown
             activeHeistRef.remove();
@@ -3135,81 +3172,81 @@ function updateAllBalanceDisplays(targetBalance) {
             playerState.heist.collectionTargetId = null; moneyCollectionProgress.style.display = 'none';
         }
 
-        // --- Handle Guard AI ---
-        for (const guardId in heistGameState.guards) {
-            const guard = heistGameState.guards[guardId];
-            if (guard.health <= 0) continue;
+        // --- Handle Guard AI (Leader authoritative) ---
+        const playerKeys = Object.keys(heistGameState.fullData.players);
+        if (playerKeys.length > 0 && playerKeys[0] === currentUser.uid) {
+            const updates = {};
+            for (const guardId in heistGameState.guards) {
+                const guard = heistGameState.guards[guardId];
+                if (guard.health <= 0) continue;
 
-            guard.stateTimer -= deltaTime;
+                // Simple state timer
+                guard.stateTimer -= deltaTime;
+                
+                let closestPlayer = null;
+                let minDistance = Infinity;
+                let closestPlayerUid = null;
 
-            let closestPlayer = null;
-            let minDistance = Infinity;
+                Object.entries(heistGameState.fullData.players).forEach(([uid, p]) => {
+                    const dx = guard.x - p.x;
+                    const dy = guard.y - p.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        closestPlayer = p;
+                        closestPlayerUid = uid;
+                    }
+                });
+                
+                if (minDistance < 400) { // Attack range
+                     if (guard.stateTimer <= 0) {
+                        guard.stateTimer = 1.5 + Math.random(); // Attack every 1.5-2.5s
+                        
+                        const laser = document.createElement('div');
+                        laser.className = 'heist-laser';
+                        heistGameArea.appendChild(laser);
+                        const angle = Math.atan2(closestPlayer.y + 40 - (guard.y + 40), closestPlayer.x + 40 - (guard.x + 40));
+                        gsap.fromTo(laser, 
+                            { x: guard.x + 40, y: guard.y + 40, rotation: angle * (180 / Math.PI) },
+                            { 
+                                x: `+=${Math.cos(angle) * 1000}`, 
+                                y: `+=${Math.sin(angle) * 1000}`, 
+                                duration: 0.8,
+                                ease: "linear",
+                                onUpdate: function() {
+                                     const laserRect = laser.getBoundingClientRect();
+                                     let hit = false;
+                                     // Check collision with players
+                                     Object.entries(heistGameState.fullData.players).forEach(([uid, p]) => {
+                                        if(hit) return;
+                                        const pRect = {left: p.x, top: p.y, right: p.x+p.width, bottom: p.y+p.height};
+                                        const gameRect = heistGameArea.getBoundingClientRect();
+                                        // Simple point-in-rect check for laser tip
+                                        if (laserRect.left - gameRect.left > pRect.left && laserRect.left - gameRect.left < pRect.right &&
+                                            laserRect.top - gameRect.top > pRect.top && laserRect.top - gameRect.top < pRect.bottom) {
+                                            activeHeistRef.child(`players/${uid}/health`).set(firebase.database.ServerValue.increment(-5));
+                                            hit = true;
+                                        }
+                                     });
 
-            Object.values(heistGameState.fullData.players).forEach(p => {
-                 const dx = guard.x - p.x;
-                 const dy = guard.y - p.y;
-                 const dist = Math.sqrt(dx*dx + dy*dy);
-                 if (dist < minDistance) {
-                     minDistance = dist;
-                     closestPlayer = p;
-                 }
-            });
-
-            if (minDistance < 350) { // Attack range
-                guard.state = 'attacking';
-                if (guard.stateTimer <= 0) {
-                    guard.stateTimer = 2.0; // Attack every 2 seconds
-                    
-                    const laser = document.createElement('div');
-                    laser.className = 'heist-laser';
-                    heistGameArea.appendChild(laser);
-                    const angle = Math.atan2(closestPlayer.y + 40 - (guard.y + 40), closestPlayer.x + 40 - (guard.x + 40));
-                    gsap.fromTo(laser, 
-                        { x: guard.x + 40, y: guard.y + 40, rotation: angle * (180 / Math.PI) },
-                        { 
-                            x: closestPlayer.x + 40, 
-                            y: closestPlayer.y + 40, 
-                            duration: 0.3,
-                            ease: "linear",
-                            onComplete: () => {
-                                laser.remove();
-                                const playerRect = {x: closestPlayer.x, y: closestPlayer.y, w: 80, h: 80};
-                                const laserTip = {x: closestPlayer.x + 40, y: closestPlayer.y + 40};
-                                if (laserTip.x > playerRect.x && laserTip.x < playerRect.x + playerRect.w &&
-                                    laserTip.y > playerRect.y && laserTip.y < playerRect.y + playerRect.h) {
-                                     // Damage is applied by the leader client to maintain authority
-                                    const playerKeys = Object.keys(heistGameState.fullData.players);
-                                    if(playerKeys.length > 0 && playerKeys[0] === currentUser.uid) {
-                                        activeHeistRef.child(`players/${closestPlayer.uid}/health`).set(firebase.database.ServerValue.increment(-5));
-                                    }
-                                }
+                                     if(hit) { this.kill(); laser.remove(); }
+                                },
+                                onComplete: () => laser.remove()
                             }
-                        }
-                    );
-                }
-            } else {
-                guard.state = 'patrolling';
-                if (guard.stateTimer <= 0) {
-                    guard.stateTimer = 3 + Math.random() * 4;
-                    guard.target = {
-                        x: 100 + Math.random() * (heistGameArea.offsetWidth - 200),
-                        y: 100 + Math.random() * (heistGameArea.offsetHeight - 200)
-                    };
-                }
-            }
-
-            if (guard.state === 'patrolling') {
-                const dx = guard.target.x - guard.x;
-                const dy = guard.target.y - guard.y;
-                const dist = Math.sqrt(dx*dx + dy*dy);
-                if (dist > 5) {
-                    guard.x += (dx / dist) * 50 * deltaTime;
-                    guard.y += (dy / dist) * 50 * deltaTime;
-                    guard.el.style.left = `${guard.x}px`;
-                    guard.el.style.top = `${guard.y}px`;
+                        );
+                    }
                 }
             }
         }
+
+        // Update local guard elements based on local simulation
+        Object.values(heistGameState.guards).forEach(guard => {
+            if(guard.health <= 0) return;
+            const img = guard.el.querySelector('img');
+            img.src = guard.state === 'patrolling' ? 'WALK.gif' : 'IDLE.gif';
+            guard.el.style.left = `${guard.x}px`;
+            guard.el.style.top = `${guard.y}px`;
+        });
     }
 
     function gameLoop() {
