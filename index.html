@@ -34,6 +34,15 @@
         overflow: hidden;
         position: relative;
     }
+    
+    /* NEW: Disable text selection while dragging */
+    body.is-dragging, body.is-dragging * {
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        cursor: grabbing;
+    }
 
     body::before {
         content: '';
@@ -378,16 +387,22 @@
         box-shadow: inset 0 0 15px rgba(0,0,0,0.2);
         position: relative;
         overflow: hidden;
+        cursor: crosshair;
     }
     .pizza-layer {
         position: absolute; top: 0; left: 0;
         width: 100%; height: 100%;
         border-radius: 50%;
+        pointer-events: none;
     }
-    #pizza-sauce-layer {
-        background-color: #c0392b; /* Sauce color */
-        transform: scale(0);
-        transition: transform 0.3s ease;
+    .sauce-splat {
+        position: absolute;
+        background-color: #c0392b;
+        border-radius: 50%;
+        width: 25px;
+        height: 25px;
+        pointer-events: none;
+        transform: translate(-50%, -50%);
     }
     #pizza-cheese-layer {
         background-color: #f1c40f; /* Cheese color */
@@ -462,7 +477,7 @@
     /* --- Primitive Ingredient Shapes --- */
     .shape-sauce { width: 90%; height: 90%; background: #c0392b; border-radius: 50%; }
     .shape-cheese { width: 90%; height: 90%; background: #f1c40f; border-radius: 50%; opacity: 0.9; }
-    .shape-pepperoni { width: 25px; height: 25px; background: #c23616; border-radius: 50%; }
+    .shape-pepperoni { width: 25px; height: 25px; background: #e74c3c; border: 2px solid #c0392b; border-radius: 50%; }
     .shape-mushrooms { width: 25px; height: 18px; background: #a4b0be; border-radius: 12px 12px 0 0; }
     .shape-olives { width: 25px; height: 25px; border-radius: 50%; border: 6px solid #2f3542; }
 
@@ -705,7 +720,6 @@
             <div id="cutting-board">
                 <div id="pizza-assembly-area">
                     <div id="pizza-base">
-                        <div class="pizza-layer" id="pizza-sauce-layer"></div>
                         <div class="pizza-layer" id="pizza-cheese-layer"></div>
                     </div>
                 </div>
@@ -1609,6 +1623,7 @@ function updateAllBalanceDisplays(targetBalance) {
     
     // --- Pizzeria Minigame Logic ---
     const PIZZA_PAYOUT = 8;
+    const SAUCE_SPLAT_REQUIREMENT = 30;
     const allToppings = ['Pepperoni', 'Mushrooms', 'Olives'];
     const pizzeriaState = {
         currentOrder: {},
@@ -1616,6 +1631,7 @@ function updateAllBalanceDisplays(targetBalance) {
         timerId: null,
         timeLeft: 0,
         totalTime: 0,
+        isSpreadingSauce: false
     };
     
     function populateIngredientsBin() {
@@ -1633,6 +1649,7 @@ function updateAllBalanceDisplays(targetBalance) {
     function generateNewPizzaOrder() {
         pizzeriaState.placedIngredients = {};
         pizzeriaState.currentOrder = {};
+        pizzeriaState.isSpreadingSauce = false;
         let orderComplexity = 0;
         
         const shuffled = allToppings.sort(() => 0.5 - Math.random());
@@ -1672,8 +1689,7 @@ function updateAllBalanceDisplays(targetBalance) {
     }
 
     function resetPizzaVisuals() {
-        pizzaBase.innerHTML = '<div class="pizza-layer" id="pizza-sauce-layer"></div><div class="pizza-layer" id="pizza-cheese-layer"></div>';
-        document.getElementById('pizza-sauce-layer').style.transform = 'scale(0)';
+        pizzaBase.innerHTML = '<div class="pizza-layer" id="pizza-cheese-layer"></div>';
         document.getElementById('pizza-cheese-layer').style.transform = 'scale(0)';
         finishPizzaBtn.disabled = false;
     }
@@ -1691,6 +1707,7 @@ function updateAllBalanceDisplays(targetBalance) {
             
             if (pizzeriaState.timeLeft <= 0) {
                 clearInterval(pizzeriaState.timerId);
+                finishPizzaBtn.disabled = true;
                 showToast("Time's up! New order.", 'error');
                 setTimeout(generateNewPizzaOrder, 1500);
             }
@@ -1745,6 +1762,7 @@ function updateAllBalanceDisplays(targetBalance) {
     ingredientsBin.addEventListener('mousedown', e => {
         const ingredientDiv = e.target.closest('.ingredient');
         if (!ingredientDiv) return;
+        document.body.classList.add('is-dragging');
         isDragging = true;
         draggedIngredient = ingredientDiv.dataset.ingredient;
         const shape = ingredientDiv.querySelector('.ingredient-shape').cloneNode(true);
@@ -1760,13 +1778,14 @@ function updateAllBalanceDisplays(targetBalance) {
     });
     window.addEventListener('mouseup', e => {
         if (!isDragging) return;
+        document.body.classList.remove('is-dragging');
         const pizzaRect = pizzaBase.getBoundingClientRect();
         if (e.clientX > pizzaRect.left && e.clientX < pizzaRect.right && e.clientY > pizzaRect.top && e.clientY < pizzaRect.bottom) {
             if (draggedIngredient === 'Sauce') {
-                document.getElementById('pizza-sauce-layer').style.transform = 'scale(0.9)';
-                pizzeriaState.placedIngredients['Sauce'] = true;
+                pizzeriaState.isSpreadingSauce = true;
+                pizzeriaState.placedIngredients['SauceSplats'] = 0;
             } else if (draggedIngredient === 'Cheese') {
-                document.getElementById('pizza-cheese-layer').style.transform = 'scale(0.8)';
+                document.getElementById('pizza-cheese-layer').style.transform = 'scale(0.95)';
                 pizzeriaState.placedIngredients['Cheese'] = true;
             } else {
                 pizzeriaState.placedIngredients[draggedIngredient] = (pizzeriaState.placedIngredients[draggedIngredient] || 0) + 1;
@@ -1783,6 +1802,30 @@ function updateAllBalanceDisplays(targetBalance) {
         draggedItem.innerHTML = '';
         isDragging = false;
         draggedIngredient = null;
+    });
+
+    pizzaBase.addEventListener('mousemove', e => {
+        if (pizzeriaState.isSpreadingSauce && e.buttons === 1) { // e.buttons === 1 means left mouse is held down
+            const pizzaRect = pizzaBase.getBoundingClientRect();
+            const x = e.clientX - pizzaRect.left;
+            const y = e.clientY - pizzaRect.top;
+
+            const splat = document.createElement('div');
+            splat.className = 'sauce-splat';
+            splat.style.left = `${x}px`;
+            splat.style.top = `${y}px`;
+            pizzaBase.appendChild(splat);
+            
+            pizzeriaState.placedIngredients['SauceSplats']++;
+            if(pizzeriaState.placedIngredients['SauceSplats'] >= SAUCE_SPLAT_REQUIREMENT && !pizzeriaState.placedIngredients['Sauce']) {
+                pizzeriaState.placedIngredients['Sauce'] = true;
+                updateOrderTicketUI();
+            }
+        }
+    });
+
+    pizzaBase.addEventListener('mouseup', () => {
+        pizzeriaState.isSpreadingSauce = false;
     });
 
     finishPizzaBtn.addEventListener('click', finishPizza);
