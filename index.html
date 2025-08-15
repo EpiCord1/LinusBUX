@@ -34,7 +34,7 @@
         overflow: hidden;
         position: relative;
     }
-    
+
     body.is-dragging, body.is-dragging * {
         user-select: none;
         -webkit-user-select: none;
@@ -258,18 +258,18 @@
         position: relative;
         overflow: hidden;
     }
-    #world-container, #interior-container, #pizzeria-container {
+    #world-container, #interior-container, #pizzeria-kitchen-container, #pizzeria-restaurant-container, #bank-container {
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     }
-    .player-character {
+    .player-character, .npc-character {
         position: absolute;
         user-select: none;
         display: flex;
         flex-direction: column;
         align-items: center;
-        cursor: pointer;
     }
-    .player-character img {
+    .player-character { cursor: pointer; }
+    .player-character img, .npc-character img {
         width: 100%; height: 100%; object-fit: contain;
         transition: transform 0.1s linear; pointer-events: none;
     }
@@ -300,7 +300,7 @@
         padding: 4px 10px; border-radius: 6px; font-size: 13px;
         font-weight: bold; white-space: nowrap; border: 1px solid rgba(0,0,0,0.2);
     }
-    
+
     /* Interior and Decoration Styles */
     #interior-room {
         position: absolute;
@@ -311,7 +311,7 @@
         box-sizing: border-box;
     }
     #interior-room.edit-mode {
-        background-image: 
+        background-image:
             linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px),
             linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px);
         background-size: 40px 40px;
@@ -339,11 +339,11 @@
         box-sizing: border-box;
         border: 2px solid rgba(0,0,0,0.5);
     }
-     .placed-item[data-type="chair"] { cursor: pointer; }
+    .placed-item[data-type="chair"] { cursor: pointer; }
     .placed-item.removable:hover { cursor: pointer; border-color: var(--danger); opacity: 0.8; }
 
     /* --- Pizza Minigame Styles --- */
-    #pizzeria-container {
+    #pizzeria-kitchen-container {
         display: none; /* Hidden by default */
         background-color: rgba(0,0,0,0.8);
         backdrop-filter: blur(8px);
@@ -400,7 +400,7 @@
         position: absolute;
         background-color: #c0392b;
         border-radius: 50%;
-        width: 80px; 
+        width: 80px;
         height: 80px;
         pointer-events: none;
         transform: translate(-50%, -50%);
@@ -430,6 +430,7 @@
         border: 2px solid #5d4037;
     }
     #pizza-order-ticket h3 { font-size: 1.2rem; margin-bottom: 0.5rem; border-bottom: 1px solid #ddd; padding-bottom: 0.5rem; }
+    #pizza-order-ticket-customer { font-size: 0.9rem; font-style: italic; color: #666; margin-bottom: 0.5rem; }
     #pizza-order-list { list-style: none; padding: 0; }
     #pizza-order-list li {
         font-weight: 600; transition: color 0.3s, text-decoration 0.3s;
@@ -466,7 +467,7 @@
     .ingredient:hover { border-color: var(--gold); }
     .ingredient.draggable { cursor: grab; }
     .ingredient-shape { pointer-events: none; }
-    
+
     #finish-pizza-btn { background-color: var(--success); width: 100%; margin-top: auto; }
     #leave-pizzeria-btn { position: absolute; top: 20px; left: 20px; background-color: var(--danger); z-index: 10; }
     #dragged-item, #sauce-cursor {
@@ -484,6 +485,84 @@
         border-radius: 50%;
     }
 
+    /* --- Pizzeria Restaurant Styles --- */
+    #pizzeria-restaurant-container {
+        display: none;
+    }
+    #pizzeria-restaurant-room {
+        position: absolute;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        width: 1200px; height: 700px;
+        background-color: #e74c3c;
+        border: 20px solid #a12c2c;
+        box-sizing: border-box;
+        background-image:
+            linear-gradient(rgba(255,255,255,0.2) 2px, transparent 2px),
+            linear-gradient(90deg, rgba(255,255,255,0.2) 2px, transparent 2px),
+            linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px);
+        background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
+    }
+    #pizzeria-restaurant-ui-container {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        z-index: 20;
+    }
+    #leave-restaurant-btn {
+        background-color: #ecf0f1;
+        color: black;
+    }
+    #leave-restaurant-btn:hover {
+        background-color: #bdc3c7;
+    }
+    .restaurant-item {
+        position: absolute;
+        box-sizing: border-box;
+    }
+    .restaurant-item.table { background-color: #8B4513; border: 5px solid #5C4033; border-radius: 8px; }
+    .restaurant-item.chair { background-color: #a12c2c; border: 4px solid #5d2121; cursor: pointer; }
+
+    .delivered-pizza {
+        position: absolute;
+        width: 60px;
+        height: 60px;
+        background-image: url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3e%3ccircle cx="50" cy="50" r="45" fill="%23f2dcb3"/%3e%3ccircle cx="50" cy="50" r="40" fill="%23c0392b"/%3e%3ccircle cx="50" cy="50" r="38" fill="%23f1c40f"/%3e%3ccircle cx="30" cy="30" r="8" fill="%23e84393"/%3e%3ccircle cx="70" cy="30" r="8" fill="%23e84393"/%3e%3ccircle cx="50" cy="50" r="8" fill="%23e84393"/%3e%3ccircle cx="30" cy="70" r="8" fill="%23e84393"/%3e%3ccircle cx="70" cy="70" r="8" fill="%23e84393"/%3e%3c/svg%3e');
+        background-size: contain;
+        cursor: pointer;
+        z-index: 1000;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+        transition: transform 0.2s ease;
+    }
+    .delivered-pizza:hover {
+        transform: scale(1.1);
+    }
+
+    #custom-pizza-panel {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--dark-card);
+        padding: 1.5rem;
+        border-radius: var(--border-radius);
+        backdrop-filter: blur(10px);
+        border: 1px solid var(--dark-card-border);
+        display: none;
+        flex-direction: column;
+        gap: 1rem;
+        z-index: 100;
+        width: 300px;
+    }
+    #custom-pizza-panel.visible { display: flex; }
+    #custom-pizza-panel h3 { text-align: center; margin-bottom: 0.5rem; }
+    #custom-pizza-toppings { display: flex; flex-direction: column; gap: 0.8rem; text-align: left; margin-bottom: 1rem; }
+    .topping-option { display: flex; align-items: center; gap: 0.5rem; font-size: 1.1rem;}
+    .topping-option input { width: 20px; height: 20px; }
+    #place-custom-order-btn { background-color: var(--success); }
+
+
     /* --- Primitive Ingredient Shapes --- */
     .shape-sauce { width: 90%; height: 90%; background: #c0392b; border-radius: 50%; }
     .shape-cheese { width: 90%; height: 90%; background: #f1c40f; border-radius: 50%; opacity: 0.9; }
@@ -491,7 +570,7 @@
     .shape-mushrooms { width: 25px; height: 18px; background: #a4b0be; border-radius: 12px 12px 0 0; }
     .shape-olives { width: 25px; height: 25px; border-radius: 50%; border: 6px solid #2f3542; }
 
-    /* --- Hub Buildings --- */
+
     .hub-pizzeria {
         position: absolute; width: 250px; height: 180px;
         background-color: #c84038; border: 5px solid #a12c2c;
@@ -504,28 +583,51 @@
         color: white; font-size: 1.8rem; margin: 0;
         text-shadow: 2px 2px 3px rgba(0,0,0,0.5); font-style: italic;
     }
+    
+    /* --- BANK HEIST ADDITION START --- */
     .hub-bank {
-        position: absolute; width: 280px; height: 220px;
-        background-color: #2c3e50; border: 5px solid #bdc3c7;
-        border-radius: 10px; z-index: 5;
-        display: flex; flex-direction: column;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+        position: absolute; width: 280px; height: 200px;
+        background-color: #6c757d; border: 5px solid #495057;
+        border-radius: 8px; cursor: pointer; z-index: 5;
+        display: flex; justify-content: center; align-items: center; flex-direction: column;
+        box-shadow: 0 0 25px rgba(108, 117, 125, 0.5);
     }
-    .hub-bank .bank-main, .hub-bank .bank-robbery {
-        display: flex; align-items: center; justify-content: center;
-        cursor: pointer; transition: background-color 0.2s;
-        color: white; font-weight: bold;
+    .hub-bank h3 {
+        color: white; font-size: 2.2rem; margin: 0; text-shadow: 2px 2px 3px rgba(0,0,0,0.5);
     }
-    .hub-bank .bank-main {
-        flex-grow: 1; background-color: #34495e; font-size: 2rem;
-        border-radius: 4px 4px 0 0;
+    #bank-container { display: none; }
+    #bank-room {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        width: 1000px; height: 600px; background-color: #ced4da;
+        border: 20px solid #495057; box-sizing: border-box;
     }
-    .hub-bank .bank-main:hover { background-color: #415b76; }
-    .hub-bank .bank-robbery {
-        height: 50px; background-color: #c0392b; font-size: 1.1rem;
-        border-top: 5px solid #bdc3c7; border-radius: 0 0 4px 4px;
+    .bank-vault {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        width: 150px; height: 200px; background-color: #343a40;
+        border-radius: 10px; border: 10px solid #212529;
+        cursor: pointer; display: flex; justify-content: center; align-items: center;
     }
-    .hub-bank .bank-robbery:hover { background-color: #e74c3c; }
+    .bank-vault::before {
+        content: ''; width: 50px; height: 50px; background-color: #adb5bd;
+        border-radius: 50%; border: 5px solid #212529;
+    }
+    #bank-ui-container {
+        position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+        background: var(--dark-card); padding: 1rem 2rem; border-radius: var(--border-radius);
+        z-index: 25; text-align: center; display: flex; flex-direction: column; gap: 0.5rem;
+    }
+    #bank-heist-status { font-size: 1.2rem; font-weight: 600; }
+    #bank-heist-timer { font-size: 1rem; color: var(--gold); }
+    #bank-heist-progress-bar-container {
+        width: 300px; height: 20px; background-color: #495057; border-radius: 10px;
+        overflow: hidden; border: 1px solid #212529;
+    }
+    #bank-heist-progress-bar {
+        width: 0%; height: 100%; background: linear-gradient(90deg, var(--success), var(--gold));
+        transition: width 0.5s ease;
+    }
+    #leave-bank-btn { position: absolute; bottom: 20px; right: 20px; z-index: 20; }
+    /* --- BANK HEIST ADDITION END --- */
 
     #chat-input-container {
         position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
@@ -549,16 +651,25 @@
     .panel-content {
         background: var(--dark-card); padding: 2.5rem; border-radius: var(--border-radius);
         border: 1px solid var(--dark-card-border); box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-        width: 100%; max-width: 420px; text-align: center; position: relative;
+        width: 100%; max-width: 380px; text-align: center; position: relative;
         animation: slideUp 0.4s cubic-bezier(0.25, 1, 0.5, 1);
     }
-    @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+     @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     .close-panel-btn {
         position: absolute; top: 10px; right: 15px; background: none; border: none;
         font-size: 2rem; color: var(--medium-text); cursor: pointer;
         padding: 0; line-height: 1; transition: color 0.3s ease;
     }
     .close-panel-btn:hover { color: var(--light-text); }
+
+    /* Pizzeria Choice Panel */
+    #pizzeria-choice-panel .panel-content { max-width: 420px; }
+    #pizzeria-choice-panel h3 { font-size: 1.6rem; margin-bottom: 1rem; color: white; }
+    #pizzeria-choice-panel p { font-size: 1.1rem; color: var(--medium-text); margin-bottom: 2.5rem; }
+    .pizzeria-choice-buttons { display: flex; gap: 1rem; justify-content: center; }
+    #goto-kitchen-btn { background: var(--primary-blue); }
+    #goto-restaurant-btn { background: var(--secondary-purple); }
+
 
     /* User Interaction Panel */
     #user-interaction-panel h3 {
@@ -575,30 +686,6 @@
         box-shadow: 0 4px 15px rgba(48, 209, 88, 0.4); transform: translateY(-2px);
     }
 
-    /* Bank Panel (ATM) */
-    #bank-panel .panel-content {
-        background: linear-gradient(135deg, #2c3e50, #34495e);
-    }
-    #bank-panel h3 { font-size: 2rem; margin-bottom: 2rem; color: var(--gold); text-shadow: 0 2px 5px rgba(0,0,0,0.5); }
-    .bank-balance-display {
-        background: rgba(0,0,0,0.3); border-radius: 12px;
-        padding: 1rem; margin-bottom: 1.5rem;
-    }
-    .bank-balance-display p {
-        margin: 0; font-size: 1rem; color: var(--medium-text);
-        display: flex; justify-content: space-between;
-    }
-    .bank-balance-display p span:last-child {
-        font-weight: bold; color: var(--light-text);
-    }
-    #bank-panel .input-group {
-        margin-bottom: 1rem;
-    }
-    #bank-panel .bank-actions { display: flex; gap: 1rem; }
-    #bank-panel .bank-actions button { flex: 1; }
-    #bank-deposit-btn { background-color: var(--success); }
-    #bank-withdraw-btn { background-color: var(--primary-blue); }
-
     /* Confirmation Panel */
     #confirmation-panel .panel-content { max-width: 420px; }
     #confirmation-panel h3 { font-size: 1.6rem; margin-bottom: 1rem; color: white; }
@@ -609,7 +696,8 @@
 
     /* Toast Notifications */
     #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 3000; display: flex; flex-direction: column; gap: 10px; }
-    .toast { background-color: #2c2c2e; color: #f2f2f7; padding: 12px 20px; border-radius: 10px; border: 1px solid #38383a; border-left: 5px solid; box-shadow: 0 4px 12px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 10px; animation: slideUp 0.5s cubic-bezier(0.25, 1, 0.5, 1); }
+    .toast { background-color: #2c2c2e; color: #f2f2f7; padding: 12px 20px; border-radius: 10px; border: 1px solid #38383a; border-left: 5px solid; box-shadow: 0 4px 12px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 10px; animation: slideUpToast 0.5s cubic-bezier(0.25, 1, 0.5, 1); }
+    @keyframes slideUpToast { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     .toast.toast-success { border-left-color: var(--success); }
     .toast.toast-error { border-left-color: var(--danger); }
     .toast.toast-info { border-left-color: var(--primary-blue); }
@@ -711,7 +799,7 @@
      <div class="dealer-character">
         <img src="IDLE.gif" alt="Dealer Mascot">
      </div>
-     
+
      <div id="game-status">Place your bet to start!</div>
 
      <div class="hand-area" id="dealer-area">
@@ -729,7 +817,7 @@
          </div>
          <div class="hand-cards" id="player-hand"></div>
      </div>
-     
+
      <div class="blackjack-footer">
         <h2>Blackjack</h2>
         <div id="blackjack-controls">
@@ -769,9 +857,9 @@
                 <!-- Furniture selection items are rendered here -->
             </div>
         </div>
-        
-        <!-- Scene for Pizzeria Minigame -->
-        <div id="pizzeria-container">
+
+        <!-- Scene for Pizzeria KITCHEN Minigame -->
+        <div id="pizzeria-kitchen-container">
             <button id="leave-pizzeria-btn">Leave Kitchen</button>
             <div id="cutting-board">
                 <div id="pizza-assembly-area">
@@ -783,6 +871,7 @@
                 <div class="pizzeria-ui-right">
                     <div id="pizza-order-ticket">
                         <h3>CURRENT ORDER</h3>
+                        <div id="pizza-order-ticket-customer"></div>
                         <ul id="pizza-order-list"></ul>
                         <div id="order-timer"><div id="order-timer-bar"></div></div>
                     </div>
@@ -793,6 +882,50 @@
                 </div>
             </div>
         </div>
+
+        <!-- Scene for Pizzeria RESTAURANT -->
+        <div id="pizzeria-restaurant-container" style="display: none;">
+            <div id="pizzeria-restaurant-room">
+                <!-- Restaurant furniture, players, and NPCs will be rendered here -->
+            </div>
+            <div id="pizzeria-restaurant-ui-container">
+                 <button id="leave-restaurant-btn">Leave</button>
+            </div>
+            <div id="custom-pizza-panel">
+                 <h3>Create a Pizza (10 BUX)</h3>
+                 <div id="custom-pizza-toppings">
+                     <label class="topping-option">
+                         <input type="checkbox" data-topping="Pepperoni" data-quantity="5"> Pepperoni
+                     </label>
+                      <label class="topping-option">
+                         <input type="checkbox" data-topping="Mushrooms" data-quantity="3"> Mushrooms
+                     </label>
+                      <label class="topping-option">
+                         <input type="checkbox" data-topping="Olives" data-quantity="8"> Olives
+                     </label>
+                 </div>
+                 <button id="place-custom-order-btn">Place Order</button>
+            </div>
+        </div>
+
+        <!-- --- BANK HEIST ADDITION START --- -->
+        <!-- Scene for Bank Heist -->
+        <div id="bank-container" style="display: none;">
+             <div id="bank-room">
+                <div class="bank-vault"></div>
+             </div>
+             <div id="bank-ui-container">
+                <h3 id="bank-heist-status">The Vault</h3>
+                <div id="bank-heist-timer"></div>
+                <div id="bank-heist-progress-bar-container" style="display: none;">
+                    <div id="bank-heist-progress-bar"></div>
+                </div>
+                <div id="bank-heist-actions"></div>
+             </div>
+             <button id="leave-bank-btn">Leave Bank</button>
+        </div>
+        <!-- --- BANK HEIST ADDITION END --- -->
+
 
         <!-- Chat Input -->
         <div id="chat-input-container" style="display: none;">
@@ -822,25 +955,6 @@
     </div>
 </div>
 
-<!-- Bank Panel -->
-<div id="bank-panel" class="panel-overlay">
-    <div class="panel-content">
-        <button class="close-panel-btn">&times;</button>
-        <h3>Linus National Bank</h3>
-        <div class="bank-balance-display">
-            <p><span>Current Balance:</span> <span id="bank-current-balance">0 BUX</span></p>
-            <p><span>Savings Balance:</span> <span id="bank-savings-balance">0 BUX</span></p>
-        </div>
-        <div class="input-group">
-             <input type="number" id="bank-amount-input" placeholder="Enter amount">
-        </div>
-        <div class="bank-actions">
-            <button id="bank-deposit-btn">Deposit</button>
-            <button id="bank-withdraw-btn">Withdraw</button>
-        </div>
-    </div>
-</div>
-
 <!-- Confirmation Panel -->
 <div id="confirmation-panel" class="panel-overlay">
     <div class="panel-content">
@@ -849,6 +963,19 @@
         <div class="confirmation-buttons">
             <button id="cancel-action-btn">Cancel</button>
             <button id="confirm-action-btn">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<!-- Pizzeria Choice Panel -->
+<div id="pizzeria-choice-panel" class="panel-overlay">
+    <div class="panel-content">
+        <button class="close-panel-btn">&times;</button>
+        <h3>Welcome to the Pizzeria!</h3>
+        <p>Where would you like to go?</p>
+        <div class="pizzeria-choice-buttons">
+            <button id="goto-kitchen-btn">Go to Kitchen (Job)</button>
+            <button id="goto-restaurant-btn">Go to Restaurant</button>
         </div>
     </div>
 </div>
@@ -873,9 +1000,8 @@ const auth = firebase.auth();
 const db = firebase.database();
 
 document.addEventListener('DOMContentLoaded', () => {
-    
+
 let balance = 0;
-let savingsBalance = 0;
 let currentUser = null;
 let balanceRef = null;
 let isBalanceInitialized = false;
@@ -923,19 +1049,10 @@ auth.onAuthStateChanged(user => {
         balanceRef = db.ref(`users/${currentUser.uid}`);
         balanceRef.on('value', (snapshot) => {
             const data = snapshot.val();
-            if (!data) {
-                balanceRef.set({ balance: 100, email: user.email, savings: 0 });
-                balance = 100;
-                savingsBalance = 0;
-            } else {
-                 balance = data.balance !== undefined ? data.balance : 100;
-                 savingsBalance = data.savings !== undefined ? data.savings : 0;
-                 if (data.savings === undefined) {
-                     balanceRef.child('savings').set(0);
-                 }
-            }
+            balance = (data && data.balance !== undefined) ? data.balance : 100;
+            if (!data) { balanceRef.set({ balance: 100, email: user.email }); }
             updateAllBalanceDisplays(balance);
-            isBalanceInitialized = true; 
+            isBalanceInitialized = true;
         });
         appContainer.classList.add('visible');
         authContainer.style.display = 'none';
@@ -946,7 +1063,6 @@ auth.onAuthStateChanged(user => {
         currentUser = null;
         if(balanceRef) balanceRef.off();
         balance = 0;
-        savingsBalance = 0;
         isBalanceInitialized = false;
         updateAllBalanceDisplays(0);
         appContainer.classList.remove('visible');
@@ -1107,10 +1223,10 @@ function updateAllBalanceDisplays(targetBalance) {
         const bet = parseInt(betAmountInput.value, 10);
         if (isNaN(bet) || bet <= 0) { showToast('Please enter a valid positive bet.', 'error'); return; }
         if (bet > balance) { showToast('You cannot bet more than your balance.', 'error'); return; }
-        
+
         currentBet = bet;
         db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(-currentBet));
-        
+
         spinButton.disabled = true; betAmountInput.disabled = true; wheelSpinning = true;
 
         const totalRotation = (8 + Math.random() * 4) * 360 + Math.random() * 360;
@@ -1135,9 +1251,9 @@ function updateAllBalanceDisplays(targetBalance) {
     const suits = ['♥', '♦', '♠', '♣'];
     const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
     let deck = [], playerHand, dealerHand, currentBetBJ = 0;
-    
+
     ['IDLE.gif', 'HAPPY.gif', 'ANGRY.gif'].forEach(src => { new Image().src = src; });
-    
+
     const betControls = document.getElementById('blackjack-bet-controls');
     const gameActions = document.getElementById('blackjack-game-actions');
     const betInput = document.getElementById('blackjack-bet-input');
@@ -1212,7 +1328,7 @@ function updateAllBalanceDisplays(targetBalance) {
             dealerScoreEl.textContent = dealerScore;
         }
     }
-    
+
     function resetBoard() {
         playerHandEl.innerHTML = '';
         dealerHandEl.innerHTML = '';
@@ -1234,7 +1350,7 @@ function updateAllBalanceDisplays(targetBalance) {
         gameStatusEl.textContent = message;
         revealDealerCard();
         setActionsState(false, false, false);
-        
+
         if (payoutMultiplier > 0) {
             const finalPayout = Math.floor(currentBetBJ * payoutMultiplier);
             if(finalPayout > 0){
@@ -1244,7 +1360,7 @@ function updateAllBalanceDisplays(targetBalance) {
         } else {
             showToast(`You lost ${currentBetBJ.toLocaleString()} BUX`, 'error');
         }
-        
+
         dealerCharacterImg.src = payoutMultiplier > 1 ? 'HAPPY.gif' : (payoutMultiplier > 0 ? 'IDLE.gif' : 'ANGRY.gif');
 
         setTimeout(resetBoard, 3500);
@@ -1258,7 +1374,7 @@ function updateAllBalanceDisplays(targetBalance) {
                 rotationY: 90,
                 onComplete: () => {
                     facedownCard.remove();
-                    dealerHandEl.innerHTML = ''; 
+                    dealerHandEl.innerHTML = '';
                     renderCard(dealerHand[0], dealerHandEl);
                     renderCard(dealerHand[1], dealerHandEl);
                     updateScores(false);
@@ -1306,7 +1422,7 @@ function updateAllBalanceDisplays(targetBalance) {
         betControls.style.display = 'none';
         gameActions.style.display = 'flex';
         gameStatusEl.textContent = '';
-        
+
         createDeck();
         shuffleDeck();
         playerHand = [deck.pop(), deck.pop()];
@@ -1316,7 +1432,7 @@ function updateAllBalanceDisplays(targetBalance) {
         dealerHandEl.innerHTML = '';
         renderCard(playerHand[0], playerHandEl);
         renderCard(playerHand[1], playerHandEl);
-        renderCard(dealerHand[0], dealerHandEl, true); 
+        renderCard(dealerHand[0], dealerHandEl, true);
         renderCard(dealerHand[1], dealerHandEl);
 
         updateScores(true);
@@ -1329,7 +1445,7 @@ function updateAllBalanceDisplays(targetBalance) {
     });
 
     hitButton.addEventListener('click', () => {
-        setActionsState(true, true, false); 
+        setActionsState(true, true, false);
         const newCard = deck.pop();
         playerHand.push(newCard);
         renderCard(newCard, playerHandEl);
@@ -1346,9 +1462,9 @@ function updateAllBalanceDisplays(targetBalance) {
         setActionsState(false, false, false);
         dealerTurn();
     });
-    
+
     doubleDownButton.addEventListener('click', () => {
-        if (currentBetBJ > balance) { 
+        if (currentBetBJ > balance) {
             showToast("Not enough BUX to double down!", 'error');
             return;
         }
@@ -1366,7 +1482,7 @@ function updateAllBalanceDisplays(targetBalance) {
             setTimeout(dealerTurn, 800);
         }
     });
-    
+
     resetBoard();
 })();
 
@@ -1375,6 +1491,7 @@ function updateAllBalanceDisplays(targetBalance) {
     const gameArea = document.getElementById('game-area');
     if (!gameArea) return;
 
+    // --- Element References ---
     const worldContainer = document.getElementById('world-container');
     const interiorContainer = document.getElementById('interior-container');
     const interiorRoom = document.getElementById('interior-room');
@@ -1383,52 +1500,80 @@ function updateAllBalanceDisplays(targetBalance) {
     const leaveHouseBtn = document.getElementById('leave-house-btn');
     const toggleHouseLockBtn = document.getElementById('toggle-house-lock-btn');
     const furniturePanel = document.getElementById('furniture-panel');
-    const playersRef = db.ref('linusHub/players');
-    const housesRef = db.ref('linusHub/houses');
-    const decorationsRef = db.ref('linusHub/decorations');
-    let playerRef = null;
-    let decorationListener = null;
     const chatInputContainer = document.getElementById('chat-input-container');
     const chatInput = document.getElementById('chat-input');
-    
-    // Bank Panel elements
-    const bankPanel = document.getElementById('bank-panel');
-    const bankCurrentBalanceEl = document.getElementById('bank-current-balance');
-    const bankSavingsBalanceEl = document.getElementById('bank-savings-balance');
-    const bankAmountInput = document.getElementById('bank-amount-input');
-    const bankDepositBtn = document.getElementById('bank-deposit-btn');
-    const bankWithdrawBtn = document.getElementById('bank-withdraw-btn');
-    const closeBankPanelBtn = bankPanel.querySelector('.close-panel-btn');
 
-    const pizzeriaContainer = document.getElementById('pizzeria-container');
+    // --- Pizzeria Elements ---
+    const pizzeriaKitchenContainer = document.getElementById('pizzeria-kitchen-container');
     const leavePizzeriaBtn = document.getElementById('leave-pizzeria-btn');
     const pizzaOrderList = document.getElementById('pizza-order-list');
+    const pizzaOrderCustomer = document.getElementById('pizza-order-ticket-customer');
     const ingredientsBin = document.getElementById('ingredients-bin');
     const finishPizzaBtn = document.getElementById('finish-pizza-btn');
     const pizzaBase = document.getElementById('pizza-base');
     const draggedItem = document.getElementById('dragged-item');
     const sauceCursor = document.getElementById('sauce-cursor');
     const orderTimerBar = document.getElementById('order-timer-bar');
+    const pizzeriaChoicePanel = document.getElementById('pizzeria-choice-panel');
+    const pizzeriaRestaurantContainer = document.getElementById('pizzeria-restaurant-container');
+    const pizzeriaRestaurantRoom = document.getElementById('pizzeria-restaurant-room');
+    const leaveRestaurantBtn = document.getElementById('leave-restaurant-btn');
+    const customPizzaPanel = document.getElementById('custom-pizza-panel');
+    const placeCustomOrderBtn = document.getElementById('place-custom-order-btn');
 
+    // --- BANK HEIST ADDITION START ---
+    const bankContainer = document.getElementById('bank-container');
+    const bankRoom = document.getElementById('bank-room');
+    const bankVault = bankRoom.querySelector('.bank-vault');
+    const leaveBankBtn = document.getElementById('leave-bank-btn');
+    const bankHeistStatusEl = document.getElementById('bank-heist-status');
+    const bankHeistTimerEl = document.getElementById('bank-heist-timer');
+    const bankHeistProgressBarContainer = document.getElementById('bank-heist-progress-bar-container');
+    const bankHeistProgressBar = document.getElementById('bank-heist-progress-bar');
+    const bankHeistActionsEl = document.getElementById('bank-heist-actions');
+    // --- BANK HEIST ADDITION END ---
+
+
+    // --- Firebase References ---
+    const playersRef = db.ref('linusHub/players');
+    const housesRef = db.ref('linusHub/houses');
+    const decorationsRef = db.ref('linusHub/decorations');
+    const pizzeriaOrdersRef = db.ref('linusHub/pizzeriaOrders');
+    // --- BANK HEIST ADDITION START ---
+    const bankRef = db.ref('linusHub/bank');
+    let bankListener = null;
+    let bankHeistTimerInterval = null;
+    // --- BANK HEIST ADDITION END ---
+    let playerRef = null;
+    let decorationListener = null;
+    let pizzeriaOrdersListener = null;
+    let myOrderListener = null;
+
+    // --- Local Player Setup ---
     const localPlayerContainer = document.createElement('div');
     localPlayerContainer.id = 'local-player-container';
     localPlayerContainer.className = 'player-character';
     localPlayerContainer.innerHTML = `<div class="player-ui-container"><div class="chat-bubble"></div><div class="player-nametag">You</div></div><img id="player-character-img" src="IDLE.gif" alt="Player">`;
     const localPlayerImage = localPlayerContainer.querySelector('#player-character-img');
 
+    // --- Game State Variables ---
     const playerState = {
         element: localPlayerContainer, imgElement: localPlayerImage,
-        x: 0, y: 0, width: 80, height: 80, speed: 250, direction: 1, animation: 'idle',
+        x: 0, y: 0, width: 80, height: 80, speed: 250, baseSpeed: 250, direction: 1, animation: 'idle',
         inHouseId: null, inMinigame: null,
-        hubX: 0, hubY: 0, isSitting: false, sittingOnChairId: null
+        hubX: 0, hubY: 0, isSitting: false, sittingOnChairId: null, myOrderKey: null
     };
     localPlayerContainer.style.width = `${playerState.width}px`;
     localPlayerContainer.style.height = `${playerState.height}px`;
 
     const keys = { w: false, a: false, s: false, d: false };
     let isChatting = false, gameLoopId = null, otherPlayerElements = {}, houseElements = {}, allHouses = {}, placedItemElements = {}, isEditingHouse = false, selectedFurnitureType = null;
+    let restaurantFurnitureLayout = [];
+    let restaurantFurnitureElements = {};
+    let npcState = [];
     let lastFrameTime = performance.now();
-    
+
+    // --- Constants and Catalogs ---
     const FURNITURE_CATALOG = {
         'table': { name: 'Table', width: 120, height: 80, color: '#A0522D' },
         'chair': { name: 'Chair', width: 40, height: 40, color: '#800000' },
@@ -1439,19 +1584,31 @@ function updateAllBalanceDisplays(targetBalance) {
     const HOUSE_WIDTH = 200, HOUSE_HEIGHT = 200;
     const houseLayout = [ { id: 0, x: -200, y: -200 }, { id: 1, x: 250, y: -450 }, { id: 2, x: 650, y: -200 }, { id: 3, x: 900, y: 250 }, { id: 4, x: 650, y: 650 }, { id: 5, x: 250, y: 900 }, { id: 6, x: -200, y: 650 }, { id: 7, x: -650, y: 250 }, { id: 8, x: -900, y: -450 }, { id: 9, x: -550, y: -750 } ];
     const pizzeriaBuilding = { x: 0, y: 250, width: 250, height: 180 };
-    const bankBuilding = { x: -450, y: 0, width: 280, height: 220 };
+    // --- BANK HEIST ADDITION START ---
+    const bankBuilding = { x: -600, y: 250, width: 280, height: 200 };
+    // --- BANK HEIST ADDITION END ---
 
+    function updatePlayerScene(playerElement, otherPlayerState) {
+        const localPlayerLocation = playerState.inHouseId || playerState.inMinigame || 'hub';
+        const otherPlayerLocation = otherPlayerState.inHouseId || otherPlayerState.inMinigame || 'hub';
 
-    function updatePlayerScene(playerElement, otherPlayerInHouseId) {
-        const localPlayerInHouseId = playerState.inHouseId;
-        const shouldBeVisible = (localPlayerInHouseId === otherPlayerInHouseId);
-        if (otherPlayerInHouseId === null) {
-            if (playerElement.parentElement !== worldContainer) worldContainer.appendChild(playerElement);
-        } else { 
-            if (playerElement.parentElement !== interiorRoom) interiorRoom.appendChild(playerElement);
+        const shouldBeVisible = (localPlayerLocation === otherPlayerLocation);
+
+        let targetParent = null;
+        if (otherPlayerLocation === 'hub') targetParent = worldContainer;
+        else if (otherPlayerLocation === 'pizzeria-restaurant') targetParent = pizzeriaRestaurantRoom;
+        // --- BANK HEIST ADDITION START ---
+        else if (otherPlayerLocation === 'bank') targetParent = bankRoom;
+        // --- BANK HEIST ADDITION END ---
+        else if (otherPlayerLocation) targetParent = interiorRoom; // For any house ID
+
+        if (targetParent && playerElement.parentElement !== targetParent) {
+            targetParent.appendChild(playerElement);
         }
+
         playerElement.style.display = shouldBeVisible ? 'flex' : 'none';
     }
+
 
     function populateFurniturePanel() {
         furniturePanel.innerHTML = '';
@@ -1485,9 +1642,9 @@ function updateAllBalanceDisplays(targetBalance) {
         toggleHouseLockBtn.textContent = isOpen ? 'Close House' : 'Open House';
         worldContainer.style.display = 'none';
         interiorContainer.style.display = 'block';
-        if(playerRef) playerRef.update({ inHouseId: houseId, x: playerState.x, y: playerState.y });
-        Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.inHouseId));
-        updatePlayerScene(localPlayerContainer, playerState.inHouseId);
+        if(playerRef) playerRef.update({ inHouseId: houseId, x: playerState.x, y: playerState.y, inMinigame: null });
+        Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.state));
+        updatePlayerScene(localPlayerContainer, playerState);
         decorationListener = decorationsRef.child(houseId);
         decorationListener.on('value', snapshot => {
             interiorRoom.querySelectorAll('.placed-item').forEach(el => el.remove());
@@ -1511,8 +1668,8 @@ function updateAllBalanceDisplays(targetBalance) {
         interiorContainer.style.display = 'none';
         worldContainer.style.display = 'block';
         if (isEditingHouse) toggleEditMode();
-        Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.inHouseId));
-        updatePlayerScene(localPlayerContainer, playerState.inHouseId);
+        Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.state));
+        updatePlayerScene(localPlayerContainer, playerState);
         updateLocalPlayerPosition();
     }
 
@@ -1529,31 +1686,50 @@ function updateAllBalanceDisplays(targetBalance) {
         if (isEditingHouse) { populateFurniturePanel(); } else { selectedFurnitureType = null; }
     }
 
-    function sitOnChair(chairEl, chairData) {
-        if (playerState.isSitting) return;
+    function sitOnChair(chairEl) {
+        if (playerState.isSitting || playerState.myOrderKey) {
+            if(playerState.myOrderKey) showToast("You must wait for your current order.", "info");
+            return;
+        };
         playerState.isSitting = true;
         playerState.sittingOnChairId = chairEl.dataset.id;
+
+        const chairWidth = parseInt(chairEl.style.width);
+        const chairHeight = parseInt(chairEl.style.height);
+        const chairX = parseInt(chairEl.style.left);
+        const chairY = parseInt(chairEl.style.top);
+
+        playerState.x = chairX + (chairWidth / 2) - (playerState.width / 2);
+        playerState.y = chairY + (chairHeight / 2) - (playerState.height / 2);
+
+        if (playerState.inMinigame === 'pizzeria-restaurant') {
+            customPizzaPanel.classList.add('visible');
+        }
+
+        updateLocalPlayerPosition();
         showToast("Press SPACE to stand up", "info");
-        const chairDef = FURNITURE_CATALOG[chairData.type];
-        playerState.x = chairData.x + (chairDef.width / 2) - (playerState.width / 2);
-        playerState.y = chairData.y + (chairDef.height / 2) - (playerState.height / 2);
-        updateLocalPlayerPosition(); 
     }
 
+
     function standUp() {
-        if (!playerState.isSitting || !playerState.sittingOnChairId) return;
-        const chairEl = placedItemElements[playerState.sittingOnChairId];
-        if (!chairEl) {
-            playerState.isSitting = false;
-            playerState.sittingOnChairId = null;
-            return;
+        if (!playerState.isSitting) return;
+
+        let chairEl;
+        if(playerState.inMinigame === 'pizzeria-restaurant') {
+            chairEl = restaurantFurnitureElements[playerState.sittingOnChairId];
+            customPizzaPanel.classList.remove('visible');
+        } else if(playerState.inHouseId) {
+            chairEl = placedItemElements[playerState.sittingOnChairId];
         }
-        const chairDef = FURNITURE_CATALOG[chairEl.dataset.type];
-        const chairBox = { x: parseInt(chairEl.style.left), y: parseInt(chairEl.style.top) };
-        playerState.x = chairBox.x + (chairDef.width / 2) - (playerState.width / 2);
-        playerState.y = chairBox.y + chairDef.height;
+
+        if (chairEl) {
+            const chairBoxX = parseInt(chairEl.style.left);
+            const chairBoxHeight = parseInt(chairEl.style.height);
+            playerState.y = chairBoxX + chairBoxHeight;
+        }
+
         playerState.isSitting = false;
-        playerState.sittingOnChairId = null; 
+        playerState.sittingOnChairId = null;
         keys.w = keys.a = keys.s = keys.d = false;
         updateLocalPlayerPosition();
     }
@@ -1577,13 +1753,13 @@ function updateAllBalanceDisplays(targetBalance) {
             if (isEditingHouse) {
                 decorationsRef.child(playerState.inHouseId).child(itemId).remove();
             } else if (itemData.type === 'chair') {
-                sitOnChair(itemEl, itemData);
+                sitOnChair(itemEl);
             }
         });
         interiorRoom.appendChild(itemEl);
         placedItemElements[itemId] = itemEl;
     }
-    
+
     interiorRoom.addEventListener('click', (e) => {
         if (!isEditingHouse || !selectedFurnitureType || e.target !== interiorRoom) return;
         const rect = interiorRoom.getBoundingClientRect();
@@ -1634,30 +1810,26 @@ function updateAllBalanceDisplays(targetBalance) {
         pizzeriaEl.style.left = `${pizzeriaBuilding.x}px`;
         pizzeriaEl.style.top = `${pizzeriaBuilding.y}px`;
         pizzeriaEl.innerHTML = `<h3>PIZZERIA</h3>`;
-        pizzeriaEl.addEventListener('click', enterPizzeria);
+        pizzeriaEl.addEventListener('click', () => pizzeriaChoicePanel.classList.add('visible'));
         worldContainer.appendChild(pizzeriaEl);
-
+        
+        // --- BANK HEIST ADDITION START ---
         const bankEl = document.createElement('div');
         bankEl.className = 'hub-bank';
         bankEl.style.left = `${bankBuilding.x}px`;
         bankEl.style.top = `${bankBuilding.y}px`;
-        bankEl.innerHTML = `
-            <div class="bank-main">BANK</div>
-            <div class="bank-robbery">ROBBERY</div>
-        `;
-        bankEl.querySelector('.bank-main').addEventListener('click', openBankPanel);
-        bankEl.querySelector('.bank-robbery').addEventListener('click', () => {
-            showToast('Bank Robbery minigame coming soon!', 'info');
-        });
+        bankEl.innerHTML = `<h3>BANK</h3>`;
+        bankEl.addEventListener('click', enterBank);
         worldContainer.appendChild(bankEl);
+        // --- BANK HEIST ADDITION END ---
     }
-    
+
     function onHouseClick(houseId) {
         if (!isBalanceInitialized) { showToast("Initializing account, please wait...", "info"); return; }
         const houseData = allHouses[houseId];
         const ownerUid = houseData ? houseData.ownerUid : null;
         if (ownerUid) {
-            if (ownerUid === currentUser.uid || houseData.isOpen) { enterHouse(houseId); } 
+            if (ownerUid === currentUser.uid || houseData.isOpen) { enterHouse(houseId); }
             else { showToast('This house is closed to visitors.', 'info'); }
         } else {
             if (balance < 100) { showToast("You need 100 BUX to claim a house.", 'error'); return; }
@@ -1674,21 +1846,29 @@ function updateAllBalanceDisplays(targetBalance) {
         }
     }
 
-    function checkCollision(nextX, nextY) {
+    function checkCollision(nextX, nextY, forNpc = false) {
         const playerBox = { left: nextX, top: nextY, right: nextX + playerState.width, bottom: nextY + playerState.height };
-        if (playerState.inHouseId === null) { // Hub collision
-            for (const house of houseLayout) {
-                const houseBox = { left: house.x, top: house.y, right: house.x + HOUSE_WIDTH, bottom: house.y + HOUSE_HEIGHT };
-                if (playerBox.right > houseBox.left && playerBox.left < houseBox.right && playerBox.bottom > houseBox.top && playerBox.top < houseBox.bottom) return true;
+
+        if (playerState.inMinigame === 'pizzeria-restaurant' || forNpc) {
+            const room = pizzeriaRestaurantRoom;
+            if (nextX < 0 || nextY < 0 || nextX + playerState.width > room.offsetWidth || nextY + playerState.height > room.offsetHeight) return true;
+             for (const item of restaurantFurnitureLayout) {
+                const itemBox = { left: item.x, top: item.y, right: item.x + item.w, bottom: item.y + item.h };
+                 if (playerBox.right > itemBox.left && playerBox.left < itemBox.right && playerBox.bottom > itemBox.top && playerBox.top < itemBox.bottom) return true;
             }
-            const pizzeriaBox = { left: pizzeriaBuilding.x, top: pizzeriaBuilding.y, right: pizzeriaBuilding.x + pizzeriaBuilding.width, bottom: pizzeriaBuilding.y + pizzeriaBuilding.height };
-            if (playerBox.right > pizzeriaBox.left && playerBox.left < pizzeriaBox.right && playerBox.bottom > pizzeriaBox.top && playerBox.top < pizzeriaBox.bottom) return true;
-            
-            const bankBox = { left: bankBuilding.x, top: bankBuilding.y, right: bankBuilding.x + bankBuilding.width, bottom: bankBuilding.y + bankBuilding.height };
-            if (playerBox.right > bankBox.left && playerBox.left < bankBox.right && playerBox.bottom > bankBox.top && playerBox.top < bankBox.bottom) return true;
-
-
-        } else { // Interior collision
+        // --- BANK HEIST ADDITION START ---
+        } else if (playerState.inMinigame === 'bank') {
+            const room = bankRoom;
+            if (nextX < 0 || nextY < 0 || nextX + playerState.width > room.offsetWidth || nextY + playerState.height > room.offsetHeight) return true;
+            const vaultRect = bankVault.getBoundingClientRect();
+            const roomRect = room.getBoundingClientRect();
+            const vaultBox = {
+                left: vaultRect.left - roomRect.left, top: vaultRect.top - roomRect.top,
+                right: (vaultRect.right - roomRect.left), bottom: (vaultRect.bottom - roomRect.top)
+            };
+            if (playerBox.right > vaultBox.left && playerBox.left < vaultBox.right && playerBox.bottom > vaultBox.top && playerBox.top < vaultBox.bottom) return true;
+        // --- BANK HEIST ADDITION END ---
+        } else if (playerState.inHouseId !== null) { // Interior collision
             if (nextX < 0 || nextY < 0 || nextX + playerState.width > interiorRoom.offsetWidth || nextY + playerState.height > interiorRoom.offsetHeight) return true;
             for (const itemId in placedItemElements) {
                 const itemEl = placedItemElements[itemId];
@@ -1697,7 +1877,19 @@ function updateAllBalanceDisplays(targetBalance) {
                 const itemBox = { left: parseInt(itemEl.style.left), top: parseInt(itemEl.style.top), right: parseInt(itemEl.style.left) + itemDef.width, bottom: parseInt(itemEl.style.top) + itemDef.height };
                  if (playerBox.right > itemBox.left && playerBox.left < itemBox.right && playerBox.bottom > itemBox.top && playerBox.top < itemBox.bottom) return true;
             }
+        } else { // Hub collision
+            for (const house of houseLayout) {
+                const houseBox = { left: house.x, top: house.y, right: house.x + HOUSE_WIDTH, bottom: house.y + HOUSE_HEIGHT };
+                if (playerBox.right > houseBox.left && playerBox.left < houseBox.right && playerBox.bottom > houseBox.top && playerBox.top < houseBox.bottom) return true;
+            }
+            const pizzeriaBox = { left: pizzeriaBuilding.x, top: pizzeriaBuilding.y, right: pizzeriaBuilding.x + pizzeriaBuilding.width, bottom: pizzeriaBuilding.y + pizzeriaBuilding.height };
+            if (playerBox.right > pizzeriaBox.left && playerBox.left < pizzeriaBox.right && playerBox.bottom > pizzeriaBox.top && playerBox.top < pizzeriaBox.bottom) return true;
+            // --- BANK HEIST ADDITION START ---
+            const bankBox = { left: bankBuilding.x, top: bankBuilding.y, right: bankBuilding.x + bankBuilding.width, bottom: bankBuilding.y + bankBuilding.height };
+            if (playerBox.right > bankBox.left && playerBox.left < bankBox.right && playerBox.bottom > bankBox.top && playerBox.top < bankBox.bottom) return true;
+            // --- BANK HEIST ADDITION END ---
         }
+
         return false;
     }
 
@@ -1730,99 +1922,33 @@ function updateAllBalanceDisplays(targetBalance) {
         const newSrc = (playerState.animation === 'walk') ? 'WALK.gif' : 'IDLE.gif';
         if (playerState.imgElement.src.indexOf(newSrc) === -1) { playerState.imgElement.src = newSrc; }
         if (playerRef) {
-            playerRef.update({ 
-                x: playerState.x, y: playerState.y, 
+            playerRef.update({
+                x: playerState.x, y: playerState.y,
                 direction: playerState.direction, animation: playerState.animation,
-                inHouseId: playerState.inHouseId 
+                inHouseId: playerState.inHouseId, inMinigame: playerState.inMinigame
             });
         }
     }
-    
-    // --- Bank Panel Logic ---
-    function openBankPanel() {
-        bankCurrentBalanceEl.textContent = `${balance.toLocaleString()} BUX`;
-        bankSavingsBalanceEl.textContent = `${savingsBalance.toLocaleString()} BUX`;
-        bankAmountInput.value = '';
-        bankPanel.classList.add('visible');
-    }
-    
-    function closeBankPanel() {
-        bankPanel.classList.remove('visible');
-    }
-    
-    function handleBankDeposit() {
-        const amount = parseInt(bankAmountInput.value, 10);
-        if (isNaN(amount) || amount <= 0) { return showToast('Please enter a valid amount.', 'error'); }
-        if (amount > balance) { return showToast('Insufficient funds in your wallet.', 'error'); }
-        
-        db.ref(`users/${currentUser.uid}`).transaction(data => {
-            if (data && data.balance >= amount) {
-                data.balance -= amount;
-                data.savings = (data.savings || 0) + amount;
-                return data;
-            }
-            return; // Abort transaction
-        }).then(result => {
-            if(result.committed) {
-                showToast(`Deposited ${amount.toLocaleString()} BUX into savings.`, 'success');
-                bankAmountInput.value = '';
-                // Update local values immediately for UI responsiveness
-                balance -= amount;
-                savingsBalance += amount;
-                openBankPanel(); // Refresh panel data
-            } else {
-                showToast('Deposit failed. Please try again.', 'error');
-            }
-        });
-    }
 
-    function handleBankWithdraw() {
-        const amount = parseInt(bankAmountInput.value, 10);
-        if (isNaN(amount) || amount <= 0) { return showToast('Please enter a valid amount.', 'error'); }
-        
-        db.ref(`users/${currentUser.uid}`).transaction(data => {
-            if (data && data.savings >= amount) {
-                data.balance += amount;
-                data.savings -= amount;
-                return data;
-            }
-            return; // Abort transaction
-        }).then(result => {
-             if(result.committed) {
-                showToast(`Withdrew ${amount.toLocaleString()} BUX from savings.`, 'success');
-                bankAmountInput.value = '';
-                // Update local values immediately for UI responsiveness
-                balance += amount;
-                savingsBalance -= amount;
-                openBankPanel(); // Refresh panel data
-            } else {
-                showToast('Insufficient funds in savings.', 'error');
-            }
-        });
-    }
-
-    bankDepositBtn.addEventListener('click', handleBankDeposit);
-    bankWithdrawBtn.addEventListener('click', handleBankWithdraw);
-    closeBankPanelBtn.addEventListener('click', closeBankPanel);
-    bankPanel.addEventListener('click', e => { if (e.target === bankPanel) closeBankPanel(); });
-
-    // --- Pizzeria Minigame Logic ---
+    // --- Pizzeria Logic (Kitchen, Restaurant, Ordering) ---
     const PIZZA_PAYOUT = 8;
     const SAUCE_SPLAT_REQUIREMENT = 30;
     const allToppings = ['Pepperoni', 'Mushrooms', 'Olives'];
     const pizzeriaState = {
         currentOrder: {},
+        orderKey: null, // To track player orders
         placedIngredients: {},
         timerId: null,
         timeLeft: 0,
         totalTime: 0,
         isSpreadingSauce: false,
         isReadyToSpreadSauce: false,
+        playerOrderQueue: [],
     };
-    
+
     function populateIngredientsBin() {
         ingredientsBin.innerHTML = '';
-        const ingredients = ['Sauce', 'Cheese', 'Pepperoni', 'Mushrooms', 'Olives'];
+        const ingredients = ['Sauce', 'Cheese', ...allToppings];
         ingredients.forEach(name => {
             const item = document.createElement('div');
             item.className = 'ingredient';
@@ -1835,29 +1961,44 @@ function updateAllBalanceDisplays(targetBalance) {
         });
     }
 
-    function generateNewPizzaOrder() {
+    function getNewOrder() {
         pizzeriaState.placedIngredients = {};
-        pizzeriaState.currentOrder = {};
         pizzeriaState.isSpreadingSauce = false;
         pizzeriaState.isReadyToSpreadSauce = false;
-        let orderComplexity = 0;
-        
-        const shuffled = allToppings.sort(() => 0.5 - Math.random());
-        const toppingCount = Math.floor(Math.random() * 3) + 1;
-        for (let i = 0; i < toppingCount; i++) {
-            const toppingName = shuffled[i];
-            const quantity = Math.floor(Math.random() * 5) + 2;
-            pizzeriaState.currentOrder[toppingName] = quantity;
-            orderComplexity += quantity;
+        pizzeriaState.orderKey = null;
+
+        // Prioritize player orders
+        if (pizzeriaState.playerOrderQueue.length > 0) {
+            const playerOrder = pizzeriaState.playerOrderQueue.shift();
+            pizzeriaState.currentOrder = playerOrder.toppings;
+            pizzeriaState.orderKey = playerOrder.key;
+
+            pizzeriaOrdersRef.child(playerOrder.key).update({ status: 'claimed', chefUid: currentUser.uid });
+
+            pizzaOrderCustomer.textContent = `For: ${playerOrder.orderedByEmail.split('@')[0]}`;
+            showToast(`New order from ${playerOrder.orderedByEmail.split('@')[0]}!`, 'info');
+
+        } else { // Fallback to random order
+            pizzaOrderCustomer.textContent = 'For: Random Customer';
+            pizzeriaState.currentOrder = {};
+            const shuffled = [...allToppings].sort(() => 0.5 - Math.random());
+            const toppingCount = Math.floor(Math.random() * 3) + 1;
+            for (let i = 0; i < toppingCount; i++) {
+                const toppingName = shuffled[i];
+                const quantity = Math.floor(Math.random() * 5) + 2;
+                pizzeriaState.currentOrder[toppingName] = quantity;
+            }
         }
-        
-        pizzeriaState.totalTime = 15000 + (orderComplexity * 1500);
+
+        const orderComplexity = Object.values(pizzeriaState.currentOrder).reduce((sum, q) => sum + q, 0);
+        pizzeriaState.totalTime = 20000 + (orderComplexity * 1500);
         pizzeriaState.timeLeft = pizzeriaState.totalTime;
-        
+
         updateOrderTicketUI();
         resetPizzaVisuals();
         startOrderTimer();
     }
+
 
     function updateOrderTicketUI() {
         pizzaOrderList.innerHTML = '';
@@ -1883,28 +2024,31 @@ function updateAllBalanceDisplays(targetBalance) {
         document.getElementById('pizza-cheese-layer').style.transform = 'scale(0)';
         finishPizzaBtn.disabled = false;
     }
-    
+
     function startOrderTimer() {
         if (pizzeriaState.timerId) clearInterval(pizzeriaState.timerId);
         pizzeriaState.timerId = setInterval(() => {
             pizzeriaState.timeLeft -= 100;
             const progress = Math.max(0, pizzeriaState.timeLeft / pizzeriaState.totalTime);
             orderTimerBar.style.width = `${progress * 100}%`;
-            
+
             if(progress < 0.25) orderTimerBar.style.background = 'var(--danger)';
             else if (progress < 0.5) orderTimerBar.style.background = 'var(--gold)';
             else orderTimerBar.style.background = 'linear-gradient(90deg, var(--success), var(--gold))';
-            
+
             if (pizzeriaState.timeLeft <= 0) {
                 clearInterval(pizzeriaState.timerId);
                 finishPizzaBtn.disabled = true;
                 showToast("Time's up! New order.", 'error');
-                setTimeout(generateNewPizzaOrder, 1500);
+                if (pizzeriaState.orderKey) {
+                    pizzeriaOrdersRef.child(pizzeriaState.orderKey).update({status: 'failed'});
+                }
+                setTimeout(getNewOrder, 1500);
             }
         }, 100);
     }
-    
-    function finishPizza() {
+
+    async function finishPizza() {
         clearInterval(pizzeriaState.timerId);
         finishPizzaBtn.disabled = true;
 
@@ -1913,58 +2057,210 @@ function updateAllBalanceDisplays(targetBalance) {
             hasAllRequired = false;
         }
         for (const [name, needed] of Object.entries(pizzeriaState.currentOrder)) {
-            if ((pizzeriaState.placedIngredients[name] || 0) !== needed) {
+            if ((pizzeriaState.placedIngredients[name] || 0) < needed) {
                 hasAllRequired = false;
                 break;
             }
         }
 
         if (hasAllRequired) {
-            let penalty = 0;
-            for (const placedIngredient in pizzeriaState.placedIngredients) {
-                if (allToppings.includes(placedIngredient) && !pizzeriaState.currentOrder.hasOwnProperty(placedIngredient)) {
-                    penalty += 5; 
-                }
-            }
-            
-            const bonus = Object.keys(pizzeriaState.currentOrder).length;
-            const finalPayout = Math.max(0, PIZZA_PAYOUT + bonus - penalty);
+            const finalPayout = PIZZA_PAYOUT + Object.keys(pizzeriaState.currentOrder).length;
+            showToast(`Order complete! +${finalPayout} BUX`, 'success');
+            db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(finalPayout));
 
-            if (finalPayout > 0) {
-                 showToast(`Good enough! +${finalPayout} BUX`, 'success');
-                 db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(finalPayout));
-            } else {
-                 showToast(`Good enough, but the penalties cost you! +0 BUX`, 'info');
-            }
-            
-            if (penalty > 0) {
-                setTimeout(() => showToast(`Wasted ingredients! -${penalty} BUX penalty.`, 'error'), 500);
+            if(pizzeriaState.orderKey) {
+                await pizzeriaOrdersRef.child(pizzeriaState.orderKey).update({ status: 'completed' });
+                setTimeout(() => pizzeriaOrdersRef.child(pizzeriaState.orderKey).remove(), 2000);
             }
 
         } else {
              showToast("Incorrect order!", 'error');
+             if(pizzeriaState.orderKey) {
+                 await pizzeriaOrdersRef.child(pizzeriaState.orderKey).update({ status: 'failed' });
+                 setTimeout(() => pizzeriaOrdersRef.child(pizzeriaState.orderKey).remove(), 2000);
+             }
         }
 
-        setTimeout(generateNewPizzaOrder, 2000);
+        setTimeout(getNewOrder, 2000);
     }
-    
-    function enterPizzeria() {
+
+    function enterPizzeriaKitchen() {
+        pizzeriaChoicePanel.classList.remove('visible');
         playerState.hubX = playerState.x;
         playerState.hubY = playerState.y;
-        playerState.inMinigame = 'pizzeria';
+        playerState.inMinigame = 'pizzeria-kitchen';
+        if(playerRef) playerRef.update({ inMinigame: 'pizzeria-kitchen', inHouseId: null });
         worldContainer.style.display = 'none';
-        pizzeriaContainer.style.display = 'flex';
+        pizzeriaKitchenContainer.style.display = 'flex';
         populateIngredientsBin();
-        generateNewPizzaOrder();
+        getNewOrder();
+
+        pizzeriaOrdersListener = pizzeriaOrdersRef.orderByChild('status').equalTo('pending');
+        pizzeriaOrdersListener.on('child_added', snapshot => {
+            if(!pizzeriaState.playerOrderQueue.some(o => o.key === snapshot.key)) {
+                pizzeriaState.playerOrderQueue.push({ key: snapshot.key, ...snapshot.val() });
+            }
+        });
     }
-    function leavePizzeria() {
-        if (pizzeriaState.timerId) clearInterval(pizzeriaState.timerId);
-        playerState.inMinigame = null;
-        playerState.x = playerState.hubX;
-        playerState.y = pizzeriaBuilding.y + pizzeriaBuilding.height + 10;
-        pizzeriaContainer.style.display = 'none';
-        worldContainer.style.display = 'block';
-        updateLocalPlayerPosition();
+function leavePizzeriaKitchen() {
+    if (pizzeriaState.timerId) clearInterval(pizzeriaState.timerId);
+    if (pizzeriaOrdersListener) pizzeriaOrdersListener.off();
+    playerState.inMinigame = null;
+    if(playerRef) playerRef.update({ inMinigame: null });
+    playerState.x = playerState.hubX;
+    playerState.y = pizzeriaBuilding.y + pizzeriaBuilding.height + 10;
+    pizzeriaKitchenContainer.style.display = 'none';
+    worldContainer.style.display = 'block';
+
+    updatePlayerScene(localPlayerContainer, playerState);
+    Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.state));
+
+    updateLocalPlayerPosition();
+}
+
+    function initializeRestaurant() {
+        pizzeriaRestaurantRoom.innerHTML = '';
+        restaurantFurnitureElements = {};
+        restaurantFurnitureLayout = [
+            { id: 't1', type: 'table', x: 150, y: 100, w: 120, h: 80 }, { id: 'c1', type: 'chair', x: 190, y: 50,  w: 40, h: 40, tableId: 't1' }, { id: 'c2', type: 'chair', x: 190, y: 190, w: 40, h: 40, tableId: 't1' },
+            { id: 't2', type: 'table', x: 550, y: 100, w: 120, h: 80 }, { id: 'c3', type: 'chair', x: 590, y: 50,  w: 40, h: 40, tableId: 't2' }, { id: 'c4', type: 'chair', x: 590, y: 190, w: 40, h: 40, tableId: 't2' },
+            { id: 't3', type: 'table', x: 950, y: 100, w: 120, h: 80 }, { id: 'c5', type: 'chair', x: 990, y: 50,  w: 40, h: 40, tableId: 't3' }, { id: 'c6', type: 'chair', x: 990, y: 190, w: 40, h: 40, tableId: 't3' },
+            { id: 't4', type: 'table', x: 150, y: 500, w: 120, h: 80 }, { id: 'c7', type: 'chair', x: 190, y: 450, w: 40, h: 40, tableId: 't4' }, { id: 'c8', type: 'chair', x: 190, y: 590, w: 40, h: 40, tableId: 't4' },
+            { id: 't5', type: 'table', x: 550, y: 500, w: 120, h: 80 }, { id: 'c9', type: 'chair', x: 590, y: 450, w: 40, h: 40, tableId: 't5' }, { id: 'c10', type: 'chair', x: 590, y: 590, w: 40, h: 40, tableId: 't5' },
+            { id: 't6', type: 'table', x: 950, y: 500, w: 120, h: 80 }, { id: 'c11', type: 'chair', x: 990, y: 450, w: 40, h: 40, tableId: 't6' }, { id: 'c12', type: 'chair', x: 990, y: 590, w: 40, h: 40, tableId: 't6' }
+        ];
+        restaurantFurnitureLayout.forEach(item => {
+            const el = document.createElement('div');
+            el.className = `restaurant-item ${item.type}`;
+            el.dataset.id = item.id;
+            el.style.left = `${item.x}px`;
+            el.style.top = `${item.y}px`;
+            el.style.width = `${item.w}px`;
+            el.style.height = `${item.h}px`;
+            el.style.zIndex = Math.round(item.y);
+            if(item.type === 'chair') {
+                el.addEventListener('click', () => sitOnChair(el));
+            }
+            pizzeriaRestaurantRoom.appendChild(el);
+            restaurantFurnitureElements[item.id] = el;
+        });
+    }
+
+    function enterPizzeriaRestaurant() {
+        pizzeriaChoicePanel.classList.remove('visible');
+        playerState.hubX = playerState.x;
+        playerState.hubY = playerState.y;
+        playerState.inMinigame = 'pizzeria-restaurant';
+        playerState.x = pizzeriaRestaurantRoom.offsetWidth / 2;
+        playerState.y = pizzeriaRestaurantRoom.offsetHeight - playerState.height - 10;
+        if(playerRef) playerRef.update({ inMinigame: 'pizzeria-restaurant', inHouseId: null, x: playerState.x, y: playerState.y });
+
+        worldContainer.style.display = 'none';
+        pizzeriaRestaurantContainer.style.display = 'block';
+        initializeRestaurant();
+        initializeNpcs(5);
+
+        Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.state));
+        updatePlayerScene(localPlayerContainer, playerState);
+    }
+
+function leavePizzeriaRestaurant() {
+    standUp();
+    playerState.inMinigame = null;
+    if(playerRef) playerRef.update({ inMinigame: null });
+    if(myOrderListener) myOrderListener.off();
+    playerState.myOrderKey = null;
+
+    playerState.x = playerState.hubX;
+    playerState.y = pizzeriaBuilding.y + pizzeriaBuilding.height + 10;
+    pizzeriaRestaurantContainer.style.display = 'none';
+    worldContainer.style.display = 'block';
+    npcState = []; // Clear NPCs
+
+    updatePlayerScene(localPlayerContainer, playerState);
+    Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.state));
+
+    updateLocalPlayerPosition();
+}
+
+    async function placeCustomPizzaOrder() {
+        if(balance < 10) return showToast("You need 10 BUX to order a pizza.", "error");
+
+        const kitchenQuery = playersRef.orderByChild('inMinigame').equalTo('pizzeria-kitchen');
+        const snapshot = await kitchenQuery.once('value');
+        if (!snapshot.exists()) return showToast("Sorry, no chefs are working right now!", 'error');
+
+        const selectedToppings = {};
+        const checkboxes = document.querySelectorAll('#custom-pizza-toppings input:checked');
+        if(checkboxes.length === 0) return showToast("You must select at least one topping.", "error");
+
+        checkboxes.forEach(box => {
+            selectedToppings[box.dataset.topping] = parseInt(box.dataset.quantity, 10);
+        });
+        
+        const chairId = playerState.sittingOnChairId;
+        const tableId = restaurantFurnitureLayout.find(item => item.id === chairId)?.tableId;
+        if(!tableId) return showToast("Error finding your table.", "error");
+
+        const order = {
+            orderedByUid: currentUser.uid,
+            orderedByEmail: currentUser.email,
+            toppings: selectedToppings,
+            status: 'pending',
+            tableId: tableId,
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        };
+
+        const newOrderRef = await pizzeriaOrdersRef.push(order);
+        db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(-10));
+        showToast("Order sent to the kitchen!", 'success');
+        playerState.myOrderKey = newOrderRef.key;
+        standUp();
+        
+        myOrderListener = db.ref(`linusHub/pizzeriaOrders/${playerState.myOrderKey}`);
+        myOrderListener.on('value', (orderSnap) => {
+            const orderData = orderSnap.val();
+            if(!orderData) { // Order was deleted (completed or failed)
+                 myOrderListener.off();
+                 playerState.myOrderKey = null;
+                 return;
+            }
+            if(orderData.status === 'completed') {
+                deliverPizza(orderData.tableId);
+            } else if (orderData.status === 'failed') {
+                showToast("The chef failed your order! You were not charged.", "error");
+                db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(10));
+            }
+        });
+
+    }
+
+    function deliverPizza(tableId) {
+        const tableEl = restaurantFurnitureElements[tableId];
+        if(!tableEl) return;
+
+        showToast("Your pizza has arrived!", "success");
+        const pizzaEl = document.createElement('div');
+        pizzaEl.className = 'delivered-pizza';
+        
+        const tableRect = tableEl.getBoundingClientRect();
+        const roomRect = pizzeriaRestaurantRoom.getBoundingClientRect();
+
+        pizzaEl.style.left = `${tableRect.left - roomRect.left + (tableRect.width / 2) - 30}px`;
+        pizzaEl.style.top = `${tableRect.top - roomRect.top + (tableRect.height / 2) - 30}px`;
+        pizzaEl.style.zIndex = parseInt(tableEl.style.zIndex) + 1;
+
+        pizzaEl.addEventListener('click', () => {
+            pizzaEl.remove();
+            showToast("Yum! You feel faster!", "success");
+            playerState.speed = playerState.baseSpeed + 100;
+            setTimeout(() => {
+                playerState.speed = playerState.baseSpeed;
+                showToast("The sugar rush wore off.", "info");
+            }, 30000);
+        }, { once: true });
+
+        pizzeriaRestaurantRoom.appendChild(pizzaEl);
     }
 
     let isDragging = false;
@@ -1972,7 +2268,7 @@ function updateAllBalanceDisplays(targetBalance) {
     ingredientsBin.addEventListener('mousedown', e => {
         const ingredientDiv = e.target.closest('.ingredient.draggable');
         if (!ingredientDiv) return;
-        
+
         document.body.classList.add('is-dragging');
         isDragging = true;
         draggedIngredient = ingredientDiv.dataset.ingredient;
@@ -2041,7 +2337,7 @@ function updateAllBalanceDisplays(targetBalance) {
     });
 
     pizzaBase.addEventListener('mousemove', e => {
-        if (pizzeriaState.isSpreadingSauce && e.buttons === 1) { 
+        if (pizzeriaState.isSpreadingSauce && e.buttons === 1) {
             const pizzaRect = pizzaBase.getBoundingClientRect();
             const x = e.clientX - pizzaRect.left;
             const y = e.clientY - pizzaRect.top;
@@ -2068,24 +2364,296 @@ function updateAllBalanceDisplays(targetBalance) {
     });
 
     finishPizzaBtn.addEventListener('click', finishPizza);
-    leavePizzeriaBtn.addEventListener('click', leavePizzeria);
+    leavePizzeriaBtn.addEventListener('click', leavePizzeriaKitchen);
+    document.getElementById('goto-kitchen-btn').addEventListener('click', enterPizzeriaKitchen);
+    document.getElementById('goto-restaurant-btn').addEventListener('click', enterPizzeriaRestaurant);
+    leaveRestaurantBtn.addEventListener('click', leavePizzeriaRestaurant);
+    placeCustomOrderBtn.addEventListener('click', placeCustomPizzaOrder);
+    pizzeriaChoicePanel.querySelector('.close-panel-btn').addEventListener('click', () => pizzeriaChoicePanel.classList.remove('visible'));
 
-    function gameLoop() {
-        if (!isChatting && !playerState.inMinigame) {
-            updateLocalPlayerPosition();
+
+    function initializeNpcs(count) {
+        npcState = [];
+        for (let i = 0; i < count; i++) {
+            const el = document.createElement('div');
+            el.className = 'npc-character';
+            el.innerHTML = `<img src="IDLE.gif" alt="NPC">`;
+            el.style.width = `${playerState.width}px`;
+            el.style.height = `${playerState.height}px`;
+            pizzeriaRestaurantRoom.appendChild(el);
+            
+            const npc = {
+                id: `npc-${i}`,
+                element: el,
+                img: el.querySelector('img'),
+                x: Math.random() * (pizzeriaRestaurantRoom.offsetWidth - playerState.width),
+                y: Math.random() * (pizzeriaRestaurantRoom.offsetHeight - playerState.height),
+                speed: 100 + Math.random() * 50,
+                direction: 1,
+                state: 'walking', // walking, deciding, sitting
+                target: { x: null, y: null },
+                stateTimer: 0
+            };
+            npcGetNewTarget(npc);
+            npcState.push(npc);
         }
-        gameLoopId = requestAnimationFrame(gameLoop);
+    }
+
+    function npcGetNewTarget(npc) {
+        npc.target.x = Math.random() * (pizzeriaRestaurantRoom.offsetWidth - playerState.width);
+        npc.target.y = Math.random() * (pizzeriaRestaurantRoom.offsetHeight - playerState.height);
     }
     
+    function updateNpcs(deltaTime) {
+        const availableChairs = restaurantFurnitureLayout.filter(f => f.type === 'chair' && !npcState.some(n => n.sittingOn === f.id));
+
+        npcState.forEach(npc => {
+            if (npc.state === 'walking') {
+                const dx = npc.target.x - npc.x;
+                const dy = npc.target.y - npc.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+
+                if (dist < 10) {
+                    npc.state = 'deciding';
+                    npc.stateTimer = 2 + Math.random() * 4; // Decide for 2-6 seconds
+                    npc.img.src = 'IDLE.gif';
+                } else {
+                    const moveX = (dx / dist) * npc.speed * deltaTime;
+                    const moveY = (dy / dist) * npc.speed * deltaTime;
+                    
+                    if (!checkCollision(npc.x + moveX, npc.y, true)) npc.x += moveX;
+                    if (!checkCollision(npc.x, npc.y + moveY, true)) npc.y += moveY;
+                    
+                    npc.direction = (dx > 0) ? 1 : -1;
+                    npc.img.style.transform = `scaleX(${npc.direction})`;
+                    if (npc.img.src.indexOf('WALK.gif') === -1) npc.img.src = 'WALK.gif';
+                }
+            } else if (npc.state === 'deciding') {
+                 npc.stateTimer -= deltaTime;
+                 if (npc.stateTimer <= 0) {
+                     if (Math.random() > 0.5 && availableChairs.length > 0) { // Sit down
+                         const chair = availableChairs.splice(Math.floor(Math.random() * availableChairs.length), 1)[0];
+                         npc.state = 'sitting';
+                         npc.sittingOn = chair.id;
+                         npc.x = chair.x + (chair.w/2) - (playerState.width/2);
+                         npc.y = chair.y + (chair.h/2) - (playerState.height/2);
+                         npc.stateTimer = 5 + Math.random() * 10; // Sit for 5-15 seconds
+                     } else { // Walk somewhere else
+                         npc.state = 'walking';
+                         npcGetNewTarget(npc);
+                     }
+                 }
+            } else if (npc.state === 'sitting') {
+                npc.stateTimer -= deltaTime;
+                if (npc.stateTimer <= 0) {
+                    npc.state = 'walking';
+                    const chair = restaurantFurnitureLayout.find(f => f.id === npc.sittingOn);
+                    npc.y = chair.y + chair.h;
+                    npc.sittingOn = null;
+                    npcGetNewTarget(npc);
+                }
+            }
+            
+            npc.element.style.left = `${npc.x}px`;
+            npc.element.style.top = `${npc.y}px`;
+            npc.element.style.zIndex = Math.round(npc.y);
+        });
+    }
+
+    // --- BANK HEIST ADDITION START ---
+    function updateBankHeistUI(snapshot) {
+        const heistData = snapshot.val();
+        const now = Date.now();
+        if (bankHeistTimerInterval) clearInterval(bankHeistTimerInterval);
+
+        if (heistData && heistData.cooldownUntil && now < heistData.cooldownUntil) {
+            bankHeistStatusEl.textContent = "Vault is on Cooldown";
+            bankHeistProgressBarContainer.style.display = 'none';
+            bankHeistActionsEl.innerHTML = '';
+            bankHeistTimerInterval = setInterval(() => {
+                const timeLeft = Math.ceil((heistData.cooldownUntil - Date.now()) / 1000);
+                if (timeLeft > 0) {
+                    bankHeistTimerEl.textContent = `Ready in: ${timeLeft}s`;
+                } else {
+                    bankHeistTimerEl.textContent = '';
+                    clearInterval(bankHeistTimerInterval);
+                    bankRef.set(null); // Reset the bank state
+                }
+            }, 1000);
+        } else if (heistData && heistData.status === 'preparing') {
+            const playersCount = Object.keys(heistData.players || {}).length;
+            bankHeistStatusEl.textContent = `Heist Preparing (${playersCount} robbers)`;
+            bankHeistProgressBarContainer.style.display = 'none';
+            
+            const PREP_TIME = 15000; // 15 seconds
+            bankHeistTimerInterval = setInterval(() => {
+                const timePassed = Date.now() - heistData.startTime;
+                const timeLeft = Math.ceil((PREP_TIME - timePassed) / 1000);
+                if (timeLeft > 0) {
+                    bankHeistTimerEl.textContent = `Starts in: ${timeLeft}s`;
+                } else {
+                    bankHeistTimerEl.textContent = '';
+                    clearInterval(bankHeistTimerInterval);
+                    // The first player in the list transitions the state to active
+                    if (Object.keys(heistData.players)[0] === currentUser.uid) {
+                        bankRef.update({ status: 'active', startTime: firebase.database.ServerValue.TIMESTAMP });
+                    }
+                }
+            }, 1000);
+
+            const isPlayerInHeist = heistData.players && heistData.players[currentUser.uid];
+            if (!isPlayerInHeist) {
+                bankHeistActionsEl.innerHTML = '<button id="join-heist-btn">Join Heist</button>';
+                document.getElementById('join-heist-btn').onclick = () => bankRef.child(`players/${currentUser.uid}`).set(true);
+            } else {
+                bankHeistActionsEl.innerHTML = '<p>You have joined the heist!</p>';
+            }
+
+        } else if (heistData && heistData.status === 'active') {
+            const playersCount = Object.keys(heistData.players).length;
+            const CLICKS_NEEDED = 50 * playersCount; // More players = more clicks needed
+            const HEIST_TIME = 30000; // 30 seconds to complete
+
+            bankHeistStatusEl.textContent = `Drilling the Vault!`;
+            bankHeistProgressBarContainer.style.display = 'block';
+
+            const progress = (heistData.clicks || 0) / CLICKS_NEEDED;
+            bankHeistProgressBar.style.width = `${Math.min(100, progress * 100)}%`;
+
+            bankHeistTimerInterval = setInterval(() => {
+                const timePassed = Date.now() - heistData.startTime;
+                const timeLeft = Math.ceil((HEIST_TIME - timePassed) / 1000);
+                 if (timeLeft > 0) {
+                    bankHeistTimerEl.textContent = `Time left: ${timeLeft}s`;
+                } else {
+                    bankHeistTimerEl.textContent = 'TIME UP!';
+                    clearInterval(bankHeistTimerInterval);
+                    if (Object.keys(heistData.players)[0] === currentUser.uid) {
+                        showToast('Heist failed! The vault remains sealed.', 'error');
+                        bankRef.update({ cooldownUntil: firebase.database.ServerValue.TIMESTAMP + 120000 }); // 2 min cooldown
+                    }
+                }
+            }, 1000);
+
+            const isPlayerInHeist = heistData.players && heistData.players[currentUser.uid];
+            if (isPlayerInHeist) {
+                 bankHeistActionsEl.innerHTML = '<button id="drill-vault-btn">DRILL!</button>';
+                 document.getElementById('drill-vault-btn').onclick = () => {
+                    bankRef.child('clicks').set(firebase.database.ServerValue.increment(1));
+                 };
+            } else {
+                bankHeistActionsEl.innerHTML = '<p>Heist in progress...</p>';
+            }
+            
+            // Check for success
+            if (progress >= 1) {
+                clearInterval(bankHeistTimerInterval);
+                if (Object.keys(heistData.players)[0] === currentUser.uid) {
+                    const totalLoot = 500 + Math.floor(Math.random() * 500 * playersCount);
+                    const perPlayerLoot = Math.floor(totalLoot / playersCount);
+                    const updates = {};
+                    Object.keys(heistData.players).forEach(uid => {
+                        updates[`/users/${uid}/balance`] = firebase.database.ServerValue.increment(perPlayerLoot);
+                    });
+                    db.ref().update(updates);
+                    showToast(`SUCCESS! Your crew stole ${totalLoot.toLocaleString()} BUX! Each robber gets ${perPlayerLoot.toLocaleString()}.`, 'success');
+                    bankRef.update({ cooldownUntil: firebase.database.ServerValue.TIMESTAMP + 300000 }); // 5 min cooldown
+                }
+            }
+
+        } else { // Default state
+            bankHeistStatusEl.textContent = "The Vault";
+            bankHeistTimerEl.textContent = "Seems quiet...";
+            bankHeistProgressBarContainer.style.display = 'none';
+            bankHeistActionsEl.innerHTML = '<button id="start-heist-btn">Start Robbery</button>';
+            document.getElementById('start-heist-btn').onclick = () => {
+                 bankRef.transaction(currentData => {
+                    if (currentData === null) {
+                        return {
+                            status: 'preparing',
+                            startTime: firebase.database.ServerValue.TIMESTAMP,
+                            players: { [currentUser.uid]: true },
+                            clicks: 0
+                        };
+                    }
+                    return; // Abort if not null
+                });
+            };
+        }
+    }
+
+
+    function enterBank() {
+        playerState.hubX = playerState.x;
+        playerState.hubY = playerState.y;
+        playerState.inMinigame = 'bank';
+        playerState.x = bankRoom.offsetWidth / 2;
+        playerState.y = bankRoom.offsetHeight - playerState.height - 20;
+
+        worldContainer.style.display = 'none';
+        bankContainer.style.display = 'block';
+
+        if(playerRef) playerRef.update({ inMinigame: 'bank', inHouseId: null, x: playerState.x, y: playerState.y });
+        
+        updatePlayerScene(localPlayerContainer, playerState);
+        Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.state));
+        
+        bankListener = bankRef.on('value', updateBankHeistUI);
+    }
+
+    function leaveBank() {
+        if(bankListener) bankRef.off('value', bankListener);
+        if(bankHeistTimerInterval) clearInterval(bankHeistTimerInterval);
+        bankListener = null;
+
+        // If player leaves during a heist, remove them
+        bankRef.child(`players/${currentUser.uid}`).remove();
+        
+        playerState.inMinigame = null;
+        if(playerRef) playerRef.update({ inMinigame: null });
+        playerState.x = bankBuilding.x + (bankBuilding.width / 2);
+        playerState.y = bankBuilding.y + bankBuilding.height + 10;
+        
+        bankContainer.style.display = 'none';
+        worldContainer.style.display = 'block';
+
+        updatePlayerScene(localPlayerContainer, playerState);
+        Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.state));
+        updateLocalPlayerPosition();
+    }
+
+    bankVault.addEventListener('click', () => {
+        // The UI buttons will now handle this logic, but we can keep this for proximity checks in the future
+        showToast("Interact via the panel at the top.", "info");
+    });
+    leaveBankBtn.addEventListener('click', leaveBank);
+    // --- BANK HEIST ADDITION END ---
+
+
+    function gameLoop() {
+        const now = performance.now();
+        const deltaTime = (now - lastFrameTime) / 1000.0;
+
+        if (!isChatting && !playerState.inMinigame?.startsWith('pizzeria-kitchen')) {
+            updateLocalPlayerPosition();
+        }
+        if (playerState.inMinigame === 'pizzeria-restaurant') {
+            updateNpcs(deltaTime);
+        }
+        
+        lastFrameTime = now;
+        gameLoopId = requestAnimationFrame(gameLoop);
+    }
+
     function enterHub() {
         if (!currentUser) return;
         playerRef = playersRef.child(currentUser.uid);
         worldContainer.appendChild(localPlayerContainer);
         initializeBuildings();
-        playerRef.set({ 
-            x: playerState.x, y: playerState.y, width: playerState.width, height: playerState.height, 
+        playerRef.set({
+            x: playerState.x, y: playerState.y, width: playerState.width, height: playerState.height,
             direction: 1, animation: 'idle', email: currentUser.email || 'guest',
-            inHouseId: null
+            inHouseId: null, inMinigame: null
         });
         playerRef.onDisconnect().remove();
 
@@ -2141,11 +2709,11 @@ function updateAllBalanceDisplays(targetBalance) {
             img.src = 'IDLE.gif';
             uiContainer.append(bubble, nametag);
             container.append(uiContainer, img);
-            const otherPlayerHouseId = pData.inHouseId || null;
-            otherPlayerElements[uid] = { container, img, bubble, bubbleTimeout: null, inHouseId: otherPlayerHouseId };
+
+            otherPlayerElements[uid] = { container, img, bubble, state: pData };
             gsap.to(otherPlayerElements[uid].container, { left: pData.x, top: pData.y, duration: 0 });
             otherPlayerElements[uid].img.style.transform = `scaleX(${pData.direction})`;
-            updatePlayerScene(container, otherPlayerHouseId);
+            updatePlayerScene(container, pData);
             container.addEventListener('click', () => { openUserPanel(uid, pData.email); });
         });
 
@@ -2158,9 +2726,8 @@ function updateAllBalanceDisplays(targetBalance) {
             }
             const otherPlayer = otherPlayerElements[uid];
             if (!otherPlayer) return;
-            const otherPlayerHouseId = pData.inHouseId || null;
-            otherPlayer.inHouseId = otherPlayerHouseId;
-            updatePlayerScene(otherPlayer.container, otherPlayer.inHouseId);
+            otherPlayer.state = pData;
+            updatePlayerScene(otherPlayer.container, pData);
             gsap.to(otherPlayer.container, { left: pData.x, top: pData.y, duration: 0.1, ease: 'linear' });
             otherPlayer.container.style.zIndex = Math.round(pData.y);
             otherPlayer.img.style.transform = `scaleX(${pData.direction})`;
@@ -2173,7 +2740,6 @@ function updateAllBalanceDisplays(targetBalance) {
             const uid = snapshot.key;
             const otherPlayer = otherPlayerElements[uid];
             if (otherPlayer) {
-                if (otherPlayer.bubbleTimeout) clearTimeout(otherPlayer.bubbleTimeout);
                 otherPlayer.container.remove();
                 delete otherPlayerElements[uid];
             }
@@ -2189,17 +2755,25 @@ function updateAllBalanceDisplays(targetBalance) {
         if (playerRef) playerRef.remove();
         playersRef.off(); housesRef.off();
         if (decorationListener) decorationListener.off();
+        if (pizzeriaOrdersListener) pizzeriaOrdersListener.off();
+        // --- BANK HEIST ADDITION START ---
+        if (bankListener) bankRef.off('value', bankListener);
+        // --- BANK HEIST ADDITION END ---
         document.removeEventListener('keydown', handleGlobalKeyDown);
         document.removeEventListener('keyup', handleGlobalKeyUp);
         if(gameLoopId) { cancelAnimationFrame(gameLoopId); gameLoopId = null; }
-        worldContainer.innerHTML = ''; 
+        worldContainer.innerHTML = '';
         if(localPlayerContainer.parentElement) localPlayerContainer.parentElement.removeChild(localPlayerContainer);
-        otherPlayerElements = {}; 
-        houseElements = {}; 
+        otherPlayerElements = {};
+        houseElements = {};
         isChatting = false;
         chatInputContainer.style.display = 'none';
         if (playerState.inHouseId) leaveHouse();
-        if (playerState.inMinigame) leavePizzeria();
+        if (playerState.inMinigame === 'pizzeria-kitchen') leavePizzeriaKitchen();
+        if (playerState.inMinigame === 'pizzeria-restaurant') leavePizzeriaRestaurant();
+        // --- BANK HEIST ADDITION START ---
+        if (playerState.inMinigame === 'bank') leaveBank();
+        // --- BANK HEIST ADDITION END ---
     }
 
     function showConfirmationModal(message, onConfirm) {
@@ -2244,15 +2818,15 @@ function updateAllBalanceDisplays(targetBalance) {
             await db.ref().update(updates);
             showToast(`Successfully gifted ${amount.toLocaleString()} BUX!`, 'success');
             userInteractionPanel.classList.remove('visible');
-        } catch (error) { 
+        } catch (error) {
             showToast("Gifting failed. Please try again.", 'error');
             console.error("Gifting error: ", error);
-        } finally { 
+        } finally {
             giftBtn.disabled = false;
-            delete userInteractionPanel.dataset.targetUid; 
+            delete userInteractionPanel.dataset.targetUid;
         }
     }
-    
+
     giftBtn.addEventListener('click', handleGift);
     closePanelBtn.addEventListener('click', () => userInteractionPanel.classList.remove('visible'));
     userInteractionPanel.addEventListener('click', (e) => { if (e.target === userInteractionPanel) userInteractionPanel.classList.remove('visible'); });
@@ -2276,17 +2850,15 @@ function updateAllBalanceDisplays(targetBalance) {
     }
 
     function handleGlobalKeyDown(e) {
-        const isPanelVisible = userInteractionPanel.classList.contains('visible') 
-                            || confirmationPanel.classList.contains('visible')
-                            || bankPanel.classList.contains('visible');
-        if (isPanelVisible || playerState.inMinigame) return;
+        const isPanelVisible = userInteractionPanel.classList.contains('visible') || confirmationPanel.classList.contains('visible') || pizzeriaChoicePanel.classList.contains('visible');
+        if (isPanelVisible || playerState.inMinigame === 'pizzeria-kitchen') return;
         if (playerState.isSitting) {
             if (e.key === ' ') { e.preventDefault(); standUp(); }
-            return; 
+            return;
         }
         if (e.key === 'Enter') {
-            e.preventDefault(); 
-            if (isChatting) { sendMessage(); } 
+            e.preventDefault();
+            if (isChatting) { sendMessage(); }
             else { isChatting = true; chatInputContainer.style.display = 'block'; chatInput.focus(); }
         } else if (e.key.toLowerCase() in keys && !isChatting) {
             keys[e.key.toLowerCase()] = true;
