@@ -261,15 +261,15 @@
     #world-container, #interior-container, #pizzeria-kitchen-container, #pizzeria-restaurant-container {
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     }
-    .player-character {
+    .player-character, .npc-character {
         position: absolute;
         user-select: none;
         display: flex;
         flex-direction: column;
         align-items: center;
-        cursor: pointer;
     }
-    .player-character img {
+    .player-character { cursor: pointer; }
+    .player-character img, .npc-character img {
         width: 100%; height: 100%; object-fit: contain;
         transition: transform 0.1s linear; pointer-events: none;
     }
@@ -510,6 +510,13 @@
         right: 20px;
         z-index: 20;
     }
+    #leave-restaurant-btn {
+        background-color: #ecf0f1;
+        color: black;
+    }
+    #leave-restaurant-btn:hover {
+        background-color: #bdc3c7;
+    }
     .restaurant-item {
         position: absolute;
         box-sizing: border-box;
@@ -517,7 +524,22 @@
     .restaurant-item.table { background-color: #8B4513; border: 5px solid #5C4033; border-radius: 8px; }
     .restaurant-item.chair { background-color: #a12c2c; border: 4px solid #5d2121; cursor: pointer; }
 
-    #pizza-menu-panel {
+    .delivered-pizza {
+        position: absolute;
+        width: 60px;
+        height: 60px;
+        background-image: url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3e%3ccircle cx="50" cy="50" r="45" fill="%23f2dcb3"/%3e%3ccircle cx="50" cy="50" r="40" fill="%23c0392b"/%3e%3ccircle cx="50" cy="50" r="38" fill="%23f1c40f"/%3e%3ccircle cx="30" cy="30" r="8" fill="%23e84393"/%3e%3ccircle cx="70" cy="30" r="8" fill="%23e84393"/%3e%3ccircle cx="50" cy="50" r="8" fill="%23e84393"/%3e%3ccircle cx="30" cy="70" r="8" fill="%23e84393"/%3e%3ccircle cx="70" cy="70" r="8" fill="%23e84393"/%3e%3c/svg%3e');
+        background-size: contain;
+        cursor: pointer;
+        z-index: 1000;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+        transition: transform 0.2s ease;
+    }
+    .delivered-pizza:hover {
+        transform: scale(1.1);
+    }
+
+    #custom-pizza-panel {
         position: absolute;
         bottom: 20px;
         left: 50%;
@@ -527,14 +549,18 @@
         border-radius: var(--border-radius);
         backdrop-filter: blur(10px);
         border: 1px solid var(--dark-card-border);
-        display: none; /* Hidden by default */
+        display: none;
         flex-direction: column;
         gap: 1rem;
         z-index: 100;
+        width: 300px;
     }
-    #pizza-menu-panel.visible { display: flex; }
-    #pizza-menu-panel h3 { text-align: center; margin-bottom: 0.5rem; }
-    #pizza-menu-panel button { background-color: var(--success); }
+    #custom-pizza-panel.visible { display: flex; }
+    #custom-pizza-panel h3 { text-align: center; margin-bottom: 0.5rem; }
+    #custom-pizza-toppings { display: flex; flex-direction: column; gap: 0.8rem; text-align: left; margin-bottom: 1rem; }
+    .topping-option { display: flex; align-items: center; gap: 0.5rem; font-size: 1.1rem;}
+    .topping-option input { width: 20px; height: 20px; }
+    #place-custom-order-btn { background-color: var(--success); }
 
 
     /* --- Primitive Ingredient Shapes --- */
@@ -812,17 +838,28 @@
             </div>
         </div>
 
-        <!-- NEW: Scene for Pizzeria RESTAURANT -->
+        <!-- Scene for Pizzeria RESTAURANT -->
         <div id="pizzeria-restaurant-container" style="display: none;">
             <div id="pizzeria-restaurant-room">
-                <!-- Restaurant furniture and other players will be rendered here -->
+                <!-- Restaurant furniture, players, and NPCs will be rendered here -->
             </div>
             <div id="pizzeria-restaurant-ui-container">
                  <button id="leave-restaurant-btn">Leave</button>
             </div>
-            <div id="pizza-menu-panel">
-                 <h3>Pizza Menu</h3>
-                 <button id="order-pepperoni-btn">Order Pepperoni Pizza</button>
+            <div id="custom-pizza-panel">
+                 <h3>Create a Pizza (10 BUX)</h3>
+                 <div id="custom-pizza-toppings">
+                     <label class="topping-option">
+                         <input type="checkbox" data-topping="Pepperoni" data-quantity="5"> Pepperoni
+                     </label>
+                      <label class="topping-option">
+                         <input type="checkbox" data-topping="Mushrooms" data-quantity="3"> Mushrooms
+                     </label>
+                      <label class="topping-option">
+                         <input type="checkbox" data-topping="Olives" data-quantity="8"> Olives
+                     </label>
+                 </div>
+                 <button id="place-custom-order-btn">Place Order</button>
             </div>
         </div>
 
@@ -867,7 +904,7 @@
     </div>
 </div>
 
-<!-- NEW: Pizzeria Choice Panel -->
+<!-- Pizzeria Choice Panel -->
 <div id="pizzeria-choice-panel" class="panel-overlay">
     <div class="panel-content">
         <button class="close-panel-btn">&times;</button>
@@ -1418,8 +1455,8 @@ function updateAllBalanceDisplays(targetBalance) {
     const pizzeriaRestaurantContainer = document.getElementById('pizzeria-restaurant-container');
     const pizzeriaRestaurantRoom = document.getElementById('pizzeria-restaurant-room');
     const leaveRestaurantBtn = document.getElementById('leave-restaurant-btn');
-    const pizzaMenuPanel = document.getElementById('pizza-menu-panel');
-    const orderPepperoniBtn = document.getElementById('order-pepperoni-btn');
+    const customPizzaPanel = document.getElementById('custom-pizza-panel');
+    const placeCustomOrderBtn = document.getElementById('place-custom-order-btn');
 
 
     // --- Firebase References ---
@@ -1430,6 +1467,7 @@ function updateAllBalanceDisplays(targetBalance) {
     let playerRef = null;
     let decorationListener = null;
     let pizzeriaOrdersListener = null;
+    let myOrderListener = null;
 
     // --- Local Player Setup ---
     const localPlayerContainer = document.createElement('div');
@@ -1441,16 +1479,18 @@ function updateAllBalanceDisplays(targetBalance) {
     // --- Game State Variables ---
     const playerState = {
         element: localPlayerContainer, imgElement: localPlayerImage,
-        x: 0, y: 0, width: 80, height: 80, speed: 250, direction: 1, animation: 'idle',
-        inHouseId: null, inMinigame: null, // inMinigame can be 'pizzeria-kitchen', 'pizzeria-restaurant'
-        hubX: 0, hubY: 0, isSitting: false, sittingOnChairId: null
+        x: 0, y: 0, width: 80, height: 80, speed: 250, baseSpeed: 250, direction: 1, animation: 'idle',
+        inHouseId: null, inMinigame: null,
+        hubX: 0, hubY: 0, isSitting: false, sittingOnChairId: null, myOrderKey: null
     };
     localPlayerContainer.style.width = `${playerState.width}px`;
     localPlayerContainer.style.height = `${playerState.height}px`;
 
     const keys = { w: false, a: false, s: false, d: false };
     let isChatting = false, gameLoopId = null, otherPlayerElements = {}, houseElements = {}, allHouses = {}, placedItemElements = {}, isEditingHouse = false, selectedFurnitureType = null;
+    let restaurantFurnitureLayout = [];
     let restaurantFurnitureElements = {};
+    let npcState = [];
     let lastFrameTime = performance.now();
 
     // --- Constants and Catalogs ---
@@ -1561,7 +1601,10 @@ function updateAllBalanceDisplays(targetBalance) {
     }
 
     function sitOnChair(chairEl) {
-        if (playerState.isSitting) return;
+        if (playerState.isSitting || playerState.myOrderKey) {
+            if(playerState.myOrderKey) showToast("You must wait for your current order.", "info");
+            return;
+        };
         playerState.isSitting = true;
         playerState.sittingOnChairId = chairEl.dataset.id;
 
@@ -1574,7 +1617,7 @@ function updateAllBalanceDisplays(targetBalance) {
         playerState.y = chairY + (chairHeight / 2) - (playerState.height / 2);
 
         if (playerState.inMinigame === 'pizzeria-restaurant') {
-            pizzaMenuPanel.classList.add('visible');
+            customPizzaPanel.classList.add('visible');
         }
 
         updateLocalPlayerPosition();
@@ -1588,7 +1631,7 @@ function updateAllBalanceDisplays(targetBalance) {
         let chairEl;
         if(playerState.inMinigame === 'pizzeria-restaurant') {
             chairEl = restaurantFurnitureElements[playerState.sittingOnChairId];
-            pizzaMenuPanel.classList.remove('visible');
+            customPizzaPanel.classList.remove('visible');
         } else if(playerState.inHouseId) {
             chairEl = placedItemElements[playerState.sittingOnChairId];
         }
@@ -1707,14 +1750,14 @@ function updateAllBalanceDisplays(targetBalance) {
         }
     }
 
-    function checkCollision(nextX, nextY) {
+    function checkCollision(nextX, nextY, forNpc = false) {
         const playerBox = { left: nextX, top: nextY, right: nextX + playerState.width, bottom: nextY + playerState.height };
 
-        if (playerState.inMinigame === 'pizzeria-restaurant') {
-            if (nextX < 0 || nextY < 0 || nextX + playerState.width > pizzeriaRestaurantRoom.offsetWidth || nextY + playerState.height > pizzeriaRestaurantRoom.offsetHeight) return true;
-             for (const itemId in restaurantFurnitureElements) {
-                const itemEl = restaurantFurnitureElements[itemId];
-                const itemBox = { left: parseInt(itemEl.style.left), top: parseInt(itemEl.style.top), right: parseInt(itemEl.style.left) + parseInt(itemEl.style.width), bottom: parseInt(itemEl.style.top) + parseInt(itemEl.style.height) };
+        if (playerState.inMinigame === 'pizzeria-restaurant' || forNpc) {
+            const room = pizzeriaRestaurantRoom;
+            if (nextX < 0 || nextY < 0 || nextX + playerState.width > room.offsetWidth || nextY + playerState.height > room.offsetHeight) return true;
+             for (const item of restaurantFurnitureLayout) {
+                const itemBox = { left: item.x, top: item.y, right: item.x + item.w, bottom: item.y + item.h };
                  if (playerBox.right > itemBox.left && playerBox.left < itemBox.right && playerBox.bottom > itemBox.top && playerBox.top < itemBox.bottom) return true;
             }
         } else if (playerState.inHouseId !== null) { // Interior collision
@@ -1793,7 +1836,7 @@ function updateAllBalanceDisplays(targetBalance) {
 
     function populateIngredientsBin() {
         ingredientsBin.innerHTML = '';
-        const ingredients = ['Sauce', 'Cheese', 'Pepperoni', 'Mushrooms', 'Olives'];
+        const ingredients = ['Sauce', 'Cheese', ...allToppings];
         ingredients.forEach(name => {
             const item = document.createElement('div');
             item.className = 'ingredient';
@@ -1818,7 +1861,6 @@ function updateAllBalanceDisplays(targetBalance) {
             pizzeriaState.currentOrder = playerOrder.toppings;
             pizzeriaState.orderKey = playerOrder.key;
 
-            // Mark the order as 'claimed' in Firebase so another chef doesn't take it
             pizzeriaOrdersRef.child(playerOrder.key).update({ status: 'claimed', chefUid: currentUser.uid });
 
             pizzaOrderCustomer.textContent = `For: ${playerOrder.orderedByEmail.split('@')[0]}`;
@@ -1827,7 +1869,7 @@ function updateAllBalanceDisplays(targetBalance) {
         } else { // Fallback to random order
             pizzaOrderCustomer.textContent = 'For: Random Customer';
             pizzeriaState.currentOrder = {};
-            const shuffled = allToppings.sort(() => 0.5 - Math.random());
+            const shuffled = [...allToppings].sort(() => 0.5 - Math.random());
             const toppingCount = Math.floor(Math.random() * 3) + 1;
             for (let i = 0; i < toppingCount; i++) {
                 const toppingName = shuffled[i];
@@ -1886,15 +1928,15 @@ function updateAllBalanceDisplays(targetBalance) {
                 clearInterval(pizzeriaState.timerId);
                 finishPizzaBtn.disabled = true;
                 showToast("Time's up! New order.", 'error');
-                if (pizzeriaState.orderKey) { // It was a player order, so remove it
-                    pizzeriaOrdersRef.child(pizzeriaState.orderKey).remove();
+                if (pizzeriaState.orderKey) {
+                    pizzeriaOrdersRef.child(pizzeriaState.orderKey).update({status: 'failed'});
                 }
                 setTimeout(getNewOrder, 1500);
             }
         }, 100);
     }
 
-    function finishPizza() {
+    async function finishPizza() {
         clearInterval(pizzeriaState.timerId);
         finishPizzaBtn.disabled = true;
 
@@ -1903,41 +1945,28 @@ function updateAllBalanceDisplays(targetBalance) {
             hasAllRequired = false;
         }
         for (const [name, needed] of Object.entries(pizzeriaState.currentOrder)) {
-            if ((pizzeriaState.placedIngredients[name] || 0) !== needed) {
+            if ((pizzeriaState.placedIngredients[name] || 0) < needed) {
                 hasAllRequired = false;
                 break;
             }
         }
 
         if (hasAllRequired) {
-            let penalty = 0;
-            for (const placedIngredient in pizzeriaState.placedIngredients) {
-                if (allToppings.includes(placedIngredient) && !pizzeriaState.currentOrder.hasOwnProperty(placedIngredient)) {
-                    penalty += 5;
-                }
-            }
+            const finalPayout = PIZZA_PAYOUT + Object.keys(pizzeriaState.currentOrder).length;
+            showToast(`Order complete! +${finalPayout} BUX`, 'success');
+            db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(finalPayout));
 
-            const bonus = Object.keys(pizzeriaState.currentOrder).length;
-            const finalPayout = Math.max(0, PIZZA_PAYOUT + bonus - penalty);
-
-            if (finalPayout > 0) {
-                 showToast(`Good enough! +${finalPayout} BUX`, 'success');
-                 db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(finalPayout));
-            } else {
-                 showToast(`Good enough, but the penalties cost you! +0 BUX`, 'info');
-            }
-
-            if (penalty > 0) {
-                setTimeout(() => showToast(`Wasted ingredients! -${penalty} BUX penalty.`, 'error'), 500);
-            }
-
-            // If it was a player order, remove it from the queue
             if(pizzeriaState.orderKey) {
-                pizzeriaOrdersRef.child(pizzeriaState.orderKey).remove();
+                await pizzeriaOrdersRef.child(pizzeriaState.orderKey).update({ status: 'completed' });
+                setTimeout(() => pizzeriaOrdersRef.child(pizzeriaState.orderKey).remove(), 2000);
             }
 
         } else {
              showToast("Incorrect order!", 'error');
+             if(pizzeriaState.orderKey) {
+                 await pizzeriaOrdersRef.child(pizzeriaState.orderKey).update({ status: 'failed' });
+                 setTimeout(() => pizzeriaOrdersRef.child(pizzeriaState.orderKey).remove(), 2000);
+             }
         }
 
         setTimeout(getNewOrder, 2000);
@@ -1954,15 +1983,16 @@ function updateAllBalanceDisplays(targetBalance) {
         populateIngredientsBin();
         getNewOrder();
 
-        // Start listening for player orders
         pizzeriaOrdersListener = pizzeriaOrdersRef.orderByChild('status').equalTo('pending');
         pizzeriaOrdersListener.on('child_added', snapshot => {
-            pizzeriaState.playerOrderQueue.push({ key: snapshot.key, ...snapshot.val() });
+            if(!pizzeriaState.playerOrderQueue.some(o => o.key === snapshot.key)) {
+                pizzeriaState.playerOrderQueue.push({ key: snapshot.key, ...snapshot.val() });
+            }
         });
     }
     function leavePizzeriaKitchen() {
         if (pizzeriaState.timerId) clearInterval(pizzeriaState.timerId);
-        if (pizzeriaOrdersListener) pizzeriaOrdersListener.off(); // Stop listening
+        if (pizzeriaOrdersListener) pizzeriaOrdersListener.off();
         playerState.inMinigame = null;
         if(playerRef) playerRef.update({ inMinigame: null });
         playerState.x = playerState.hubX;
@@ -1975,29 +2005,15 @@ function updateAllBalanceDisplays(targetBalance) {
     function initializeRestaurant() {
         pizzeriaRestaurantRoom.innerHTML = '';
         restaurantFurnitureElements = {};
-        const layout = [
-            // Tables
-            { id: 't1', type: 'table', x: 150, y: 100, w: 120, h: 80 },
-            { id: 't2', type: 'table', x: 550, y: 100, w: 120, h: 80 },
-            { id: 't3', type: 'table', x: 950, y: 100, w: 120, h: 80 },
-            { id: 't4', type: 'table', x: 150, y: 500, w: 120, h: 80 },
-            { id: 't5', type: 'table', x: 550, y: 500, w: 120, h: 80 },
-            { id: 't6', type: 'table', x: 950, y: 500, w: 120, h: 80 },
-            // Chairs
-            { id: 'c1', type: 'chair', x: 190, y: 50,  w: 40, h: 40 },
-            { id: 'c2', type: 'chair', x: 190, y: 190, w: 40, h: 40 },
-            { id: 'c3', type: 'chair', x: 590, y: 50,  w: 40, h: 40 },
-            { id: 'c4', type: 'chair', x: 590, y: 190, w: 40, h: 40 },
-            { id: 'c5', type: 'chair', x: 990, y: 50,  w: 40, h: 40 },
-            { id: 'c6', type: 'chair', x: 990, y: 190, w: 40, h: 40 },
-            { id: 'c7', type: 'chair', x: 190, y: 450, w: 40, h: 40 },
-            { id: 'c8', type: 'chair', x: 190, y: 590, w: 40, h: 40 },
-            { id: 'c9', type: 'chair', x: 590, y: 450, w: 40, h: 40 },
-            { id: 'c10', type: 'chair', x: 590, y: 590, w: 40, h: 40 },
-            { id: 'c11', type: 'chair', x: 990, y: 450, w: 40, h: 40 },
-            { id: 'c12', type: 'chair', x: 990, y: 590, w: 40, h: 40 },
+        restaurantFurnitureLayout = [
+            { id: 't1', type: 'table', x: 150, y: 100, w: 120, h: 80 }, { id: 'c1', type: 'chair', x: 190, y: 50,  w: 40, h: 40, tableId: 't1' }, { id: 'c2', type: 'chair', x: 190, y: 190, w: 40, h: 40, tableId: 't1' },
+            { id: 't2', type: 'table', x: 550, y: 100, w: 120, h: 80 }, { id: 'c3', type: 'chair', x: 590, y: 50,  w: 40, h: 40, tableId: 't2' }, { id: 'c4', type: 'chair', x: 590, y: 190, w: 40, h: 40, tableId: 't2' },
+            { id: 't3', type: 'table', x: 950, y: 100, w: 120, h: 80 }, { id: 'c5', type: 'chair', x: 990, y: 50,  w: 40, h: 40, tableId: 't3' }, { id: 'c6', type: 'chair', x: 990, y: 190, w: 40, h: 40, tableId: 't3' },
+            { id: 't4', type: 'table', x: 150, y: 500, w: 120, h: 80 }, { id: 'c7', type: 'chair', x: 190, y: 450, w: 40, h: 40, tableId: 't4' }, { id: 'c8', type: 'chair', x: 190, y: 590, w: 40, h: 40, tableId: 't4' },
+            { id: 't5', type: 'table', x: 550, y: 500, w: 120, h: 80 }, { id: 'c9', type: 'chair', x: 590, y: 450, w: 40, h: 40, tableId: 't5' }, { id: 'c10', type: 'chair', x: 590, y: 590, w: 40, h: 40, tableId: 't5' },
+            { id: 't6', type: 'table', x: 950, y: 500, w: 120, h: 80 }, { id: 'c11', type: 'chair', x: 990, y: 450, w: 40, h: 40, tableId: 't6' }, { id: 'c12', type: 'chair', x: 990, y: 590, w: 40, h: 40, tableId: 't6' }
         ];
-        layout.forEach(item => {
+        restaurantFurnitureLayout.forEach(item => {
             const el = document.createElement('div');
             el.className = `restaurant-item ${item.type}`;
             el.dataset.id = item.id;
@@ -2026,6 +2042,7 @@ function updateAllBalanceDisplays(targetBalance) {
         worldContainer.style.display = 'none';
         pizzeriaRestaurantContainer.style.display = 'block';
         initializeRestaurant();
+        initializeNpcs(5);
 
         Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.state));
         updatePlayerScene(localPlayerContainer, playerState);
@@ -2035,45 +2052,96 @@ function updateAllBalanceDisplays(targetBalance) {
         standUp();
         playerState.inMinigame = null;
         if(playerRef) playerRef.update({ inMinigame: null });
+        if(myOrderListener) myOrderListener.off();
+        playerState.myOrderKey = null;
+
         playerState.x = playerState.hubX;
         playerState.y = pizzeriaBuilding.y + pizzeriaBuilding.height + 10;
         pizzeriaRestaurantContainer.style.display = 'none';
         worldContainer.style.display = 'block';
+        npcState = []; // Clear NPCs
         updateLocalPlayerPosition();
     }
 
-    async function placePizzaOrder(pizzaType) {
-        // Find players who are in the kitchen
+    async function placeCustomPizzaOrder() {
+        if(balance < 10) return showToast("You need 10 BUX to order a pizza.", "error");
+
         const kitchenQuery = playersRef.orderByChild('inMinigame').equalTo('pizzeria-kitchen');
         const snapshot = await kitchenQuery.once('value');
-        if (!snapshot.exists()) {
-            showToast("Sorry, no chefs are working right now!", 'error');
-            return;
-        }
+        if (!snapshot.exists()) return showToast("Sorry, no chefs are working right now!", 'error');
 
-        // Define the pizza recipe
-        let orderToppings = {};
-        if (pizzaType === 'pepperoni') {
-            orderToppings['Pepperoni'] = 5;
-            orderToppings['Mushrooms'] = 3;
-        } // Add more else-if for other pizza types
+        const selectedToppings = {};
+        const checkboxes = document.querySelectorAll('#custom-pizza-toppings input:checked');
+        if(checkboxes.length === 0) return showToast("You must select at least one topping.", "error");
+
+        checkboxes.forEach(box => {
+            selectedToppings[box.dataset.topping] = parseInt(box.dataset.quantity, 10);
+        });
+        
+        const chairId = playerState.sittingOnChairId;
+        const tableId = restaurantFurnitureLayout.find(item => item.id === chairId)?.tableId;
+        if(!tableId) return showToast("Error finding your table.", "error");
 
         const order = {
             orderedByUid: currentUser.uid,
             orderedByEmail: currentUser.email,
-            toppings: orderToppings,
+            toppings: selectedToppings,
             status: 'pending',
+            tableId: tableId,
             timestamp: firebase.database.ServerValue.TIMESTAMP
         };
 
-        pizzeriaOrdersRef.push(order)
-            .then(() => {
-                showToast("Your order has been sent to the kitchen!", 'success');
-                standUp();
-            })
-            .catch(err => showToast('Could not place order.', 'error'));
+        const newOrderRef = await pizzeriaOrdersRef.push(order);
+        db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(-10));
+        showToast("Order sent to the kitchen!", 'success');
+        playerState.myOrderKey = newOrderRef.key;
+        standUp();
+        
+        myOrderListener = db.ref(`linusHub/pizzeriaOrders/${playerState.myOrderKey}`);
+        myOrderListener.on('value', (orderSnap) => {
+            const orderData = orderSnap.val();
+            if(!orderData) { // Order was deleted (completed or failed)
+                 myOrderListener.off();
+                 playerState.myOrderKey = null;
+                 return;
+            }
+            if(orderData.status === 'completed') {
+                deliverPizza(orderData.tableId);
+            } else if (orderData.status === 'failed') {
+                showToast("The chef failed your order! You were not charged.", "error");
+                db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(10));
+            }
+        });
+
     }
 
+    function deliverPizza(tableId) {
+        const tableEl = restaurantFurnitureElements[tableId];
+        if(!tableEl) return;
+
+        showToast("Your pizza has arrived!", "success");
+        const pizzaEl = document.createElement('div');
+        pizzaEl.className = 'delivered-pizza';
+        
+        const tableRect = tableEl.getBoundingClientRect();
+        const roomRect = pizzeriaRestaurantRoom.getBoundingClientRect();
+
+        pizzaEl.style.left = `${tableRect.left - roomRect.left + (tableRect.width / 2) - 30}px`;
+        pizzaEl.style.top = `${tableRect.top - roomRect.top + (tableRect.height / 2) - 30}px`;
+        pizzaEl.style.zIndex = parseInt(tableEl.style.zIndex) + 1;
+
+        pizzaEl.addEventListener('click', () => {
+            pizzaEl.remove();
+            showToast("Yum! You feel faster!", "success");
+            playerState.speed = playerState.baseSpeed + 100;
+            setTimeout(() => {
+                playerState.speed = playerState.baseSpeed;
+                showToast("The sugar rush wore off.", "info");
+            }, 30000);
+        }, { once: true });
+
+        pizzeriaRestaurantRoom.appendChild(pizzaEl);
+    }
 
     let isDragging = false;
     let draggedIngredient = null;
@@ -2180,14 +2248,111 @@ function updateAllBalanceDisplays(targetBalance) {
     document.getElementById('goto-kitchen-btn').addEventListener('click', enterPizzeriaKitchen);
     document.getElementById('goto-restaurant-btn').addEventListener('click', enterPizzeriaRestaurant);
     leaveRestaurantBtn.addEventListener('click', leavePizzeriaRestaurant);
-    orderPepperoniBtn.addEventListener('click', () => placePizzaOrder('pepperoni'));
+    placeCustomOrderBtn.addEventListener('click', placeCustomPizzaOrder);
     pizzeriaChoicePanel.querySelector('.close-panel-btn').addEventListener('click', () => pizzeriaChoicePanel.classList.remove('visible'));
 
 
+    function initializeNpcs(count) {
+        npcState = [];
+        for (let i = 0; i < count; i++) {
+            const el = document.createElement('div');
+            el.className = 'npc-character';
+            el.innerHTML = `<img src="IDLE.gif" alt="NPC">`;
+            el.style.width = `${playerState.width}px`;
+            el.style.height = `${playerState.height}px`;
+            pizzeriaRestaurantRoom.appendChild(el);
+            
+            const npc = {
+                id: `npc-${i}`,
+                element: el,
+                img: el.querySelector('img'),
+                x: Math.random() * (pizzeriaRestaurantRoom.offsetWidth - playerState.width),
+                y: Math.random() * (pizzeriaRestaurantRoom.offsetHeight - playerState.height),
+                speed: 100 + Math.random() * 50,
+                direction: 1,
+                state: 'walking', // walking, deciding, sitting
+                target: { x: null, y: null },
+                stateTimer: 0
+            };
+            npcGetNewTarget(npc);
+            npcState.push(npc);
+        }
+    }
+
+    function npcGetNewTarget(npc) {
+        npc.target.x = Math.random() * (pizzeriaRestaurantRoom.offsetWidth - playerState.width);
+        npc.target.y = Math.random() * (pizzeriaRestaurantRoom.offsetHeight - playerState.height);
+    }
+    
+    function updateNpcs(deltaTime) {
+        const availableChairs = restaurantFurnitureLayout.filter(f => f.type === 'chair' && !npcState.some(n => n.sittingOn === f.id));
+
+        npcState.forEach(npc => {
+            if (npc.state === 'walking') {
+                const dx = npc.target.x - npc.x;
+                const dy = npc.target.y - npc.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+
+                if (dist < 10) {
+                    npc.state = 'deciding';
+                    npc.stateTimer = 2 + Math.random() * 4; // Decide for 2-6 seconds
+                    npc.img.src = 'IDLE.gif';
+                } else {
+                    const moveX = (dx / dist) * npc.speed * deltaTime;
+                    const moveY = (dy / dist) * npc.speed * deltaTime;
+                    
+                    if (!checkCollision(npc.x + moveX, npc.y, true)) npc.x += moveX;
+                    if (!checkCollision(npc.x, npc.y + moveY, true)) npc.y += moveY;
+                    
+                    npc.direction = (dx > 0) ? 1 : -1;
+                    npc.img.style.transform = `scaleX(${npc.direction})`;
+                    if (npc.img.src.indexOf('WALK.gif') === -1) npc.img.src = 'WALK.gif';
+                }
+            } else if (npc.state === 'deciding') {
+                 npc.stateTimer -= deltaTime;
+                 if (npc.stateTimer <= 0) {
+                     if (Math.random() > 0.5 && availableChairs.length > 0) { // Sit down
+                         const chair = availableChairs.splice(Math.floor(Math.random() * availableChairs.length), 1)[0];
+                         npc.state = 'sitting';
+                         npc.sittingOn = chair.id;
+                         npc.x = chair.x + (chair.w/2) - (playerState.width/2);
+                         npc.y = chair.y + (chair.h/2) - (playerState.height/2);
+                         npc.stateTimer = 5 + Math.random() * 10; // Sit for 5-15 seconds
+                     } else { // Walk somewhere else
+                         npc.state = 'walking';
+                         npcGetNewTarget(npc);
+                     }
+                 }
+            } else if (npc.state === 'sitting') {
+                npc.stateTimer -= deltaTime;
+                if (npc.stateTimer <= 0) {
+                    npc.state = 'walking';
+                    const chair = restaurantFurnitureLayout.find(f => f.id === npc.sittingOn);
+                    npc.y = chair.y + chair.h;
+                    npc.sittingOn = null;
+                    npcGetNewTarget(npc);
+                }
+            }
+            
+            npc.element.style.left = `${npc.x}px`;
+            npc.element.style.top = `${npc.y}px`;
+            npc.element.style.zIndex = Math.round(npc.y);
+        });
+    }
+
+
     function gameLoop() {
+        const now = performance.now();
+        const deltaTime = (now - lastFrameTime) / 1000.0;
+
         if (!isChatting && !playerState.inMinigame?.startsWith('pizzeria-kitchen')) {
             updateLocalPlayerPosition();
         }
+        if (playerState.inMinigame === 'pizzeria-restaurant') {
+            updateNpcs(deltaTime);
+        }
+        
+        lastFrameTime = now;
         gameLoopId = requestAnimationFrame(gameLoop);
     }
 
