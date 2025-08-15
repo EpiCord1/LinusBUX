@@ -258,7 +258,7 @@
         position: relative;
         overflow: hidden;
     }
-    #world-container, #interior-container, #pizzeria-kitchen-container, #pizzeria-restaurant-container {
+    #world-container, #interior-container, #pizzeria-kitchen-container, #pizzeria-restaurant-container, #bank-container {
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     }
     .player-character, .npc-character {
@@ -583,6 +583,51 @@
         color: white; font-size: 1.8rem; margin: 0;
         text-shadow: 2px 2px 3px rgba(0,0,0,0.5); font-style: italic;
     }
+    
+    /* --- BANK HEIST ADDITION START --- */
+    .hub-bank {
+        position: absolute; width: 280px; height: 200px;
+        background-color: #6c757d; border: 5px solid #495057;
+        border-radius: 8px; cursor: pointer; z-index: 5;
+        display: flex; justify-content: center; align-items: center; flex-direction: column;
+        box-shadow: 0 0 25px rgba(108, 117, 125, 0.5);
+    }
+    .hub-bank h3 {
+        color: white; font-size: 2.2rem; margin: 0; text-shadow: 2px 2px 3px rgba(0,0,0,0.5);
+    }
+    #bank-container { display: none; }
+    #bank-room {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        width: 1000px; height: 600px; background-color: #ced4da;
+        border: 20px solid #495057; box-sizing: border-box;
+    }
+    .bank-vault {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        width: 150px; height: 200px; background-color: #343a40;
+        border-radius: 10px; border: 10px solid #212529;
+        cursor: pointer; display: flex; justify-content: center; align-items: center;
+    }
+    .bank-vault::before {
+        content: ''; width: 50px; height: 50px; background-color: #adb5bd;
+        border-radius: 50%; border: 5px solid #212529;
+    }
+    #bank-ui-container {
+        position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+        background: var(--dark-card); padding: 1rem 2rem; border-radius: var(--border-radius);
+        z-index: 25; text-align: center; display: flex; flex-direction: column; gap: 0.5rem;
+    }
+    #bank-heist-status { font-size: 1.2rem; font-weight: 600; }
+    #bank-heist-timer { font-size: 1rem; color: var(--gold); }
+    #bank-heist-progress-bar-container {
+        width: 300px; height: 20px; background-color: #495057; border-radius: 10px;
+        overflow: hidden; border: 1px solid #212529;
+    }
+    #bank-heist-progress-bar {
+        width: 0%; height: 100%; background: linear-gradient(90deg, var(--success), var(--gold));
+        transition: width 0.5s ease;
+    }
+    #leave-bank-btn { position: absolute; bottom: 20px; right: 20px; z-index: 20; }
+    /* --- BANK HEIST ADDITION END --- */
 
     #chat-input-container {
         position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
@@ -862,6 +907,24 @@
                  <button id="place-custom-order-btn">Place Order</button>
             </div>
         </div>
+
+        <!-- --- BANK HEIST ADDITION START --- -->
+        <!-- Scene for Bank Heist -->
+        <div id="bank-container" style="display: none;">
+             <div id="bank-room">
+                <div class="bank-vault"></div>
+             </div>
+             <div id="bank-ui-container">
+                <h3 id="bank-heist-status">The Vault</h3>
+                <div id="bank-heist-timer"></div>
+                <div id="bank-heist-progress-bar-container" style="display: none;">
+                    <div id="bank-heist-progress-bar"></div>
+                </div>
+                <div id="bank-heist-actions"></div>
+             </div>
+             <button id="leave-bank-btn">Leave Bank</button>
+        </div>
+        <!-- --- BANK HEIST ADDITION END --- -->
 
 
         <!-- Chat Input -->
@@ -1458,12 +1521,29 @@ function updateAllBalanceDisplays(targetBalance) {
     const customPizzaPanel = document.getElementById('custom-pizza-panel');
     const placeCustomOrderBtn = document.getElementById('place-custom-order-btn');
 
+    // --- BANK HEIST ADDITION START ---
+    const bankContainer = document.getElementById('bank-container');
+    const bankRoom = document.getElementById('bank-room');
+    const bankVault = bankRoom.querySelector('.bank-vault');
+    const leaveBankBtn = document.getElementById('leave-bank-btn');
+    const bankHeistStatusEl = document.getElementById('bank-heist-status');
+    const bankHeistTimerEl = document.getElementById('bank-heist-timer');
+    const bankHeistProgressBarContainer = document.getElementById('bank-heist-progress-bar-container');
+    const bankHeistProgressBar = document.getElementById('bank-heist-progress-bar');
+    const bankHeistActionsEl = document.getElementById('bank-heist-actions');
+    // --- BANK HEIST ADDITION END ---
+
 
     // --- Firebase References ---
     const playersRef = db.ref('linusHub/players');
     const housesRef = db.ref('linusHub/houses');
     const decorationsRef = db.ref('linusHub/decorations');
     const pizzeriaOrdersRef = db.ref('linusHub/pizzeriaOrders');
+    // --- BANK HEIST ADDITION START ---
+    const bankRef = db.ref('linusHub/bank');
+    let bankListener = null;
+    let bankHeistTimerInterval = null;
+    // --- BANK HEIST ADDITION END ---
     let playerRef = null;
     let decorationListener = null;
     let pizzeriaOrdersListener = null;
@@ -1504,6 +1584,9 @@ function updateAllBalanceDisplays(targetBalance) {
     const HOUSE_WIDTH = 200, HOUSE_HEIGHT = 200;
     const houseLayout = [ { id: 0, x: -200, y: -200 }, { id: 1, x: 250, y: -450 }, { id: 2, x: 650, y: -200 }, { id: 3, x: 900, y: 250 }, { id: 4, x: 650, y: 650 }, { id: 5, x: 250, y: 900 }, { id: 6, x: -200, y: 650 }, { id: 7, x: -650, y: 250 }, { id: 8, x: -900, y: -450 }, { id: 9, x: -550, y: -750 } ];
     const pizzeriaBuilding = { x: 0, y: 250, width: 250, height: 180 };
+    // --- BANK HEIST ADDITION START ---
+    const bankBuilding = { x: -600, y: 250, width: 280, height: 200 };
+    // --- BANK HEIST ADDITION END ---
 
     function updatePlayerScene(playerElement, otherPlayerState) {
         const localPlayerLocation = playerState.inHouseId || playerState.inMinigame || 'hub';
@@ -1514,6 +1597,9 @@ function updateAllBalanceDisplays(targetBalance) {
         let targetParent = null;
         if (otherPlayerLocation === 'hub') targetParent = worldContainer;
         else if (otherPlayerLocation === 'pizzeria-restaurant') targetParent = pizzeriaRestaurantRoom;
+        // --- BANK HEIST ADDITION START ---
+        else if (otherPlayerLocation === 'bank') targetParent = bankRoom;
+        // --- BANK HEIST ADDITION END ---
         else if (otherPlayerLocation) targetParent = interiorRoom; // For any house ID
 
         if (targetParent && playerElement.parentElement !== targetParent) {
@@ -1726,6 +1812,16 @@ function updateAllBalanceDisplays(targetBalance) {
         pizzeriaEl.innerHTML = `<h3>PIZZERIA</h3>`;
         pizzeriaEl.addEventListener('click', () => pizzeriaChoicePanel.classList.add('visible'));
         worldContainer.appendChild(pizzeriaEl);
+        
+        // --- BANK HEIST ADDITION START ---
+        const bankEl = document.createElement('div');
+        bankEl.className = 'hub-bank';
+        bankEl.style.left = `${bankBuilding.x}px`;
+        bankEl.style.top = `${bankBuilding.y}px`;
+        bankEl.innerHTML = `<h3>BANK</h3>`;
+        bankEl.addEventListener('click', enterBank);
+        worldContainer.appendChild(bankEl);
+        // --- BANK HEIST ADDITION END ---
     }
 
     function onHouseClick(houseId) {
@@ -1760,6 +1856,18 @@ function updateAllBalanceDisplays(targetBalance) {
                 const itemBox = { left: item.x, top: item.y, right: item.x + item.w, bottom: item.y + item.h };
                  if (playerBox.right > itemBox.left && playerBox.left < itemBox.right && playerBox.bottom > itemBox.top && playerBox.top < itemBox.bottom) return true;
             }
+        // --- BANK HEIST ADDITION START ---
+        } else if (playerState.inMinigame === 'bank') {
+            const room = bankRoom;
+            if (nextX < 0 || nextY < 0 || nextX + playerState.width > room.offsetWidth || nextY + playerState.height > room.offsetHeight) return true;
+            const vaultRect = bankVault.getBoundingClientRect();
+            const roomRect = room.getBoundingClientRect();
+            const vaultBox = {
+                left: vaultRect.left - roomRect.left, top: vaultRect.top - roomRect.top,
+                right: (vaultRect.right - roomRect.left), bottom: (vaultRect.bottom - roomRect.top)
+            };
+            if (playerBox.right > vaultBox.left && playerBox.left < vaultBox.right && playerBox.bottom > vaultBox.top && playerBox.top < vaultBox.bottom) return true;
+        // --- BANK HEIST ADDITION END ---
         } else if (playerState.inHouseId !== null) { // Interior collision
             if (nextX < 0 || nextY < 0 || nextX + playerState.width > interiorRoom.offsetWidth || nextY + playerState.height > interiorRoom.offsetHeight) return true;
             for (const itemId in placedItemElements) {
@@ -1776,6 +1884,10 @@ function updateAllBalanceDisplays(targetBalance) {
             }
             const pizzeriaBox = { left: pizzeriaBuilding.x, top: pizzeriaBuilding.y, right: pizzeriaBuilding.x + pizzeriaBuilding.width, bottom: pizzeriaBuilding.y + pizzeriaBuilding.height };
             if (playerBox.right > pizzeriaBox.left && playerBox.left < pizzeriaBox.right && playerBox.bottom > pizzeriaBox.top && playerBox.top < pizzeriaBox.bottom) return true;
+            // --- BANK HEIST ADDITION START ---
+            const bankBox = { left: bankBuilding.x, top: bankBuilding.y, right: bankBuilding.x + bankBuilding.width, bottom: bankBuilding.y + bankBuilding.height };
+            if (playerBox.right > bankBox.left && playerBox.left < bankBox.right && playerBox.bottom > bankBox.top && playerBox.top < bankBox.bottom) return true;
+            // --- BANK HEIST ADDITION END ---
         }
 
         return false;
@@ -2000,7 +2112,6 @@ function leavePizzeriaKitchen() {
     pizzeriaKitchenContainer.style.display = 'none';
     worldContainer.style.display = 'block';
 
-    // ADD THESE TWO LINES: Fixes visibility for local and other players
     updatePlayerScene(localPlayerContainer, playerState);
     Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.state));
 
@@ -2066,16 +2177,11 @@ function leavePizzeriaRestaurant() {
     worldContainer.style.display = 'block';
     npcState = []; // Clear NPCs
 
-    // Updates the local player's scene (previous fix)
     updatePlayerScene(localPlayerContainer, playerState);
-
-    // ADD THIS LINE: Re-evaluates visibility for all other players
     Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.state));
 
     updateLocalPlayerPosition();
 }
-
-  
 
     async function placeCustomPizzaOrder() {
         if(balance < 10) return showToast("You need 10 BUX to order a pizza.", "error");
@@ -2354,6 +2460,175 @@ function leavePizzeriaRestaurant() {
         });
     }
 
+    // --- BANK HEIST ADDITION START ---
+    function updateBankHeistUI(snapshot) {
+        const heistData = snapshot.val();
+        const now = Date.now();
+        if (bankHeistTimerInterval) clearInterval(bankHeistTimerInterval);
+
+        if (heistData && heistData.cooldownUntil && now < heistData.cooldownUntil) {
+            bankHeistStatusEl.textContent = "Vault is on Cooldown";
+            bankHeistProgressBarContainer.style.display = 'none';
+            bankHeistActionsEl.innerHTML = '';
+            bankHeistTimerInterval = setInterval(() => {
+                const timeLeft = Math.ceil((heistData.cooldownUntil - Date.now()) / 1000);
+                if (timeLeft > 0) {
+                    bankHeistTimerEl.textContent = `Ready in: ${timeLeft}s`;
+                } else {
+                    bankHeistTimerEl.textContent = '';
+                    clearInterval(bankHeistTimerInterval);
+                    bankRef.set(null); // Reset the bank state
+                }
+            }, 1000);
+        } else if (heistData && heistData.status === 'preparing') {
+            const playersCount = Object.keys(heistData.players || {}).length;
+            bankHeistStatusEl.textContent = `Heist Preparing (${playersCount} robbers)`;
+            bankHeistProgressBarContainer.style.display = 'none';
+            
+            const PREP_TIME = 15000; // 15 seconds
+            bankHeistTimerInterval = setInterval(() => {
+                const timePassed = Date.now() - heistData.startTime;
+                const timeLeft = Math.ceil((PREP_TIME - timePassed) / 1000);
+                if (timeLeft > 0) {
+                    bankHeistTimerEl.textContent = `Starts in: ${timeLeft}s`;
+                } else {
+                    bankHeistTimerEl.textContent = '';
+                    clearInterval(bankHeistTimerInterval);
+                    // The first player in the list transitions the state to active
+                    if (Object.keys(heistData.players)[0] === currentUser.uid) {
+                        bankRef.update({ status: 'active', startTime: firebase.database.ServerValue.TIMESTAMP });
+                    }
+                }
+            }, 1000);
+
+            const isPlayerInHeist = heistData.players && heistData.players[currentUser.uid];
+            if (!isPlayerInHeist) {
+                bankHeistActionsEl.innerHTML = '<button id="join-heist-btn">Join Heist</button>';
+                document.getElementById('join-heist-btn').onclick = () => bankRef.child(`players/${currentUser.uid}`).set(true);
+            } else {
+                bankHeistActionsEl.innerHTML = '<p>You have joined the heist!</p>';
+            }
+
+        } else if (heistData && heistData.status === 'active') {
+            const playersCount = Object.keys(heistData.players).length;
+            const CLICKS_NEEDED = 50 * playersCount; // More players = more clicks needed
+            const HEIST_TIME = 30000; // 30 seconds to complete
+
+            bankHeistStatusEl.textContent = `Drilling the Vault!`;
+            bankHeistProgressBarContainer.style.display = 'block';
+
+            const progress = (heistData.clicks || 0) / CLICKS_NEEDED;
+            bankHeistProgressBar.style.width = `${Math.min(100, progress * 100)}%`;
+
+            bankHeistTimerInterval = setInterval(() => {
+                const timePassed = Date.now() - heistData.startTime;
+                const timeLeft = Math.ceil((HEIST_TIME - timePassed) / 1000);
+                 if (timeLeft > 0) {
+                    bankHeistTimerEl.textContent = `Time left: ${timeLeft}s`;
+                } else {
+                    bankHeistTimerEl.textContent = 'TIME UP!';
+                    clearInterval(bankHeistTimerInterval);
+                    if (Object.keys(heistData.players)[0] === currentUser.uid) {
+                        showToast('Heist failed! The vault remains sealed.', 'error');
+                        bankRef.update({ cooldownUntil: firebase.database.ServerValue.TIMESTAMP + 120000 }); // 2 min cooldown
+                    }
+                }
+            }, 1000);
+
+            const isPlayerInHeist = heistData.players && heistData.players[currentUser.uid];
+            if (isPlayerInHeist) {
+                 bankHeistActionsEl.innerHTML = '<button id="drill-vault-btn">DRILL!</button>';
+                 document.getElementById('drill-vault-btn').onclick = () => {
+                    bankRef.child('clicks').set(firebase.database.ServerValue.increment(1));
+                 };
+            } else {
+                bankHeistActionsEl.innerHTML = '<p>Heist in progress...</p>';
+            }
+            
+            // Check for success
+            if (progress >= 1) {
+                clearInterval(bankHeistTimerInterval);
+                if (Object.keys(heistData.players)[0] === currentUser.uid) {
+                    const totalLoot = 500 + Math.floor(Math.random() * 500 * playersCount);
+                    const perPlayerLoot = Math.floor(totalLoot / playersCount);
+                    const updates = {};
+                    Object.keys(heistData.players).forEach(uid => {
+                        updates[`/users/${uid}/balance`] = firebase.database.ServerValue.increment(perPlayerLoot);
+                    });
+                    db.ref().update(updates);
+                    showToast(`SUCCESS! Your crew stole ${totalLoot.toLocaleString()} BUX! Each robber gets ${perPlayerLoot.toLocaleString()}.`, 'success');
+                    bankRef.update({ cooldownUntil: firebase.database.ServerValue.TIMESTAMP + 300000 }); // 5 min cooldown
+                }
+            }
+
+        } else { // Default state
+            bankHeistStatusEl.textContent = "The Vault";
+            bankHeistTimerEl.textContent = "Seems quiet...";
+            bankHeistProgressBarContainer.style.display = 'none';
+            bankHeistActionsEl.innerHTML = '<button id="start-heist-btn">Start Robbery</button>';
+            document.getElementById('start-heist-btn').onclick = () => {
+                 bankRef.transaction(currentData => {
+                    if (currentData === null) {
+                        return {
+                            status: 'preparing',
+                            startTime: firebase.database.ServerValue.TIMESTAMP,
+                            players: { [currentUser.uid]: true },
+                            clicks: 0
+                        };
+                    }
+                    return; // Abort if not null
+                });
+            };
+        }
+    }
+
+
+    function enterBank() {
+        playerState.hubX = playerState.x;
+        playerState.hubY = playerState.y;
+        playerState.inMinigame = 'bank';
+        playerState.x = bankRoom.offsetWidth / 2;
+        playerState.y = bankRoom.offsetHeight - playerState.height - 20;
+
+        worldContainer.style.display = 'none';
+        bankContainer.style.display = 'block';
+
+        if(playerRef) playerRef.update({ inMinigame: 'bank', inHouseId: null, x: playerState.x, y: playerState.y });
+        
+        updatePlayerScene(localPlayerContainer, playerState);
+        Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.state));
+        
+        bankListener = bankRef.on('value', updateBankHeistUI);
+    }
+
+    function leaveBank() {
+        if(bankListener) bankRef.off('value', bankListener);
+        if(bankHeistTimerInterval) clearInterval(bankHeistTimerInterval);
+        bankListener = null;
+
+        // If player leaves during a heist, remove them
+        bankRef.child(`players/${currentUser.uid}`).remove();
+        
+        playerState.inMinigame = null;
+        if(playerRef) playerRef.update({ inMinigame: null });
+        playerState.x = bankBuilding.x + (bankBuilding.width / 2);
+        playerState.y = bankBuilding.y + bankBuilding.height + 10;
+        
+        bankContainer.style.display = 'none';
+        worldContainer.style.display = 'block';
+
+        updatePlayerScene(localPlayerContainer, playerState);
+        Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.state));
+        updateLocalPlayerPosition();
+    }
+
+    bankVault.addEventListener('click', () => {
+        // The UI buttons will now handle this logic, but we can keep this for proximity checks in the future
+        showToast("Interact via the panel at the top.", "info");
+    });
+    leaveBankBtn.addEventListener('click', leaveBank);
+    // --- BANK HEIST ADDITION END ---
+
 
     function gameLoop() {
         const now = performance.now();
@@ -2481,6 +2756,9 @@ function leavePizzeriaRestaurant() {
         playersRef.off(); housesRef.off();
         if (decorationListener) decorationListener.off();
         if (pizzeriaOrdersListener) pizzeriaOrdersListener.off();
+        // --- BANK HEIST ADDITION START ---
+        if (bankListener) bankRef.off('value', bankListener);
+        // --- BANK HEIST ADDITION END ---
         document.removeEventListener('keydown', handleGlobalKeyDown);
         document.removeEventListener('keyup', handleGlobalKeyUp);
         if(gameLoopId) { cancelAnimationFrame(gameLoopId); gameLoopId = null; }
@@ -2493,6 +2771,9 @@ function leavePizzeriaRestaurant() {
         if (playerState.inHouseId) leaveHouse();
         if (playerState.inMinigame === 'pizzeria-kitchen') leavePizzeriaKitchen();
         if (playerState.inMinigame === 'pizzeria-restaurant') leavePizzeriaRestaurant();
+        // --- BANK HEIST ADDITION START ---
+        if (playerState.inMinigame === 'bank') leaveBank();
+        // --- BANK HEIST ADDITION END ---
     }
 
     function showConfirmationModal(message, onConfirm) {
@@ -2596,5 +2877,3 @@ function leavePizzeriaRestaurant() {
 </script>
 </body>
 </html>
-
-
