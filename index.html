@@ -1215,7 +1215,8 @@ function updateAllBalanceDisplays(targetBalance) {
         x: 0, y: 0, width: 80, height: 80, speed: 250, direction: 1, animation: 'idle',
         inHouseId: null,
         hubX: 0, hubY: 0, 
-        isSitting: false
+        isSitting: false,
+        sittingOnChairId: null // <-- ADDED to track which chair is being used
     };
     localPlayerContainer.style.width = `${playerState.width}px`;
     localPlayerContainer.style.height = `${playerState.height}px`;
@@ -1318,7 +1319,8 @@ function updateAllBalanceDisplays(targetBalance) {
         playerState.inHouseId = null;
         playerState.x = playerState.hubX;
         playerState.y = playerState.hubY;
-        if(playerState.isSitting) standUp();
+        playerState.isSitting = false;
+        playerState.sittingOnChairId = null;
 
         if(playerRef) playerRef.update({ inHouseId: null, x: playerState.x, y: playerState.y });
         decorationListener = null;
@@ -1353,6 +1355,7 @@ function updateAllBalanceDisplays(targetBalance) {
         if (playerState.isSitting) return;
 
         playerState.isSitting = true;
+        playerState.sittingOnChairId = chairEl.dataset.id; // Remember which chair
         showToast("Press SPACE to stand up", "info");
 
         const chairDef = FURNITURE_CATALOG[chairData.type];
@@ -1363,18 +1366,30 @@ function updateAllBalanceDisplays(targetBalance) {
     }
 
     function standUp() {
-        if (!playerState.isSitting) return;
+        if (!playerState.isSitting || !playerState.sittingOnChairId) return;
         
-        playerState.y += playerState.height / 2;
+        const chairEl = placedItemElements[playerState.sittingOnChairId];
+        if (!chairEl) { // Failsafe if chair is gone
+            playerState.isSitting = false;
+            playerState.sittingOnChairId = null;
+            return;
+        }
+
+        const chairDef = FURNITURE_CATALOG[chairEl.dataset.type];
+        const chairBox = { x: parseInt(chairEl.style.left), y: parseInt(chairEl.style.top) };
+
+        // --- FIX: Reposition the player to be just below the chair to avoid collision
+        playerState.x = chairBox.x + (chairDef.width / 2) - (playerState.width / 2);
+        playerState.y = chairBox.y + chairDef.height;
+
         playerState.isSitting = false;
-        
-        // --- FIX START ---
-        // Reset movement keys state to prevent getting stuck.
+        playerState.sittingOnChairId = null; 
+
+        // Reset movement keys state to prevent getting stuck if a key was held down.
         keys.w = false;
         keys.a = false;
         keys.s = false;
         keys.d = false;
-        // --- FIX END ---
 
         updateLocalPlayerPosition();
     }
@@ -1827,4 +1842,4 @@ function updateAllBalanceDisplays(targetBalance) {
 });
 </script>
 </body>
-</html>
+</html>```
