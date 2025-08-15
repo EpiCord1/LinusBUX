@@ -3338,14 +3338,28 @@ function updateAllBalanceDisplays(targetBalance) {
             const otherPlayer = otherPlayerElements[uid];
             if (!otherPlayer) return;
 
-            // BUG FIX: Check for new chat messages
             if (pData.chatMessage && pData.chatMessage !== otherPlayer.state.chatMessage) {
                 handlePlayerChat(otherPlayer.container, pData.chatMessage);
             }
             
             const oldLocation = otherPlayer.state.inMinigame || otherPlayer.state.inHouseId || 'hub';
-            otherPlayer.state = {...otherPlayer.state, ...pData}; // Merge changes
-            const newLocation = pData.inMinigame || pData.inHouseId || 'hub';
+
+            // --- FIX STARTS HERE ---
+            // Merge the incoming data with the existing state.
+            Object.assign(otherPlayer.state, pData);
+            // When a value is set to null in Firebase, the key is deleted from the database.
+            // This means the snapshot's value (pData) will not contain these keys. We must
+            // manually nullify them in our local state to correctly register when a player leaves a building.
+            if (!pData.hasOwnProperty('inHouseId')) {
+                otherPlayer.state.inHouseId = null;
+            }
+            if (!pData.hasOwnProperty('inMinigame')) {
+                otherPlayer.state.inMinigame = null;
+            }
+            // --- FIX ENDS HERE ---
+
+            // Determine the new location based on the *updated* local state.
+            const newLocation = otherPlayer.state.inMinigame || otherPlayer.state.inHouseId || 'hub';
 
             if (newLocation !== 'heist-active') {
                 gsap.to(otherPlayer.container, { left: pData.x, top: pData.y, duration: 0.1, ease: 'linear' });
