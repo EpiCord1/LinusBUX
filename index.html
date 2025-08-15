@@ -285,6 +285,25 @@
         pointer-events: none;
     }
     .chat-bubble.visible { opacity: 1; }
+
+    /* ================== MONEY COLLECTION BAR STYLE (FIX #1) ================== */
+    .money-collection-progress {
+        display: none; /* Hidden by default, shown by JS */
+        width: 60px;
+        height: 8px;
+        background-color: rgba(0,0,0,0.5);
+        border: 1px solid var(--gold);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .money-collection-progress-fill {
+        width: 0%;
+        height: 100%;
+        background-color: var(--success);
+        transition: width 0.1s linear;
+    }
+    /* ================== END OF FIX ================== */
+
     .hub-house {
         position: absolute; width: 200px; height: 200px;
         background-color: #8B4513; border: 5px solid #5C4033;
@@ -2050,6 +2069,7 @@ function updateAllBalanceDisplays(targetBalance) {
         return false;
     }
 
+    // ============================ COMPLETE FUNCTION REPLACEMENT (FIX #2) ============================
     function updateLocalPlayerPosition(deltaTime) {
         let moveX = 0, moveY = 0;
         let isMoving = false;
@@ -2070,18 +2090,15 @@ function updateAllBalanceDisplays(targetBalance) {
             if (!checkCollision(playerState.x, nextY)) { playerState.y = nextY; }
         }
         
-        // ============================ FIX STARTS HERE ============================
-        // The call to the non-existent 'resolvePlayerCollision' is replaced with this simple anti-stuck logic.
+        // Anti-stuck logic for the heist (replaces the broken resolvePlayerCollision call)
         if (playerState.inMinigame === 'heist-active') {
             const maxTries = 5;
             let tries = 0;
-            // If the player somehow spawns or moves inside an object, this will nudge them down until they are free.
             while(checkCollision(playerState.x, playerState.y, false) && tries < maxTries) {
-                playerState.y += 2; 
+                playerState.y += 2; // Nudge the player slightly if they are stuck
                 tries++;
             }
         }
-        // ========================== END OF FIX ===========================
         
         localPlayerContainer.style.left = `${playerState.x}px`;
         localPlayerContainer.style.top = `${playerState.y}px`;
@@ -2089,15 +2106,15 @@ function updateAllBalanceDisplays(targetBalance) {
         
         // Corrected camera logic for all game states
         if (worldContainer.style.display !== 'none') {
-             // Hub camera
+             // Hub camera follows player
              worldContainer.style.transform = `translate(${-playerState.x + gameArea.offsetWidth / 2 - playerState.width/2}px, ${-playerState.y + gameArea.offsetHeight / 2 - playerState.height/2}px)`;
-             heistGameArea.style.transform = 'translate(0px, 0px)';
+             heistGameArea.style.transform = 'translate(0px, 0px)'; // Reset heist area
         } else if (playerState.inMinigame === 'heist-active') {
-             // Heist camera
-             heistGameArea.style.transform = `translate(${-playerState.x + heistGameArea.offsetWidth / 2 - playerState.width/2}px, ${-playerState.y + heistGameArea.offsetHeight / 2 - playerState.height/2}px)`;
-             worldContainer.style.transform = 'translate(0px, 0px)';
+             // Heist camera is now STATIC and centered
+             heistGameArea.style.transform = 'translate(0px, 0px)';
+             worldContainer.style.transform = 'translate(0px, 0px)'; // Reset hub area
         } else {
-             // Reset transforms for static scenes like houses or the pizzeria kitchen
+             // Reset transforms for static scenes like houses
              worldContainer.style.transform = 'translate(0px, 0px)';
              heistGameArea.style.transform = 'translate(0px, 0px)';
         }
@@ -2122,6 +2139,7 @@ function updateAllBalanceDisplays(targetBalance) {
             }
         }
     }
+    // =========================================================================================
 
     // --- Pizzeria Logic (Kitchen, Restaurant, Ordering) ---
     const PIZZA_PAYOUT = 8;
@@ -3250,8 +3268,8 @@ function updateAllBalanceDisplays(targetBalance) {
                 playerState.heist.collectionTargetId = currentlyCollidingWithMoneyId;
             }
             playerState.heist.isCollecting = true;
-            playerState.heist.collectionTimer += deltaTime;
             moneyCollectionProgress.style.display = 'block';
+            playerState.heist.collectionTimer += deltaTime;
             const progress = Math.min(1, playerState.heist.collectionTimer / 2.0);
             moneyCollectionProgressFill.style.width = `${progress * 100}%`;
             
