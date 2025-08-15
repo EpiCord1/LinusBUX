@@ -2748,6 +2748,52 @@ function updateAllBalanceDisplays(targetBalance) {
             const numMoney = 8 + Math.floor(Math.random() * 3);
 
             for (let g = 0; g < numGuards; g++) {
+                     function findSafeSpawnPoint(obstacles, entityW, entityH, area) {
+        const gameWidth = 1200;
+        const gameHeight = 700;
+        let spawnX, spawnY, isSafe;
+        let attempts = 0;
+        const searchArea = area || { x: 0, y: 0, w: gameWidth, h: gameHeight };
+
+        do {
+            isSafe = true;
+            spawnX = searchArea.x + Math.random() * (searchArea.w - entityW);
+            spawnY = searchArea.y + Math.random() * (searchArea.h - entityH);
+            const entityBox = { left: spawnX, top: spawnY, right: spawnX + entityW, bottom: spawnY + entityH };
+
+            for (const obsId in obstacles) {
+                const obs = obstacles[obsId];
+                const obsBox = { left: obs.x, top: obs.y, right: obs.x + obs.w, bottom: obs.y + obs.h };
+                if (entityBox.right > obsBox.left && entityBox.left < obsBox.right && entityBox.bottom > obsBox.top && entityBox.top < obsBox.bottom) {
+                    isSafe = false;
+                    break;
+                }
+            }
+            attempts++;
+        } while (!isSafe && attempts < 100);
+
+        if (!isSafe) { return { x: 50, y: gameHeight / 2 }; } // Fallback
+        return { x: spawnX, y: spawnY };
+    }
+
+    function generateAndStartHeist(players) {
+        const playerKeys = Object.keys(players);
+        if (currentUser.uid !== playerKeys[0]) return;
+
+        const newHeistData = {
+            id: "heist_" + Date.now(),
+            currentRoom: 1,
+            players: {},
+            rooms: {}
+        };
+        
+        for (let i = 1; i <= 10; i++) {
+            const obstacles = generateSimpleWalls(1200, 700, 250); // Keep 250px on left clear for spawning
+            const roomData = { guards: {}, money: {}, obstacles };
+            const numGuards = 3 + Math.floor(Math.random() * 4);
+            const numMoney = 8 + Math.floor(Math.random() * 3);
+
+            for (let g = 0; g < numGuards; g++) {
                  const spawnPoint = findSafeSpawnPoint(obstacles, 80, 80);
                 roomData.guards['guard' + g] = { 
                     x: spawnPoint.x, y: spawnPoint.y, 
@@ -2779,31 +2825,6 @@ function updateAllBalanceDisplays(targetBalance) {
             bankRef.set({ status: 'active', activeHeistId: newHeistData.id });
         });
     }
-
-    async function enterBank() {
-        const bankSnapshot = await bankRef.once('value');
-        const bankData = bankSnapshot.val();
-        if (bankData && bankData.activeHeistId) {
-            showToast("Sorry, there's a heist going on right now", 'error');
-            return;
-        }
-
-        playerState.hubX = playerState.x;
-        playerState.hubY = playerState.y;
-        playerState.inMinigame = 'bank';
-        playerState.x = 500; playerState.y = 500;
-        
-        worldContainer.style.display = 'none';
-        bankContainer.style.display = 'block';
-
-        if(playerRef) playerRef.update({ inMinigame: 'bank', inHouseId: null, x: playerState.x, y: playerState.y });
-        
-        updatePlayerScene(localPlayerContainer, playerState);
-        Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.state));
-        
-        bankListener = bankRef.on('value', updateBankLobbyUI);
-    }
-
     function leaveBank() {
         if(bankListener) bankRef.off('value', bankListener);
         if(bankHeistTimerInterval) clearInterval(bankHeistTimerInterval);
@@ -3617,3 +3638,4 @@ function updateAllBalanceDisplays(targetBalance) {
 </script>
 </body>
 </html>
+
