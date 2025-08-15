@@ -1236,18 +1236,20 @@ function updateAllBalanceDisplays(targetBalance) {
         { id: 8, x: -900, y: -450 }, { id: 9, x: -550, y: -750 }
     ];
 
-    function updatePlayerScene(playerElement, sceneId) {
-        if (sceneId === null) { 
+    function updatePlayerScene(playerElement, otherPlayerSceneId) {
+        const localPlayerSceneId = playerState.inHouseId;
+        const shouldBeVisible = (otherPlayerSceneId === localPlayerSceneId);
+
+        if (otherPlayerSceneId === null) {
             if (playerElement.parentElement !== worldContainer) {
                 worldContainer.appendChild(playerElement);
             }
-            playerElement.style.display = 'flex';
         } else { 
             if (playerElement.parentElement !== interiorRoom) {
                 interiorRoom.appendChild(playerElement);
             }
-            playerElement.style.display = (sceneId === playerState.inHouseId) ? 'flex' : 'none';
         }
+        playerElement.style.display = shouldBeVisible ? 'flex' : 'none';
     }
 
     function populateFurniturePanel() {
