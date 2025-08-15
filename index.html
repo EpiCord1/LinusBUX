@@ -260,7 +260,6 @@
         flex-direction: column;
         align-items: center;
         cursor: pointer;
-        /* Transitions are handled by GSAP for smoothness */
     }
     .player-character img {
         width: 100%; height: 100%; object-fit: contain;
@@ -299,10 +298,8 @@
         position: absolute;
         top: 50%; left: 50%;
         transform: translate(-50%, -50%);
-        width: 1000px; /* Size of the room */
-        height: 600px; /* Size of the room */
-        background-color: #D2B48C; /* Tan */
-        border: 20px solid #8B4513; /* SaddleBrown */
+        width: 1000px; height: 600px;
+        background-color: #D2B48C; border: 20px solid #8B4513;
         box-sizing: border-box;
     }
     #interior-room.edit-mode {
@@ -318,7 +315,7 @@
     #toggle-house-lock-btn { background-color: var(--secondary-purple); }
     #furniture-panel {
         position: absolute; top: 20px; left: 20px; background: var(--dark-card);
-        padding: 1rem; border-radius: var(--border-radius); display: none; /* Hidden by default */
+        padding: 1rem; border-radius: var(--border-radius); display: none;
         flex-direction: column; gap: 10px; z-index: 20;
     }
     .furniture-item {
@@ -334,31 +331,79 @@
         box-sizing: border-box;
         border: 2px solid rgba(0,0,0,0.5);
     }
-     .placed-item[data-type="chair"] {
-        cursor: pointer;
-    }
-    .placed-item.removable:hover {
-        cursor: pointer;
-        border-color: var(--danger);
-        opacity: 0.8;
-    }
+     .placed-item[data-type="chair"] { cursor: pointer; }
+    .placed-item.removable:hover { cursor: pointer; border-color: var(--danger); opacity: 0.8; }
 
-    /* --- NEW: Pizza Minigame Styles --- */
+    /* --- Pizza Minigame Styles --- */
     #pizzeria-container {
         display: none; /* Hidden by default */
-        background: linear-gradient(to bottom, #e0cda9, #c4a980);
+        background-color: rgba(0,0,0,0.8);
+        backdrop-filter: blur(8px);
         justify-content: center;
         align-items: center;
         flex-direction: column;
+    }
+    #cutting-board {
+        width: 100%;
+        max-width: 1200px;
+        height: 70vh;
+        max-height: 700px;
+        background-color: #c69c6d;
+        background-image: linear-gradient(45deg, rgba(0,0,0,0.05) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.05) 75%), linear-gradient(45deg, rgba(0,0,0,0.05) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.05) 75%);
+        background-size: 30px 30px;
+        border-radius: 20px;
+        box-shadow: inset 0 0 20px rgba(0,0,0,0.4), 0 10px 30px rgba(0,0,0,0.5);
+        border: 10px solid #6b4a24;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 2rem;
         padding: 2rem;
     }
-    .pizzeria-top-bar {
-        position: absolute;
-        top: 20px;
-        width: calc(100% - 40px);
+    #pizza-assembly-area {
+        flex: 1;
+        max-width: 500px;
+        aspect-ratio: 1 / 1;
+        position: relative;
         display: flex;
-        justify-content: space-between;
+        justify-content: center;
         align-items: center;
+    }
+    #pizza-base {
+        width: 90%;
+        height: 90%;
+        border-radius: 50%;
+        background-color: #f2dcb3; /* Dough color */
+        box-shadow: inset 0 0 15px rgba(0,0,0,0.2);
+        position: relative;
+        overflow: hidden;
+    }
+    .pizza-layer {
+        position: absolute; top: 0; left: 0;
+        width: 100%; height: 100%;
+        border-radius: 50%;
+    }
+    #pizza-sauce-layer {
+        background-color: #c0392b; /* Sauce color */
+        transform: scale(0);
+        transition: transform 0.3s ease;
+    }
+    #pizza-cheese-layer {
+        background-color: #f1c40f; /* Cheese color */
+        transform: scale(0);
+        transition: transform 0.3s ease;
+        opacity: 0.9;
+    }
+    .placed-topping {
+        position: absolute;
+        pointer-events: none;
+    }
+    .pizzeria-ui-right {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        height: 100%;
     }
     #pizza-order-ticket {
         background: #fff8e1;
@@ -366,69 +411,66 @@
         border-radius: 8px;
         box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         color: #333;
-        border: 1px dashed #aaa;
+        border: 2px solid #5d4037;
     }
     #pizza-order-ticket h3 { font-size: 1.2rem; margin-bottom: 0.5rem; border-bottom: 1px solid #ddd; padding-bottom: 0.5rem; }
-    #pizza-order-list { font-size: 1.1rem; font-weight: 600; list-style-position: inside; }
-    #leave-pizzeria-btn { background-color: var(--danger); }
-    
-    #pizza-workspace {
-        display: flex;
-        gap: 3rem;
-        align-items: center;
-        width: 100%;
-        max-width: 900px;
-        justify-content: center;
+    #pizza-order-list { list-style: none; padding: 0; }
+    #pizza-order-list li {
+        font-weight: 600; transition: color 0.3s, text-decoration 0.3s;
     }
-    #pizza-assembly-area {
-        width: 300px; height: 300px;
-        position: relative;
+    #pizza-order-list li.completed {
+        color: var(--success); text-decoration: line-through;
     }
-    .pizza-layer {
-        position: absolute;
-        top: 0; left: 0;
-        width: 100%; height: 100%;
-        background-size: contain;
-        background-repeat: no-repeat;
-        background-position: center;
-        pointer-events: none;
+    #order-timer { width: 100%; background: #ddd; border-radius: 5px; height: 10px; margin-top: 10px; }
+    #order-timer-bar {
+        height: 100%; width: 100%; background: linear-gradient(90deg, var(--success), var(--gold));
+        border-radius: 5px; transition: width 1s linear, background-color 0.5s;
     }
-    #pizza-layer-dough { background-image: url('https://i.imgur.com/g8n2e1N.png'); }
-    #pizza-layer-sauce { background-image: url('https://i.imgur.com/wA45m5a.png'); opacity: 0;}
-    #pizza-layer-cheese { background-image: url('https://i.imgur.com/f0B4Y1J.png'); opacity: 0;}
-    #pizza-toppings-container {
+    #ingredients-bin {
+        flex-grow: 1;
+        background: rgba(0,0,0,0.2);
+        border-radius: 10px;
+        padding: 1rem;
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 5px;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+        align-content: flex-start;
     }
-    .pizza-topping {
-        width: 40px; height: 40px;
-        position: absolute;
-        background-size: contain;
+    .ingredient {
+        width: 60px; height: 60px;
+        border-radius: 8px;
+        background-color: rgba(255,255,255,0.1);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: grab;
+        border: 2px solid transparent;
+        transition: background-color 0.2s, border-color 0.2s;
     }
-     .pepperoni { background-image: url('https://i.imgur.com/1EXL55x.png'); }
-    .mushrooms { background-image: url('https://i.imgur.com/LVC172T.png'); }
-    .olives { background-image: url('https://i.imgur.com/h5rAwtb.png'); }
+    .ingredient:hover { border-color: var(--gold); }
+    .ingredient-shape { pointer-events: none; }
+    
+    #finish-pizza-btn { background-color: var(--success); width: 100%; margin-top: auto; }
+    #leave-pizzeria-btn { position: absolute; top: 20px; left: 20px; background-color: var(--danger); z-index: 10; }
+    #dragged-item {
+        position: fixed;
+        pointer-events: none;
+        z-index: 9999;
+        transform: translate(-50%, -50%);
+    }
 
-    #pizza-ingredients-panel {
-        display: flex; flex-direction: column; gap: 1rem;
-    }
-    .ingredient-btn {
-        padding: 0.8rem 1.5rem;
-        font-size: 1.1rem;
-        font-weight: 700;
-        min-width: 180px;
-        border: 2px solid rgba(0,0,0,0.2);
-    }
-    #finish-pizza-btn { background-color: var(--success); }
+    /* --- Primitive Ingredient Shapes --- */
+    .shape-sauce { width: 90%; height: 90%; background: #c0392b; border-radius: 50%; }
+    .shape-cheese { width: 90%; height: 90%; background: #f1c40f; border-radius: 50%; opacity: 0.9; }
+    .shape-pepperoni { width: 25px; height: 25px; background: #c23616; border-radius: 50%; }
+    .shape-mushrooms { width: 25px; height: 18px; background: #a4b0be; border-radius: 12px 12px 0 0; }
+    .shape-olives { width: 25px; height: 25px; border-radius: 50%; border: 6px solid #2f3542; }
+
 
     .hub-pizzeria {
-        position: absolute;
-        width: 250px; height: 180px;
-        background-color: #c84038;
-        border: 5px solid #a12c2c;
-        border-radius: 8px;
-        cursor: pointer; z-index: 5;
+        position: absolute; width: 250px; height: 180px;
+        background-color: #c84038; border: 5px solid #a12c2c;
+        border-radius: 8px; cursor: pointer; z-index: 5;
         display: flex; justify-content: center; align-items: center;
         flex-direction: column; gap: 5px;
         box-shadow: 0 0 25px rgba(200, 64, 56, 0.5);
@@ -657,30 +699,27 @@
             </div>
         </div>
         
-        <!-- NEW: Scene for Pizzeria Minigame -->
+        <!-- Scene for Pizzeria Minigame -->
         <div id="pizzeria-container">
-            <div class="pizzeria-top-bar">
-                <div id="pizza-order-ticket">
-                    <h3>CURRENT ORDER</h3>
-                    <ul id="pizza-order-list"></ul>
-                </div>
-                <button id="leave-pizzeria-btn">Leave Kitchen</button>
-            </div>
-            <div id="pizza-workspace">
+            <button id="leave-pizzeria-btn">Leave Kitchen</button>
+            <div id="cutting-board">
                 <div id="pizza-assembly-area">
-                    <div class="pizza-layer" id="pizza-layer-dough"></div>
-                    <div class="pizza-layer" id="pizza-layer-sauce"></div>
-                    <div class="pizza-layer" id="pizza-layer-cheese"></div>
-                    <div class="pizza-layer" id="pizza-toppings-container"></div>
+                    <div id="pizza-base">
+                        <div class="pizza-layer" id="pizza-sauce-layer"></div>
+                        <div class="pizza-layer" id="pizza-cheese-layer"></div>
+                    </div>
                 </div>
-                <div id="pizza-ingredients-panel">
-                    <button class="ingredient-btn" data-ingredient="Dough">Add Dough</button>
-                    <button class="ingredient-btn" data-ingredient="Sauce">Add Sauce</button>
-                    <button class="ingredient-btn" data-ingredient="Cheese">Add Cheese</button>
-                    <button class="ingredient-btn" data-ingredient="Pepperoni">Add Pepperoni</button>
-                    <button class="ingredient-btn" data-ingredient="Mushrooms">Add Mushrooms</button>
-                    <button class="ingredient-btn" data-ingredient="Olives">Add Olives</button>
-                    <button id="finish-pizza-btn">Finish Pizza</button>
+
+                <div class="pizzeria-ui-right">
+                    <div id="pizza-order-ticket">
+                        <h3>CURRENT ORDER</h3>
+                        <ul id="pizza-order-list"></ul>
+                        <div id="order-timer"><div id="order-timer-bar"></div></div>
+                    </div>
+                    <div id="ingredients-bin">
+                        <!-- Ingredients will be populated by JS -->
+                    </div>
+                    <button id="finish-pizza-btn">Serve Pizza</button>
                 </div>
             </div>
         </div>
@@ -697,6 +736,7 @@
 </main>
 </div>
 <div id="toast-container"></div>
+<div id="dragged-item"></div> <!-- For drag & drop visual -->
 
 <!-- User Interaction Panel -->
 <div id="user-interaction-panel" class="panel-overlay">
@@ -727,8 +767,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
 <script>
 // --- FULL SCRIPT PROVIDED ---
-// This includes all setup, authentication, game tabs, and the enhanced Linus Hub logic.
-
 const firebaseConfig = {
     apiKey: "AIzaSyC-aZNBPQz2y4e-9DZ9hvz-puEan47li-4",
     authDomain: "linusbux-fab58.firebaseapp.com",
@@ -740,21 +778,18 @@ const firebaseConfig = {
     measurementId: "G-EZWXN01SZT"
 };
 
-// Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
 
 document.addEventListener('DOMContentLoaded', () => {
     
-// --- App State ---
 let balance = 0;
 let currentUser = null;
 let balanceRef = null;
-let isBalanceInitialized = false; // Flag to prevent spending before DB is updated
+let isBalanceInitialized = false;
 const generatedCodes = {};
 
-// --- UI Elements ---
 const mainBalanceElement = document.getElementById('main-balance-amount');
 const headerBalanceElement = document.getElementById('header-balance-amount');
 const headerBalanceContainer = document.querySelector('.header-balance');
@@ -779,7 +814,6 @@ const confirmActionBtn = document.getElementById('confirm-action-btn');
 const cancelActionBtn = document.getElementById('cancel-action-btn');
 let _onConfirmAction = null;
 
-// --- Toast Notification System ---
 const toastContainer = document.getElementById('toast-container');
 function showToast(message, type = 'info') {
     const toast = document.createElement('div');
@@ -792,19 +826,14 @@ function showToast(message, type = 'info') {
     });
 }
 
-// --- Firebase Auth Logic ---
 auth.onAuthStateChanged(user => {
     if (user) {
         currentUser = user;
         balanceRef = db.ref(`users/${currentUser.uid}`);
         balanceRef.on('value', (snapshot) => {
             const data = snapshot.val();
-            if (data && data.balance !== undefined) {
-                balance = data.balance;
-            } else {
-                balance = 100;
-                balanceRef.set({ balance: balance, email: user.email });
-            }
+            balance = (data && data.balance !== undefined) ? data.balance : 100;
+            if (!data) { balanceRef.set({ balance: 100, email: user.email }); }
             updateAllBalanceDisplays(balance);
             isBalanceInitialized = true; 
         });
@@ -825,83 +854,49 @@ auth.onAuthStateChanged(user => {
 });
 
 signupBtn.addEventListener('click', () => {
-    const email = emailInput.value;
-    const password = passwordInput.value;
-    if (!email || !password) {
-        showToast('Please enter email and password.', 'error');
-        return;
-    }
+    const email = emailInput.value, password = passwordInput.value;
+    if (!email || !password) return showToast('Please enter email and password.', 'error');
     auth.createUserWithEmailAndPassword(email, password)
-        .then((userCredential) => {
-            showToast(`Account created for ${userCredential.user.email}! Welcome!`, 'success');
-        })
-        .catch((error) => {
-            showToast(error.message, 'error');
-        });
+        .then(cred => showToast(`Account created for ${cred.user.email}!`, 'success'))
+        .catch(err => showToast(err.message, 'error'));
 });
-
 loginBtn.addEventListener('click', () => {
-    const email = emailInput.value;
-    const password = passwordInput.value;
-     if (!email || !password) {
-        showToast('Please enter email and password.', 'error');
-        return;
-    }
+    const email = emailInput.value, password = passwordInput.value;
+    if (!email || !password) return showToast('Please enter email and password.', 'error');
     auth.signInWithEmailAndPassword(email, password)
-        .then((userCredential) => {
-             showToast(`Welcome back, ${userCredential.user.email}!`, 'success');
-        })
-        .catch((error) => {
-            showToast(error.message, 'error');
-        });
+        .then(cred => showToast(`Welcome back, ${cred.user.email}!`, 'success'))
+        .catch(err => showToast(err.message, 'error'));
 });
-
 logoutBtn.addEventListener('click', () => auth.signOut().then(() => showToast('You have been logged out.', 'info')));
 
-// --- Helper & UI Functions ---
 document.querySelectorAll('.card').forEach(card => {
     card.addEventListener('mousemove', e => {
         const rect = card.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        card.style.setProperty('--mouse-x', `${x}px`);
-        card.style.setProperty('--mouse-y', `${y}px`);
+        card.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
+        card.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
     });
 });
 navLinks.forEach(link => {
-    link.addEventListener('click', (e) => {
+    link.addEventListener('click', e => {
         e.preventDefault();
-        const tabId = e.currentTarget.getAttribute('data-tab');
-
+        const tabId = e.currentTarget.dataset.tab;
         navLinks.forEach(l => l.classList.remove('active'));
-        tabContents.forEach(content => content.classList.remove('active'));
-
+        tabContents.forEach(c => c.classList.remove('active'));
         e.currentTarget.classList.add('active');
         document.getElementById(tabId).classList.add('active');
-        
-        if (tabId === 'balance') {
-            headerBalanceContainer.classList.remove('visible');
-        } else {
-            headerBalanceContainer.classList.add('visible');
-        }
+        headerBalanceContainer.classList.toggle('visible', tabId !== 'balance');
     });
 });
 function updateAllBalanceDisplays(targetBalance) {
-    const elementsToUpdate = [mainBalanceElement, headerBalanceElement];
-    elementsToUpdate.forEach(el => {
+    [mainBalanceElement, headerBalanceElement].forEach(el => {
          gsap.to(el, {
-            duration: 1,
-            innerHTML: Math.floor(targetBalance),
-            roundProps: "innerHTML",
-            onUpdate: function() {
-                this.targets()[0].innerHTML = parseInt(this.targets()[0].innerHTML).toLocaleString();
-            },
+            duration: 1, innerHTML: Math.floor(targetBalance), roundProps: "innerHTML",
+            onUpdate: function() { this.targets()[0].innerHTML = parseInt(this.targets()[0].innerHTML).toLocaleString(); },
             ease: "power3.out"
         });
     });
 }
 
-// --- Balance Tab: Code Creation/Redemption ---
 (function setupBalanceTab() {
     const createCodeAmountInput = document.getElementById('create-code-amount');
     const createCodeBtn = document.getElementById('create-code-btn');
@@ -909,21 +904,15 @@ function updateAllBalanceDisplays(targetBalance) {
     const redeemCodeBtn = document.getElementById('redeem-code-btn');
     const generatedCodesContainer = document.getElementById('generated-codes');
 
-    function generateRandomCode() {
-        return 'LBX-' + Math.random().toString(36).substring(2, 10).toUpperCase();
-    }
-
     createCodeBtn.addEventListener('click', () => {
         const amount = parseInt(createCodeAmountInput.value, 10);
-        if (isNaN(amount) || amount <= 0) { showToast('Please enter a valid amount.', 'error'); return; }
-        if (amount > balance) { showToast('Insufficient balance.', 'error'); return; }
-        
+        if (isNaN(amount) || amount <= 0) { return showToast('Please enter a valid amount.', 'error'); }
+        if (amount > balance) { return showToast('Insufficient balance.', 'error'); }
         db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(-amount));
-
-        const code = generateRandomCode();
+        const code = 'LBX-' + Math.random().toString(36).substring(2, 10).toUpperCase();
         generatedCodes[code] = amount;
         const codeElement = document.createElement('div');
-        codeElement.classList.add('generated-code-item');
+        codeElement.className = 'generated-code-item';
         codeElement.innerHTML = `<span class="code-text">${code}</span><span>${amount.toLocaleString()} BUX</span>`;
         codeElement.addEventListener('click', () => navigator.clipboard.writeText(code).then(() => showToast(`Code ${code} copied!`, 'success')));
         generatedCodesContainer.prepend(codeElement);
@@ -945,13 +934,10 @@ function updateAllBalanceDisplays(targetBalance) {
             });
             showToast(`Redeemed ${amount.toLocaleString()} BUX!`, 'success');
             redeemCodeInput.value = '';
-        } else {
-            showToast('Invalid or already used code.', 'error');
-        }
+        } else { showToast('Invalid or already used code.', 'error'); }
     });
 })();
 
-// --- Gambling Tab ---
 (function setupGamblingTab() {
     const canvas = document.getElementById('wheel-canvas');
     if (!canvas) return;
@@ -1042,7 +1028,6 @@ function updateAllBalanceDisplays(targetBalance) {
     drawWheel();
 })();
 
-// --- Blackjack Tab ---
 (function setupBlackjackTab() {
     const dealButton = document.getElementById('deal-button');
     if (!dealButton) return;
@@ -1050,7 +1035,6 @@ function updateAllBalanceDisplays(targetBalance) {
     const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
     let deck = [], playerHand, dealerHand, currentBetBJ = 0;
     
-    // Preload dealer images to prevent flickering
     ['IDLE.gif', 'HAPPY.gif', 'ANGRY.gif'].forEach(src => { new Image().src = src; });
     
     const betControls = document.getElementById('blackjack-bet-controls');
@@ -1157,7 +1141,6 @@ function updateAllBalanceDisplays(targetBalance) {
                 showToast(`You receive ${finalPayout.toLocaleString()} BUX`, 'success');
             }
         } else {
-             // Bet was already deducted, so no change needed for a loss.
             showToast(`You lost ${currentBetBJ.toLocaleString()} BUX`, 'error');
         }
         
@@ -1194,11 +1177,11 @@ function updateAllBalanceDisplays(targetBalance) {
             if (dealerScore >= 17) {
                 const playerScore = calculateScore(playerHand);
                 if (dealerScore > 21 || playerScore > dealerScore) {
-                    endGame('You Win!', 2); // Payout is 2x bet (1x original + 1x winnings)
+                    endGame('You Win!', 2);
                 } else if (dealerScore > playerScore) {
-                    endGame('Dealer Wins!', 0); // No payout
+                    endGame('Dealer Wins!', 0);
                 } else {
-                    endGame('Push!', 1); // Return original bet
+                    endGame('Push!', 1);
                 }
             } else {
                 const newCard = deck.pop();
@@ -1225,13 +1208,11 @@ function updateAllBalanceDisplays(targetBalance) {
         
         createDeck();
         shuffleDeck();
-
         playerHand = [deck.pop(), deck.pop()];
         dealerHand = [deck.pop(), deck.pop()];
 
         playerHandEl.innerHTML = '';
         dealerHandEl.innerHTML = '';
-        
         renderCard(playerHand[0], playerHandEl);
         renderCard(playerHand[1], playerHandEl);
         renderCard(dealerHand[0], dealerHandEl, true); 
@@ -1239,9 +1220,8 @@ function updateAllBalanceDisplays(targetBalance) {
 
         updateScores(true);
         const playerScore = calculateScore(playerHand);
-
         if (playerScore === 21) {
-            endGame('Blackjack!', 2.5); // Payout is bet + 1.5x winnings
+            endGame('Blackjack!', 2.5);
         } else {
             setActionsState(true, true, true);
         }
@@ -1254,7 +1234,6 @@ function updateAllBalanceDisplays(targetBalance) {
         renderCard(newCard, playerHandEl);
         const playerScore = calculateScore(playerHand);
         updateScores(true);
-
         if (playerScore > 21) {
             endGame('Bust! You Lose.', 0);
         } else if (playerScore === 21) {
@@ -1272,19 +1251,15 @@ function updateAllBalanceDisplays(targetBalance) {
             showToast("Not enough BUX to double down!", 'error');
             return;
         }
-        
         db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(-currentBetBJ));
         currentBetBJ *= 2;
         showToast(`Bet doubled to ${currentBetBJ.toLocaleString()}`, 'info');
         setActionsState(false, false, false);
-
         const newCard = deck.pop();
         playerHand.push(newCard);
-        const playerScore = calculateScore(playerHand);
         renderCard(newCard, playerHandEl);
         updateScores(true);
-
-        if (playerScore > 21) {
+        if (calculateScore(playerHand) > 21) {
             endGame('Bust! You Lose.', 0);
         } else {
             setTimeout(dealerTurn, 800);
@@ -1293,7 +1268,6 @@ function updateAllBalanceDisplays(targetBalance) {
     
     resetBoard();
 })();
-
 
 // --- Linus Hub Logic ---
 (function setupLinusHubTab() {
@@ -1316,44 +1290,34 @@ function updateAllBalanceDisplays(targetBalance) {
     const chatInputContainer = document.getElementById('chat-input-container');
     const chatInput = document.getElementById('chat-input');
     
-    // --- NEW: Pizzeria UI Elements ---
     const pizzeriaContainer = document.getElementById('pizzeria-container');
     const leavePizzeriaBtn = document.getElementById('leave-pizzeria-btn');
     const pizzaOrderList = document.getElementById('pizza-order-list');
-    const pizzaIngredientsPanel = document.getElementById('pizza-ingredients-panel');
+    const ingredientsBin = document.getElementById('ingredients-bin');
     const finishPizzaBtn = document.getElementById('finish-pizza-btn');
-    const pizzaLayerSauce = document.getElementById('pizza-layer-sauce');
-    const pizzaLayerCheese = document.getElementById('pizza-layer-cheese');
-    const pizzaToppingsContainer = document.getElementById('pizza-toppings-container');
-
+    const pizzaBase = document.getElementById('pizza-base');
+    const draggedItem = document.getElementById('dragged-item');
+    const orderTimerBar = document.getElementById('order-timer-bar');
 
     const localPlayerContainer = document.createElement('div');
     localPlayerContainer.id = 'local-player-container';
     localPlayerContainer.className = 'player-character';
-    localPlayerContainer.innerHTML = `
-        <div class="player-ui-container">
-            <div class="chat-bubble"></div>
-            <div class="player-nametag">You</div>
-        </div>
-        <img id="player-character-img" src="IDLE.gif" alt="Player">
-    `;
+    localPlayerContainer.innerHTML = `<div class="player-ui-container"><div class="chat-bubble"></div><div class="player-nametag">You</div></div><img id="player-character-img" src="IDLE.gif" alt="Player">`;
     const localPlayerImage = localPlayerContainer.querySelector('#player-character-img');
-
 
     const playerState = {
         element: localPlayerContainer, imgElement: localPlayerImage,
         x: 0, y: 0, width: 80, height: 80, speed: 250, direction: 1, animation: 'idle',
-        inHouseId: null,
-        inMinigame: null, // <-- NEW: To track which minigame we are in
-        hubX: 0, hubY: 0, 
-        isSitting: false,
-        sittingOnChairId: null
+        inHouseId: null, inMinigame: null,
+        hubX: 0, hubY: 0, isSitting: false, sittingOnChairId: null
     };
     localPlayerContainer.style.width = `${playerState.width}px`;
     localPlayerContainer.style.height = `${playerState.height}px`;
+
     const keys = { w: false, a: false, s: false, d: false };
     let isChatting = false, gameLoopId = null, otherPlayerElements = {}, houseElements = {}, allHouses = {}, placedItemElements = {}, isEditingHouse = false, selectedFurnitureType = null;
     let lastFrameTime = performance.now();
+    
     const FURNITURE_CATALOG = {
         'table': { name: 'Table', width: 120, height: 80, color: '#A0522D' },
         'chair': { name: 'Chair', width: 40, height: 40, color: '#800000' },
@@ -1362,14 +1326,8 @@ function updateAllBalanceDisplays(targetBalance) {
     };
     const GRID_SIZE = 40;
     const HOUSE_WIDTH = 200, HOUSE_HEIGHT = 200;
-    const houseLayout = [
-        { id: 0, x: -200, y: -200 }, { id: 1, x: 250, y: -450 }, { id: 2, x: 650, y: -200 }, { id: 3, x: 900, y: 250 },
-        { id: 4, x: 650, y: 650 }, { id: 5, x: 250, y: 900 }, { id: 6, x: -200, y: 650 }, { id: 7, x: -650, y: 250 },
-        { id: 8, x: -900, y: -450 }, { id: 9, x: -550, y: -750 }
-    ];
-    // --- NEW: Pizzeria Building Definition ---
+    const houseLayout = [ { id: 0, x: -200, y: -200 }, { id: 1, x: 250, y: -450 }, { id: 2, x: 650, y: -200 }, { id: 3, x: 900, y: 250 }, { id: 4, x: 650, y: 650 }, { id: 5, x: 250, y: 900 }, { id: 6, x: -200, y: 650 }, { id: 7, x: -650, y: 250 }, { id: 8, x: -900, y: -450 }, { id: 9, x: -550, y: -750 } ];
     const pizzeriaBuilding = { x: 0, y: 250, width: 250, height: 180 };
-
 
     function updatePlayerScene(playerElement, otherPlayerInHouseId) {
         const localPlayerInHouseId = playerState.inHouseId;
@@ -1558,7 +1516,6 @@ function updateAllBalanceDisplays(targetBalance) {
             worldContainer.appendChild(houseEl);
             houseElements[layout.id] = houseEl;
         });
-        // --- NEW: Initialize Pizzeria Building ---
         const pizzeriaEl = document.createElement('div');
         pizzeriaEl.className = 'hub-pizzeria';
         pizzeriaEl.style.left = `${pizzeriaBuilding.x}px`;
@@ -1597,7 +1554,6 @@ function updateAllBalanceDisplays(targetBalance) {
                 const houseBox = { left: house.x, top: house.y, right: house.x + HOUSE_WIDTH, bottom: house.y + HOUSE_HEIGHT };
                 if (playerBox.right > houseBox.left && playerBox.left < houseBox.right && playerBox.bottom > houseBox.top && playerBox.top < houseBox.bottom) return true;
             }
-            // --- NEW: Pizzeria Collision ---
             const pizzeriaBox = { left: pizzeriaBuilding.x, top: pizzeriaBuilding.y, right: pizzeriaBuilding.x + pizzeriaBuilding.width, bottom: pizzeriaBuilding.y + pizzeriaBuilding.height };
             if (playerBox.right > pizzeriaBox.left && playerBox.left < pizzeriaBox.right && playerBox.bottom > pizzeriaBox.top && playerBox.top < pizzeriaBox.bottom) return true;
 
@@ -1651,73 +1607,118 @@ function updateAllBalanceDisplays(targetBalance) {
         }
     }
     
-    // --- NEW: Pizzeria Minigame Logic ---
-    let currentPizzaOrder = [];
-    let currentPizzaAssembly = [];
-    const PIZZA_PAYOUT = 5;
+    // --- Pizzeria Minigame Logic ---
+    const PIZZA_PAYOUT = 8;
     const allToppings = ['Pepperoni', 'Mushrooms', 'Olives'];
+    const pizzeriaState = {
+        currentOrder: {},
+        placedIngredients: {},
+        timerId: null,
+        timeLeft: 0,
+        totalTime: 0,
+    };
+    
+    function populateIngredientsBin() {
+        ingredientsBin.innerHTML = '';
+        const ingredients = ['Sauce', 'Cheese', 'Pepperoni', 'Mushrooms', 'Olives'];
+        ingredients.forEach(name => {
+            const item = document.createElement('div');
+            item.className = 'ingredient';
+            item.dataset.ingredient = name;
+            item.innerHTML = `<div class="ingredient-shape shape-${name.toLowerCase()}"></div>`;
+            ingredientsBin.appendChild(item);
+        });
+    }
 
-    function startNewPizzaOrder() {
-        currentPizzaAssembly = [];
-        // Base ingredients are always the same
-        currentPizzaOrder = ['Dough', 'Sauce', 'Cheese'];
+    function generateNewPizzaOrder() {
+        pizzeriaState.placedIngredients = {};
+        pizzeriaState.currentOrder = {};
+        let orderComplexity = 0;
         
-        // Add 1 or 2 random toppings
-        const shuffledToppings = allToppings.sort(() => 0.5 - Math.random());
-        const toppingCount = Math.floor(Math.random() * 2) + 1;
-        for(let i=0; i<toppingCount; i++) {
-            currentPizzaOrder.push(shuffledToppings[i]);
+        const shuffled = allToppings.sort(() => 0.5 - Math.random());
+        const toppingCount = Math.floor(Math.random() * 3) + 1;
+        for (let i = 0; i < toppingCount; i++) {
+            const toppingName = shuffled[i];
+            const quantity = Math.floor(Math.random() * 5) + 2;
+            pizzeriaState.currentOrder[toppingName] = quantity;
+            orderComplexity += quantity;
         }
         
-        // Update UI
-        pizzaOrderList.innerHTML = '';
-        currentPizzaOrder.forEach(item => {
-            const li = document.createElement('li');
-            li.textContent = item;
-            pizzaOrderList.appendChild(li);
-        });
+        pizzeriaState.totalTime = 15000 + (orderComplexity * 1500);
+        pizzeriaState.timeLeft = pizzeriaState.totalTime;
         
-        // Reset visual pizza
-        pizzaLayerSauce.style.opacity = 0;
-        pizzaLayerCheese.style.opacity = 0;
-        pizzaToppingsContainer.innerHTML = '';
+        updateOrderTicketUI();
+        resetPizzaVisuals();
+        startOrderTimer();
+    }
+
+    function updateOrderTicketUI() {
+        pizzaOrderList.innerHTML = '';
+        ['Sauce', 'Cheese'].forEach(base => {
+             const li = document.createElement('li');
+             li.textContent = base;
+             li.dataset.ingredient = base;
+             if(pizzeriaState.placedIngredients[base]) li.classList.add('completed');
+             pizzaOrderList.appendChild(li);
+        });
+        for (const [name, needed] of Object.entries(pizzeriaState.currentOrder)) {
+            const placed = pizzeriaState.placedIngredients[name] || 0;
+            const li = document.createElement('li');
+            li.textContent = `${name} (${placed}/${needed})`;
+            li.dataset.ingredient = name;
+            if (placed >= needed) li.classList.add('completed');
+            pizzaOrderList.appendChild(li);
+        }
+    }
+
+    function resetPizzaVisuals() {
+        pizzaBase.innerHTML = '<div class="pizza-layer" id="pizza-sauce-layer"></div><div class="pizza-layer" id="pizza-cheese-layer"></div>';
+        document.getElementById('pizza-sauce-layer').style.transform = 'scale(0)';
+        document.getElementById('pizza-cheese-layer').style.transform = 'scale(0)';
         finishPizzaBtn.disabled = false;
     }
-
-    function addIngredientToPizza(ingredient) {
-        if (!currentPizzaAssembly.includes(ingredient)) {
-            currentPizzaAssembly.push(ingredient);
+    
+    function startOrderTimer() {
+        if (pizzeriaState.timerId) clearInterval(pizzeriaState.timerId);
+        pizzeriaState.timerId = setInterval(() => {
+            pizzeriaState.timeLeft -= 100;
+            const progress = Math.max(0, pizzeriaState.timeLeft / pizzeriaState.totalTime);
+            orderTimerBar.style.width = `${progress * 100}%`;
             
-            // Visual feedback
-            if (ingredient === 'Sauce') pizzaLayerSauce.style.opacity = 1;
-            if (ingredient === 'Cheese') pizzaLayerCheese.style.opacity = 1;
-            if (allToppings.includes(ingredient)) {
-                // Add a few topping images at random positions
-                for(let i=0; i<5; i++) {
-                    const toppingEl = document.createElement('div');
-                    toppingEl.className = `pizza-topping ${ingredient.toLowerCase()}`;
-                    toppingEl.style.left = `${Math.random() * 80 + 10}%`;
-                    toppingEl.style.top = `${Math.random() * 80 + 10}%`;
-                    toppingEl.style.transform = `rotate(${Math.random() * 360}deg)`;
-                    pizzaToppingsContainer.appendChild(toppingEl);
-                }
+            if(progress < 0.25) orderTimerBar.style.background = 'var(--danger)';
+            else if (progress < 0.5) orderTimerBar.style.background = 'var(--gold)';
+            else orderTimerBar.style.background = 'linear-gradient(90deg, var(--success), var(--gold))';
+            
+            if (pizzeriaState.timeLeft <= 0) {
+                clearInterval(pizzeriaState.timerId);
+                showToast("Time's up! New order.", 'error');
+                setTimeout(generateNewPizzaOrder, 1500);
+            }
+        }, 100);
+    }
+    
+    function finishPizza() {
+        clearInterval(pizzeriaState.timerId);
+        finishPizzaBtn.disabled = true;
+        let correct = true;
+        if (!pizzeriaState.placedIngredients['Sauce'] || !pizzeriaState.placedIngredients['Cheese']) {
+            correct = false;
+        }
+        for (const [name, needed] of Object.entries(pizzeriaState.currentOrder)) {
+            if ((pizzeriaState.placedIngredients[name] || 0) !== needed) {
+                correct = false;
+                break;
             }
         }
-    }
-
-    function finishPizza() {
-        finishPizzaBtn.disabled = true;
-        const correct = currentPizzaOrder.length === currentPizzaAssembly.length &&
-                        currentPizzaOrder.every(ing => currentPizzaAssembly.includes(ing));
 
         if (correct) {
-            showToast(`Delicious! +${PIZZA_PAYOUT} BUX`, 'success');
-            db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(PIZZA_PAYOUT));
+            const payout = PIZZA_PAYOUT + Object.keys(pizzeriaState.currentOrder).length;
+            showToast(`Perfect! +${payout} BUX`, 'success');
+            db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(payout));
         } else {
-            showToast("Oops, wrong order!", 'error');
+            showToast("Incorrect order!", 'error');
         }
-
-        setTimeout(startNewPizzaOrder, 1500);
+        setTimeout(generateNewPizzaOrder, 1500);
     }
     
     function enterPizzeria() {
@@ -1726,25 +1727,66 @@ function updateAllBalanceDisplays(targetBalance) {
         playerState.inMinigame = 'pizzeria';
         worldContainer.style.display = 'none';
         pizzeriaContainer.style.display = 'flex';
-        startNewPizzaOrder();
+        populateIngredientsBin();
+        generateNewPizzaOrder();
     }
     function leavePizzeria() {
+        if (pizzeriaState.timerId) clearInterval(pizzeriaState.timerId);
         playerState.inMinigame = null;
         playerState.x = playerState.hubX;
-        playerState.y = playerState.hubY + 10; // Emerge below the entrance
+        playerState.y = pizzeriaBuilding.y + pizzeriaBuilding.height + 10;
         pizzeriaContainer.style.display = 'none';
         worldContainer.style.display = 'block';
         updateLocalPlayerPosition();
     }
 
-    pizzaIngredientsPanel.addEventListener('click', (e) => {
-        if (e.target.matches('.ingredient-btn')) {
-            addIngredientToPizza(e.target.dataset.ingredient);
-        }
+    let isDragging = false;
+    let draggedIngredient = null;
+    ingredientsBin.addEventListener('mousedown', e => {
+        const ingredientDiv = e.target.closest('.ingredient');
+        if (!ingredientDiv) return;
+        isDragging = true;
+        draggedIngredient = ingredientDiv.dataset.ingredient;
+        const shape = ingredientDiv.querySelector('.ingredient-shape').cloneNode(true);
+        draggedItem.innerHTML = '';
+        draggedItem.appendChild(shape);
+        draggedItem.style.left = `${e.clientX}px`;
+        draggedItem.style.top = `${e.clientY}px`;
     });
+    window.addEventListener('mousemove', e => {
+        if (!isDragging) return;
+        draggedItem.style.left = `${e.clientX}px`;
+        draggedItem.style.top = `${e.clientY}px`;
+    });
+    window.addEventListener('mouseup', e => {
+        if (!isDragging) return;
+        const pizzaRect = pizzaBase.getBoundingClientRect();
+        if (e.clientX > pizzaRect.left && e.clientX < pizzaRect.right && e.clientY > pizzaRect.top && e.clientY < pizzaRect.bottom) {
+            if (draggedIngredient === 'Sauce') {
+                document.getElementById('pizza-sauce-layer').style.transform = 'scale(0.9)';
+                pizzeriaState.placedIngredients['Sauce'] = true;
+            } else if (draggedIngredient === 'Cheese') {
+                document.getElementById('pizza-cheese-layer').style.transform = 'scale(0.8)';
+                pizzeriaState.placedIngredients['Cheese'] = true;
+            } else {
+                pizzeriaState.placedIngredients[draggedIngredient] = (pizzeriaState.placedIngredients[draggedIngredient] || 0) + 1;
+                const newTopping = document.createElement('div');
+                newTopping.className = `placed-topping shape-${draggedIngredient.toLowerCase()}`;
+                const x = (e.clientX - pizzaRect.left) / pizzaRect.width * 100;
+                const y = (e.clientY - pizzaRect.top) / pizzaRect.height * 100;
+                newTopping.style.left = `calc(${x}% - 12.5px)`;
+                newTopping.style.top = `calc(${y}% - 12.5px)`;
+                pizzaBase.appendChild(newTopping);
+            }
+            updateOrderTicketUI();
+        }
+        draggedItem.innerHTML = '';
+        isDragging = false;
+        draggedIngredient = null;
+    });
+
     finishPizzaBtn.addEventListener('click', finishPizza);
     leavePizzeriaBtn.addEventListener('click', leavePizzeria);
-
 
     function gameLoop() {
         if (!isChatting && !playerState.inMinigame) {
@@ -1954,15 +1996,10 @@ function updateAllBalanceDisplays(targetBalance) {
     function handleGlobalKeyDown(e) {
         const isPanelVisible = userInteractionPanel.classList.contains('visible') || confirmationPanel.classList.contains('visible');
         if (isPanelVisible || playerState.inMinigame) return;
-
         if (playerState.isSitting) {
-            if (e.key === ' ') {
-                e.preventDefault();
-                standUp();
-            }
+            if (e.key === ' ') { e.preventDefault(); standUp(); }
             return; 
         }
-
         if (e.key === 'Enter') {
             e.preventDefault(); 
             if (isChatting) { sendMessage(); } 
@@ -1971,12 +2008,7 @@ function updateAllBalanceDisplays(targetBalance) {
             keys[e.key.toLowerCase()] = true;
         }
     }
-
-    function handleGlobalKeyUp(e) { 
-        if (e.key.toLowerCase() in keys) {
-            keys[e.key.toLowerCase()] = false;
-        }
-    }
+    function handleGlobalKeyUp(e) { if (e.key.toLowerCase() in keys) keys[e.key.toLowerCase()] = false; }
 
     const linusHubTab = document.getElementById('linus-hub');
     const observer = new MutationObserver(() => {
@@ -1984,8 +2016,8 @@ function updateAllBalanceDisplays(targetBalance) {
     });
     observer.observe(linusHubTab, { attributes: true });
 })();
-
 });
+
 </script>
 </body>
 </html>
