@@ -1733,7 +1733,7 @@ function updateAllBalanceDisplays(targetBalance) {
     localPlayerContainer.style.width = `${playerState.width}px`;
     localPlayerContainer.style.height = `${playerState.height}px`;
 
-    const keys = { w: false, a: false, s: false, d: false };
+    const keys = { w: false, a: false, s: false, d: false, space: false };
     let isChatting = false, gameLoopId = null, otherPlayerElements = {}, houseElements = {}, allHouses = {}, placedItemElements = {}, isEditingHouse = false, selectedFurnitureType = null;
     let restaurantFurnitureLayout = [];
     let restaurantFurnitureElements = {};
@@ -3243,45 +3243,54 @@ function updateAllBalanceDisplays(targetBalance) {
 
         const playerBox = { x: playerState.x, y: playerState.y, w: playerState.width, h: playerState.height };
         let currentlyCollidingWithMoneyId = null;
-
+        
         for (const id in heistGameState.currentRoomData.money) {
             const moneyData = heistGameState.currentRoomData.money[id];
-            if (moneyData.isCollected || (moneyData.isTrapped && moneyData.glassHealth > 0)) continue;
-            
+            if (moneyData.isCollected) continue;
+
             const moneyBox = { x: moneyData.x, y: moneyData.y, w: moneyData.w, h: moneyData.h };
             if (playerBox.x < moneyBox.x + moneyBox.w && playerBox.x + playerBox.w > moneyBox.x && playerBox.y < moneyBox.y + moneyBox.h && playerBox.y + playerBox.h > moneyBox.y) {
-                currentlyCollidingWithMoneyId = id;
-                break;
+                 currentlyCollidingWithMoneyId = id;
+                 break;
             }
         }
 
-        if (currentlyCollidingWithMoneyId) {
-            if (playerState.heist.collectionTargetId !== currentlyCollidingWithMoneyId) {
-                playerState.heist.collectionTimer = 0;
-                playerState.heist.collectionTargetId = currentlyCollidingWithMoneyId;
-            }
-            playerState.heist.isCollecting = true;
-            moneyCollectionProgress.style.display = 'block';
-            playerState.heist.collectionTimer += deltaTime;
-            const progress = Math.min(1, playerState.heist.collectionTimer / 2.0);
-            moneyCollectionProgressFill.style.width = `${progress * 100}%`;
-            
-            if (playerState.heist.collectionTimer >= 2.0) {
-                const moneyRef = activeHeistRef.child(`rooms/${playerState.heist.currentRoom}/money/${playerState.heist.collectionTargetId}`);
-                moneyRef.transaction(moneyData => {
-                    if (moneyData && !moneyData.isCollected) {
-                        moneyData.isCollected = true;
-                        return moneyData;
-                    }
-                    return;
-                }).then(result => {
-                    if (result.committed) {
-                        const value = result.snapshot.val().value;
-                        activeHeistRef.child(`players/${currentUser.uid}/moneyCollected`).set(firebase.database.ServerValue.increment(value));
-                    }
-                });
-                playerState.heist.isCollecting = false; playerState.heist.collectionTimer = 0;
-                playerState.heist.collectionTargetId = null; moneyCollectionProgress.style.display = 'none';
+        // --- NEW LOGIC: Check for spacebar press while colliding ---
+        const isTryingToCollect = currentlyCollidingWithMoneyId && keys.space;
+
+        if (isTryingToCollect) {
+            const targetMoneyData = heistGameState.currentRoomData.money[currentlyCollidingWithMoneyId];
+
+            if (targetMoneyData.isTrapped && targetMoneyData.glassHealth > 0) {
+                 // Do nothing if trying to collect trapped money with spacebar
+            } else {
+                if (playerState.heist.collectionTargetId !== currentlyCollidingWithMoneyId) {
+                    playerState.heist.collectionTimer = 0;
+                    playerState.heist.collectionTargetId = currentlyCollidingWithMoneyId;
+                }
+                playerState.heist.isCollecting = true;
+                moneyCollectionProgress.style.display = 'block';
+                playerState.heist.collectionTimer += deltaTime;
+                const progress = Math.min(1, playerState.heist.collectionTimer / 2.0);
+                moneyCollectionProgressFill.style.width = `${progress * 100}%`;
+                
+                if (playerState.heist.collectionTimer >= 2.0) {
+                    const moneyRef = activeHeistRef.child(`rooms/${playerState.heist.currentRoom}/money/${playerState.heist.collectionTargetId}`);
+                    moneyRef.transaction(moneyData => {
+                        if (moneyData && !moneyData.isCollected) {
+                            moneyData.isCollected = true;
+                            return moneyData;
+                        }
+                        return;
+                    }).then(result => {
+                        if (result.committed) {
+                            const value = result.snapshot.val().value;
+                            activeHeistRef.child(`players/${currentUser.uid}/moneyCollected`).set(firebase.database.ServerValue.increment(value));
+                        }
+                    });
+                    playerState.heist.isCollecting = false; playerState.heist.collectionTimer = 0;
+                    playerState.heist.collectionTargetId = null; moneyCollectionProgress.style.display = 'none';
+                }
             }
         } else {
             playerState.heist.isCollecting = false;
@@ -3649,10 +3658,17 @@ function updateAllBalanceDisplays(targetBalance) {
     function handleGlobalKeyDown(e) {
         const isPanelVisible = userInteractionPanel.classList.contains('visible') || confirmationPanel.classList.contains('visible') || pizzeriaChoicePanel.classList.contains('visible');
         if (isPanelVisible || playerState.inMinigame === 'pizzeria-kitchen') return;
-        if (playerState.isSitting) {
-            if (e.key === ' ') { e.preventDefault(); standUp(); }
+        
+        if (e.key === ' ') {
+            e.preventDefault();
+            if (playerState.isSitting) {
+                standUp();
+            } else if (!isChatting) {
+                keys.space = true;
+            }
             return;
         }
+
         if (e.key === 'Enter') {
             e.preventDefault();
             if (isChatting) { sendMessage(); }
@@ -3661,7 +3677,15 @@ function updateAllBalanceDisplays(targetBalance) {
             keys[e.key.toLowerCase()] = true;
         }
     }
-    function handleGlobalKeyUp(e) { if (e.key.toLowerCase() in keys) keys[e.key.toLowerCase()] = false; }
+    
+    function handleGlobalKeyUp(e) { 
+        if (e.key.toLowerCase() in keys) {
+            keys[e.key.toLowerCase()] = false; 
+        }
+        if (e.key === ' ') {
+            keys.space = false;
+        }
+    }
 
     leaveBankBtn.addEventListener('click', leaveBank);
     heistAbandonBtn.addEventListener('click', handleAbandonHeist);
