@@ -3244,18 +3244,33 @@ function updateAllBalanceDisplays(targetBalance) {
         const playerBox = { x: playerState.x, y: playerState.y, w: playerState.width, h: playerState.height };
         let currentlyCollidingWithMoneyId = null;
         
+        // --- THIS IS THE CORRECTED LOGIC ---
+        const proximity = 20; // How many pixels away you can be to start collecting
+
         for (const id in heistGameState.currentRoomData.money) {
             const moneyData = heistGameState.currentRoomData.money[id];
             if (moneyData.isCollected) continue;
 
-            const moneyBox = { x: moneyData.x, y: moneyData.y, w: moneyData.w, h: moneyData.h };
-            if (playerBox.x < moneyBox.x + moneyBox.w && playerBox.x + playerBox.w > moneyBox.x && playerBox.y < moneyBox.y + moneyBox.h && playerBox.y + playerBox.h > moneyBox.y) {
+            const moneyBox = { 
+                left: moneyData.x - proximity, 
+                top: moneyData.y - proximity, 
+                right: moneyData.x + moneyData.w + proximity, 
+                bottom: moneyData.y + moneyData.h + proximity 
+            };
+
+            const playerBox = {
+                left: playerState.x,
+                top: playerState.y,
+                right: playerState.x + playerState.width,
+                bottom: playerState.y + playerState.height
+            };
+
+            if (playerBox.right > moneyBox.left && playerBox.left < moneyBox.right && playerBox.bottom > moneyBox.top && playerBox.top < moneyBox.bottom) {
                  currentlyCollidingWithMoneyId = id;
                  break;
             }
         }
 
-        // --- NEW LOGIC: Check for spacebar press while colliding ---
         const isTryingToCollect = currentlyCollidingWithMoneyId && keys.space;
 
         if (isTryingToCollect) {
@@ -3659,7 +3674,7 @@ function updateAllBalanceDisplays(targetBalance) {
         const isPanelVisible = userInteractionPanel.classList.contains('visible') || confirmationPanel.classList.contains('visible') || pizzeriaChoicePanel.classList.contains('visible');
         if (isPanelVisible || playerState.inMinigame === 'pizzeria-kitchen') return;
         
-        if (e.key === ' ') {
+        if (e.code === 'Space') { // Use e.code for better consistency
             e.preventDefault();
             if (playerState.isSitting) {
                 standUp();
@@ -3682,7 +3697,7 @@ function updateAllBalanceDisplays(targetBalance) {
         if (e.key.toLowerCase() in keys) {
             keys[e.key.toLowerCase()] = false; 
         }
-        if (e.key === ' ') {
+        if (e.code === 'Space') {
             keys.space = false;
         }
     }
