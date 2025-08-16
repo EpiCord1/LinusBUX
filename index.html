@@ -670,7 +670,7 @@
     #heist-game-area {
         position: absolute;
         top: 50%; left: 50%;
-        /* transform: translate(-50%, -50%); */ /* Camera logic will handle this */
+        transform: translate(-50%, -50%);
         width: 1200px; height: 700px;
         background-color: #454545;
         border: 10px solid #1a1a1a;
@@ -742,7 +742,6 @@
         border: 2px solid #1e824c;
         border-radius: 5px;
         box-shadow: 0 0 15px var(--success);
-        cursor: pointer;
     }
      .heist-money.trapped { cursor: pointer; }
     .glass-case {
@@ -1589,7 +1588,6 @@ function updateAllBalanceDisplays(targetBalance) {
         playerHandEl.innerHTML = '';
         dealerHandEl.innerHTML = '';
         renderCard(playerHand[0], playerHandEl);
-        renderCard(playerHand[1], playerHandEl);
         renderCard(dealerHand[0], dealerHandEl, true);
         renderCard(dealerHand[1], dealerHandEl);
 
@@ -2104,17 +2102,17 @@ function updateAllBalanceDisplays(targetBalance) {
         localPlayerContainer.style.top = `${playerState.y}px`;
         localPlayerContainer.style.zIndex = Math.round(playerState.y);
         
+        // --- CAMERA LOGIC ---
         if (playerState.inMinigame === 'heist-active') {
-            heistGameArea.style.transform = `translate(${-heistGameArea.offsetWidth / 2 + gameArea.offsetWidth/2}px, ${-heistGameArea.offsetHeight / 2 + gameArea.offsetHeight/2}px)`;
-            worldContainer.style.transform = '';
-        } else if(playerState.inHouseId || playerState.inMinigame){
-            worldContainer.style.transform = '';
-            heistGameArea.style.transform = '';
+             // Heist camera is STATIC and centered on the room.
+             worldContainer.style.transform = 'translate(0px, 0px)';
+        } else if (playerState.inHouseId || playerState.inMinigame) {
+            // Other static scenes like houses, bank lobby, pizzeria.
+            worldContainer.style.transform = 'translate(0px, 0px)';
         } else {
+             // Hub camera follows player.
              worldContainer.style.transform = `translate(${-playerState.x + gameArea.offsetWidth / 2 - playerState.width/2}px, ${-playerState.y + gameArea.offsetHeight / 2 - playerState.height/2}px)`;
-             heistGameArea.style.transform = '';
         }
-
 
         if (keys.a) playerState.direction = -1;
         if (keys.d) playerState.direction = 1;
@@ -2316,7 +2314,6 @@ function updateAllBalanceDisplays(targetBalance) {
         playerState.inMinigame = null;
         playerState.x = playerState.hubX;
         playerState.y = pizzeriaBuilding.y + pizzeriaBuilding.height + 10;
-        // BUG FIX: Explicitly set both location states to null
         if(playerRef) playerRef.update({ inMinigame: null, inHouseId: null, x: playerState.x, y: playerState.y });
         pizzeriaKitchenContainer.style.display = 'none';
         worldContainer.style.display = 'block';
@@ -2360,7 +2357,6 @@ function updateAllBalanceDisplays(targetBalance) {
         playerState.hubX = playerState.x;
         playerState.hubY = playerState.y;
         playerState.inMinigame = 'pizzeria-restaurant';
-        // BUG FIX: Spawn in the middle of the restaurant
         playerState.x = pizzeriaRestaurantRoom.offsetWidth / 2;
         playerState.y = pizzeriaRestaurantRoom.offsetHeight / 2;
         if(playerRef) playerRef.update({ inMinigame: 'pizzeria-restaurant', inHouseId: null, x: playerState.x, y: playerState.y });
@@ -2382,7 +2378,6 @@ function updateAllBalanceDisplays(targetBalance) {
 
         playerState.x = playerState.hubX;
         playerState.y = pizzeriaBuilding.y + pizzeriaBuilding.height + 10;
-        // BUG FIX: Explicitly set both location states to null
         if(playerRef) playerRef.update({ inMinigame: null, inHouseId: null, x: playerState.x, y: playerState.y });
         pizzeriaRestaurantContainer.style.display = 'none';
         worldContainer.style.display = 'block';
@@ -2686,6 +2681,7 @@ function updateAllBalanceDisplays(targetBalance) {
             };
             wall.x = spawnAreaWidth + Math.random() * (gameWidth - spawnAreaWidth - wall.w);
             wall.y = Math.random() * (gameHeight - wall.h);
+
             obstacles['obs' + obsCount++] = wall;
         }
         return obstacles;
@@ -2841,6 +2837,13 @@ function updateAllBalanceDisplays(targetBalance) {
     }
 
     async function enterBank() {
+        const bankSnapshot = await bankRef.once('value');
+        const bankData = bankSnapshot.val();
+        if (bankData && bankData.activeHeistId) {
+            showToast("Sorry, there's a heist going on right now", 'error');
+            return;
+        }
+
         playerState.hubX = playerState.x;
         playerState.hubY = playerState.y;
         playerState.inMinigame = 'bank';
@@ -2940,6 +2943,7 @@ function updateAllBalanceDisplays(targetBalance) {
     }
 
     function handleHeistMouseDown(e) {
+        // Stop all actions if player is dead or collecting money
         if (playerState.heist.health <= 0 || playerState.heist.isCollecting) return;
         
         const target = e.target;
@@ -3028,7 +3032,7 @@ function updateAllBalanceDisplays(targetBalance) {
         if (!heistData || !players || Object.keys(players).length === 0) {
             const wasLeader = heistGameState.fullData && Object.keys(heistGameState.fullData.players || {})[0] === currentUser.uid;
             if (wasLeader) {
-                bankRef.set({ cooldownUntil: Date.now() + 300000 }); // 5 min cooldown
+                bankRef.set({ cooldownUntil: Date.now() + 300000 });
                 activeHeistRef.remove();
             }
             if(playerState.inMinigame === 'heist-active') leaveHeistScene(playerState.heist.moneyCollected);
@@ -3037,7 +3041,7 @@ function updateAllBalanceDisplays(targetBalance) {
 
         if (!players[currentUser.uid]) {
              if(playerState.inMinigame === 'heist-active') {
-                leaveHeistScene(0); // You were removed or left, no loot
+                leaveHeistScene(playerState.heist.moneyCollected);
              }
              return;
         }
@@ -3051,7 +3055,7 @@ function updateAllBalanceDisplays(targetBalance) {
         if (myData.health <= 0 && playerState.inMinigame === 'heist-active') {
             showToast("You were downed!", "error");
             activeHeistRef.child(`players/${currentUser.uid}`).remove();
-            // The listener will then call leaveHeistScene
+            leaveHeistScene(0);
             return;
         }
 
@@ -3349,8 +3353,6 @@ function updateAllBalanceDisplays(targetBalance) {
                         guard.stateTimer = -1;
                         newAnimation = 'idle';
                     }
-                } else if (guard.state === 'attacking') {
-                     newAnimation = 'attacking';
                 } else {
                     newAnimation = 'idle';
                 }
