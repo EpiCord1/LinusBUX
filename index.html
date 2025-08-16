@@ -2689,6 +2689,121 @@ function updateAllBalanceDisplays(targetBalance) {
         });
     }
 
+    // --- A* PATHFINDING IMPLEMENTATION ---
+    function astar(grid, start, end) {
+        let openSet = [];
+        let closedSet = [];
+        let path = [];
+
+        openSet.push(start);
+
+        function heuristic(a, b) {
+            return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+        }
+
+        while (openSet.length > 0) {
+            let lowestIndex = 0;
+            for (let i = 0; i < openSet.length; i++) {
+                if (openSet[i].f < openSet[lowestIndex].f) {
+                    lowestIndex = i;
+                }
+            }
+            let current = openSet[lowestIndex];
+
+            if (current === end) {
+                let temp = current;
+                path.push(temp);
+                while (temp.previous) {
+                    path.push(temp.previous);
+                    temp = temp.previous;
+                }
+                return path.reverse();
+            }
+
+            openSet.splice(lowestIndex, 1);
+            closedSet.push(current);
+
+            let neighbors = current.neighbors;
+            for (let i = 0; i < neighbors.length; i++) {
+                let neighbor = neighbors[i];
+
+                if (!closedSet.includes(neighbor) && !neighbor.isWall) {
+                    let tempG = current.g + 1;
+                    let newPath = false;
+                    if (openSet.includes(neighbor)) {
+                        if (tempG < neighbor.g) {
+                            neighbor.g = tempG;
+                            newPath = true;
+                        }
+                    } else {
+                        neighbor.g = tempG;
+                        newPath = true;
+                        openSet.push(neighbor);
+                    }
+                    if (newPath) {
+                        neighbor.h = heuristic(neighbor, end);
+                        neighbor.f = neighbor.g + neighbor.h;
+                        neighbor.previous = current;
+                    }
+                }
+            }
+        }
+        return []; // No solution
+    }
+
+    function createGridFromObstacles(obstacles, entityW, entityH) {
+        const A_STAR_GRID_SIZE = 40;
+        const gameWidth = 1200;
+        const gameHeight = 700;
+        const cols = Math.floor(gameWidth / A_STAR_GRID_SIZE);
+        const rows = Math.floor(gameHeight / A_STAR_GRID_SIZE);
+        const grid = new Array(cols);
+
+        function Node(x, y) {
+            this.x = x; this.y = y;
+            this.f = 0; this.g = 0; this.h = 0;
+            this.neighbors = []; this.previous = undefined;
+            this.isWall = false;
+            this.addNeighbors = function(grid) {
+                if (this.x < cols - 1) this.neighbors.push(grid[this.x + 1][this.y]);
+                if (this.x > 0) this.neighbors.push(grid[this.x - 1][this.y]);
+                if (this.y < rows - 1) this.neighbors.push(grid[this.x][this.y + 1]);
+                if (this.y > 0) this.neighbors.push(grid[this.x][this.y - 1]);
+            };
+        }
+
+        for (let i = 0; i < cols; i++) {
+            grid[i] = new Array(rows);
+            for (let j = 0; j < rows; j++) {
+                grid[i][j] = new Node(i, j);
+            }
+        }
+
+        for (const obsId in obstacles) {
+            const obs = obstacles[obsId];
+            const startCol = Math.floor(obs.x / A_STAR_GRID_SIZE);
+            const endCol = Math.ceil((obs.x + obs.w) / A_STAR_GRID_SIZE);
+            const startRow = Math.floor(obs.y / A_STAR_GRID_SIZE);
+            const endRow = Math.ceil((obs.y + obs.h) / A_STAR_GRID_SIZE);
+
+            for (let i = startCol; i < endCol; i++) {
+                for (let j = startRow; j < endRow; j++) {
+                    if (i >= 0 && i < cols && j >= 0 && j < rows) {
+                        grid[i][j].isWall = true;
+                    }
+                }
+            }
+        }
+
+        for (let i = 0; i < cols; i++) {
+            for (let j = 0; j < rows; j++) {
+                grid[i][j].addNeighbors(grid);
+            }
+        }
+        return grid;
+    }
+
+
     // --- BANK & HEIST LOGIC ---
     function generateSimpleWalls(gameWidth, gameHeight, spawnAreaWidth) {
         const obstacles = [];
@@ -3240,7 +3355,11 @@ function updateAllBalanceDisplays(targetBalance) {
                         <img src="IDLE.gif" class="heist-guard-character">
                         <div style="position: absolute; bottom: -15px; left: 0; width: 100%; height: 8px; background-color: #333; border-radius: 4px;"><div class="heist-guard-health-fill" style="width: ${Math.max(0, data.health / 150) * 100}%; height: 100%; background-color: var(--success); border-radius: 4px;"></div></div>
                     `;
-                    heistGameState.guards[id] = { el, ...data, state: 'patrolling', stateTimer: 2 + Math.random() * 3, target: {x: data.x, y: data.y}, path: [] };
+                    heistGameState.guards[id] = { 
+                        el, ...data, 
+                        state: 'patrolling', stateTimer: 2 + Math.random() * 3, 
+                        target: {x: data.x, y: data.y}, path: [], pathRecalculateTimer: 0
+                    };
                 } else {
                      el.style.display = 'none';
                 }
@@ -3453,12 +3572,14 @@ function updateAllBalanceDisplays(targetBalance) {
             const AGGRO_RANGE = 450;
             const ATTACK_RANGE = 400;
             const GUARD_SPEED = 120;
+            const A_STAR_GRID_SIZE = 40;
             
             for (const guardId in heistGameState.guards) {
                 const guard = heistGameState.guards[guardId];
                 if (guard.health <= 0) continue;
 
                 guard.stateTimer -= deltaTime;
+                guard.pathRecalculateTimer -= deltaTime;
                 let closestPlayer = null;
                 let minDistance = Infinity;
 
@@ -3471,9 +3592,10 @@ function updateAllBalanceDisplays(targetBalance) {
                 });
 
                 let newAnimation = guard.animation;
-                if (closestPlayer && minDistance < ATTACK_RANGE) {
+                 if (closestPlayer && minDistance < ATTACK_RANGE) {
                     guard.state = 'attacking';
                     newAnimation = 'attacking';
+                    guard.path = [];
                 } else if (closestPlayer && minDistance < AGGRO_RANGE) {
                     guard.state = 'chasing';
                     guard.target = { x: closestPlayer.x, y: closestPlayer.y };
@@ -3481,39 +3603,60 @@ function updateAllBalanceDisplays(targetBalance) {
                 } else {
                     if (guard.state !== 'patrolling') {
                         guard.state = 'patrolling';
-                        guard.stateTimer = -1;
+                        guard.stateTimer = -1; // Force new patrol target
                     }
                     newAnimation = 'walk';
                 }
                 
-                if (guard.state === 'patrolling' && guard.stateTimer <= 0) {
-                     guard.target = findSafeSpawnPoint(heistGameState.currentRoomData.obstacles, guard.w, guard.h);
-                    guard.stateTimer = 4 + Math.random() * 4;
+                if ((guard.state === 'patrolling' && guard.stateTimer <= 0) || (guard.state === 'chasing' && guard.pathRecalculateTimer <= 0)) {
+                    if (guard.state === 'patrolling') {
+                        guard.target = findSafeSpawnPoint(heistGameState.currentRoomData.obstacles, guard.w, guard.h);
+                        guard.stateTimer = 4 + Math.random() * 4;
+                    }
+                    
+                    const grid = createGridFromObstacles(heistGameState.currentRoomData.obstacles, guard.w, guard.h);
+                    const startX = Math.floor((guard.x + guard.w / 2) / A_STAR_GRID_SIZE);
+                    const startY = Math.floor((guard.y + guard.h / 2) / A_STAR_GRID_SIZE);
+                    const endX = Math.floor((guard.target.x + playerState.width / 2) / A_STAR_GRID_SIZE);
+                    const endY = Math.floor((guard.target.y + playerState.height / 2) / A_STAR_GRID_SIZE);
+
+                    if(grid[startX] && grid[startX][startY] && grid[endX] && grid[endX][endY]) {
+                        const startNode = grid[startX][startY];
+                        const endNode = grid[endX][endY];
+                        guard.path = astar(grid, startNode, endNode);
+                    }
+                    guard.pathRecalculateTimer = 1.5; // Recalculate every 1.5 seconds
                 }
                 
-                if (guard.state === 'patrolling' || guard.state === 'chasing') {
-                    const dx = guard.target.x - guard.x;
-                    const dy = guard.target.y - guard.y;
-                    const distToTarget = Math.sqrt(dx*dx + dy*dy);
+                if(guard.path && guard.path.length > 0) {
+                    const nextNode = guard.path[0];
+                    const targetX = nextNode.x * A_STAR_GRID_SIZE + (A_STAR_GRID_SIZE / 2) - (guard.w / 2);
+                    const targetY = nextNode.y * A_STAR_GRID_SIZE + (A_STAR_GRID_SIZE / 2) - (guard.h / 2);
 
+                    const dx = targetX - guard.x;
+                    const dy = targetY - guard.y;
+                    const distToTarget = Math.sqrt(dx*dx + dy*dy);
+                    
                     if (distToTarget > 10) {
-                        const moveX = (dx / distToTarget) * GUARD_SPEED * deltaTime;
-                        const moveY = (dy / distToTarget) * GUARD_SPEED * deltaTime;
-                        const nextX = guard.x + moveX, nextY = guard.y + moveY;
+                         const moveX = (dx / distToTarget) * GUARD_SPEED * deltaTime;
+                         const moveY = (dy / distToTarget) * GUARD_SPEED * deltaTime;
+                         const nextX = guard.x + moveX, nextY = guard.y + moveY;
                         
-                        if (!checkHeistCollision(nextX, guard.y, guard.w, guard.h, true)) {
+                         if (!checkHeistCollision(nextX, guard.y, guard.w, guard.h, true)) {
                             guard.x = nextX;
                             updates[`rooms/${playerState.heist.currentRoom}/guards/${guardId}/x`] = guard.x;
-                        }
+                         }
                          if (!checkHeistCollision(guard.x, nextY, guard.w, guard.h, true)) {
                             guard.y = nextY;
-                             updates[`rooms/${playerState.heist.currentRoom}/guards/${guardId}/y`] = guard.y;
-                        }
-                    } else if (guard.state === 'patrolling') {
-                        guard.stateTimer = -1;
-                        newAnimation = 'idle';
+                            updates[`rooms/${playerState.heist.currentRoom}/guards/${guardId}/y`] = guard.y;
+                         }
+                    } else {
+                        guard.path.shift();
+                         if (guard.path.length === 0) {
+                             newAnimation = 'idle';
+                         }
                     }
-                } else {
+                } else if (guard.state === 'patrolling') {
                     newAnimation = 'idle';
                 }
 
