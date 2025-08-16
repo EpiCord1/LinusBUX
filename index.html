@@ -269,6 +269,14 @@
         align-items: center;
     }
     .player-character { cursor: pointer; }
+    .player-character.downed img {
+        filter: grayscale(100%) brightness(0.5);
+        animation: downedPulse 1.5s infinite;
+    }
+    @keyframes downedPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(0.95); }
+    }
     .player-character img, .npc-character img {
         width: 100%; height: 100%; object-fit: contain;
         transition: transform 0.1s linear; pointer-events: none;
@@ -286,7 +294,7 @@
     }
     .chat-bubble.visible { opacity: 1; }
 
-    .money-collection-progress {
+    .money-collection-progress, .revive-progress {
         display: none; /* Hidden by default, shown by JS */
         width: 60px;
         height: 8px;
@@ -295,11 +303,22 @@
         border-radius: 4px;
         overflow: hidden;
     }
-    .money-collection-progress-fill {
+    .revive-progress { border-color: var(--success); }
+
+    .money-collection-progress-fill, .revive-progress-fill {
         width: 0%;
         height: 100%;
-        background-color: var(--success);
+        background-color: var(--gold);
         transition: width 0.1s linear;
+    }
+    .revive-progress-fill { background-color: var(--success); }
+
+    .downed-timer {
+        display: none;
+        color: var(--danger);
+        font-size: 1.5rem;
+        font-weight: bold;
+        text-shadow: 0 0 5px black;
     }
 
     .hub-house {
@@ -450,7 +469,7 @@
     #pizza-order-ticket-customer { font-size: 0.9rem; font-style: italic; color: #666; margin-bottom: 0.5rem; }
     #pizza-order-list { list-style: none; padding: 0; }
     #pizza-order-list li {
-        font-weight: 600; transition: color 0.3s, text-decoration 0.3s;
+        font-weight: 600; transition: color 0.3s, text-decoration: 0.3s;
     }
     #pizza-order-list li.completed {
         color: var(--success); text-decoration: line-through;
@@ -1712,7 +1731,7 @@ function updateAllBalanceDisplays(targetBalance) {
     const localPlayerContainer = document.createElement('div');
     localPlayerContainer.id = 'local-player-container';
     localPlayerContainer.className = 'player-character';
-    localPlayerContainer.innerHTML = `<div class="player-ui-container"><div class="chat-bubble"></div><div class="player-nametag">You</div><div class="money-collection-progress"><div class="money-collection-progress-fill"></div></div></div><img id="player-character-img" src="IDLE.gif" alt="Player">`;
+    localPlayerContainer.innerHTML = `<div class="player-ui-container"><div class="revive-progress"><div class="revive-progress-fill"></div></div><div class="downed-timer"></div><div class="chat-bubble"></div><div class="player-nametag">You</div><div class="money-collection-progress"><div class="money-collection-progress-fill"></div></div></div><img id="player-character-img" src="IDLE.gif" alt="Player">`;
     const localPlayerImage = localPlayerContainer.querySelector('#player-character-img');
     const moneyCollectionProgress = localPlayerContainer.querySelector('.money-collection-progress');
     const moneyCollectionProgressFill = localPlayerContainer.querySelector('.money-collection-progress-fill');
@@ -1725,8 +1744,9 @@ function updateAllBalanceDisplays(targetBalance) {
         inHouseId: null, inMinigame: null,
         hubX: 0, hubY: 0, isSitting: false, sittingOnChairId: null, myOrderKey: null,
         heist: {
-            health: 100, moneyCollected: 0, isCollecting: false, 
-            collectionTimer: 0, collectionTargetId: null, currentRoom: 1,
+            health: 100, moneyCollected: 0, isCollecting: false, isReviving: false,
+            collectionTimer: 0, collectionTargetId: null, reviveTimer: 0, reviveTargetId: null,
+            currentRoom: 1, status: 'alive', downedTimestamp: 0,
             isHoldingClick: false, glassDamageInterval: null, lastShotTime: 0
         }
     };
@@ -2071,8 +2091,8 @@ function updateAllBalanceDisplays(targetBalance) {
         let moveX = 0, moveY = 0;
         let isMoving = false;
 
-        // Player movement is disabled while collecting money
-        if (!isChatting && !playerState.isSitting && !playerState.heist.isCollecting && playerState.heist.health > 0) {
+        // Player movement is disabled while collecting money, reviving, or downed
+        if (!isChatting && !playerState.isSitting && !playerState.heist.isCollecting && !playerState.heist.isReviving && playerState.heist.status === 'alive' && playerState.heist.health > 0) {
             if (keys.a) moveX -= 1; if (keys.d) moveX += 1;
             if (keys.w) moveY -= 1; if (keys.s) moveY += 1;
         }
@@ -2124,7 +2144,15 @@ function updateAllBalanceDisplays(targetBalance) {
         
         if (playerRef && currentUser) {
             if (playerState.inMinigame === 'heist-active') {
-                activeHeistRef.child(`players/${currentUser.uid}`).update({x: playerState.x, y: playerState.y, direction: playerState.direction, animation: playerState.animation});
+                const updates = {
+                    x: playerState.x, y: playerState.y, 
+                    direction: playerState.direction, animation: playerState.animation
+                };
+                // Only update health if it changed client-side (e.g., being revived)
+                if (heistGameState.fullData && heistGameState.fullData.players[currentUser.uid] && heistGameState.fullData.players[currentUser.uid].health !== playerState.heist.health) {
+                    updates.health = playerState.heist.health;
+                }
+                activeHeistRef.child(`players/${currentUser.uid}`).update(updates);
             } else {
                  playerRef.update({
                     x: playerState.x, y: playerState.y,
@@ -2668,25 +2696,67 @@ function updateAllBalanceDisplays(targetBalance) {
 
     // --- BANK & HEIST LOGIC ---
     function generateSimpleWalls(gameWidth, gameHeight, spawnAreaWidth) {
-        const obstacles = {};
-        const wallCount = Math.floor(Math.random() * 3) + 2; // 2 to 4 walls
-        let obsCount = 0;
+        const obstacles = [];
+        const wallThickness = 30;
 
-        for (let i = 0; i < wallCount; i++) {
-            const isVertical = Math.random() > 0.5;
-            const wall = {
-                w: isVertical ? 30 : 250 + Math.random() * 200,
-                h: isVertical ? 250 + Math.random() * 200 : 30,
-                x: 0, y: 0
-            };
-            // Ensure walls don't spawn in the dedicated safe zone on the left
-            wall.x = spawnAreaWidth + Math.random() * (gameWidth - spawnAreaWidth - wall.w);
-            wall.y = Math.random() * (gameHeight - wall.h);
-
-            obstacles['obs' + obsCount++] = wall;
+        // Helper to check for overlaps
+        function overlaps(newWall) {
+            for (const wall of obstacles) {
+                if (newWall.x < wall.x + wall.w && newWall.x + newWall.w > wall.x &&
+                    newWall.y < wall.y + wall.h && newWall.y + newWall.h > wall.y) {
+                    return true;
+                }
+            }
+            return false;
         }
-        return obstacles;
+
+        // Generate a wall for each side
+        const sides = ['top', 'bottom', 'left', 'right'];
+        for (const side of sides) {
+            let wall;
+            do {
+                if (side === 'top') {
+                    wall = { x: Math.random() * (gameWidth - 200), y: 0, w: 200 + Math.random() * 200, h: wallThickness };
+                } else if (side === 'bottom') {
+                    wall = { x: Math.random() * (gameWidth - 200), y: gameHeight - wallThickness, w: 200 + Math.random() * 200, h: wallThickness };
+                } else if (side === 'left') {
+                    wall = { x: 0, y: Math.random() * (gameHeight - 200), w: wallThickness, h: 200 + Math.random() * 200 };
+                } else { // right
+                    wall = { x: gameWidth - wallThickness, y: Math.random() * (gameHeight - 200), w: wallThickness, h: 200 + Math.random() * 200 };
+                }
+            } while (overlaps(wall));
+            obstacles.push(wall);
+        }
+        
+        // Generate a few more random internal walls
+        const internalWallCount = Math.floor(Math.random() * 3) + 2; // 2 to 4 internal walls
+        for (let i = 0; i < internalWallCount; i++) {
+            let wall;
+            let attempts = 0;
+            do {
+                const isVertical = Math.random() > 0.5;
+                wall = {
+                    w: isVertical ? wallThickness : 150 + Math.random() * 150,
+                    h: isVertical ? 150 + Math.random() * 150 : wallThickness,
+                    x: spawnAreaWidth + Math.random() * (gameWidth - spawnAreaWidth - 200),
+                    y: 50 + Math.random() * (gameHeight - 100)
+                };
+                attempts++;
+            } while (overlaps(wall) && attempts < 50);
+
+            if (!overlaps(wall)) {
+                obstacles.push(wall);
+            }
+        }
+
+        // Convert array to object format for Firebase
+        const obstaclesObj = {};
+        obstacles.forEach((obs, i) => {
+            obstaclesObj['obs' + i] = obs;
+        });
+        return obstaclesObj;
     }
+
     
     function findSafeSpawnPoint(obstacles, entityW, entityH, area) {
         const gameWidth = 1200;
@@ -2799,7 +2869,7 @@ function updateAllBalanceDisplays(targetBalance) {
         };
         
         for (let i = 1; i <= 10; i++) {
-            const obstacles = generateSimpleWalls(1200, 700, 250); // Keep 250px on left clear for spawning
+            const obstacles = generateSimpleWalls(1200, 700, 250);
             const roomData = { guards: {}, money: {}, obstacles };
             const numGuards = 3 + Math.floor(Math.random() * 4);
             const numMoney = 8 + Math.floor(Math.random() * 3);
@@ -2828,7 +2898,8 @@ function updateAllBalanceDisplays(targetBalance) {
         playerKeys.forEach(uid => {
             newHeistData.players[uid] = { 
                 health: 100, moneyCollected: 0, 
-                x: spawnPoint.x, y: spawnPoint.y
+                x: spawnPoint.x, y: spawnPoint.y,
+                status: 'alive', downedTimestamp: 0
             };
         });
         
@@ -2914,6 +2985,7 @@ function updateAllBalanceDisplays(targetBalance) {
         playerState.inMinigame = null;
         playerState.heist.moneyCollected = 0;
         playerState.heist.health = 100;
+        playerState.heist.status = 'alive';
         
         heistGameArea.innerHTML = '';
         heistGameState = { elements: {}, currentRoomData: null, fullData: null, guards: {} };
@@ -2944,7 +3016,7 @@ function updateAllBalanceDisplays(targetBalance) {
     }
 
     function handleHeistMouseDown(e) {
-        if (playerState.heist.health <= 0 || playerState.heist.isCollecting) return;
+        if (playerState.heist.status !== 'alive' || playerState.heist.isCollecting || playerState.heist.isReviving) return;
         
         const target = e.target;
         if (target.classList.contains('heist-money') && target.dataset.trapped === 'true') {
@@ -3051,13 +3123,18 @@ function updateAllBalanceDisplays(targetBalance) {
         playerState.heist.health = myData.health;
         playerState.heist.moneyCollected = myData.moneyCollected;
         playerState.heist.currentRoom = heistData.currentRoom;
-        
-        if (myData.health <= 0 && playerState.inMinigame === 'heist-active') {
-            showToast("You were downed!", "error");
-            activeHeistRef.child(`players/${currentUser.uid}`).remove();
-            leaveHeistScene(0);
-            return;
+        playerState.heist.status = myData.status;
+
+        if (playerState.heist.status === 'downed' && myData.health > 0) {
+            playerState.heist.status = 'alive';
+            showToast('You have been revived!', 'success');
+        } else if (myData.health <= 0 && playerState.heist.status === 'alive') {
+            playerState.heist.status = 'downed';
+            showToast("You are downed! A teammate can revive you.", "error");
+            activeHeistRef.child(`players/${currentUser.uid}`).update({ status: 'downed', downedTimestamp: firebase.database.ServerValue.TIMESTAMP });
         }
+        
+        localPlayerContainer.classList.toggle('downed', playerState.heist.status === 'downed');
 
         heistMoneyCounter.textContent = `${playerState.heist.moneyCollected.toLocaleString()} BUX`;
         heistHealthBarFill.style.width = `${playerState.heist.health}%`;
@@ -3100,7 +3177,10 @@ function updateAllBalanceDisplays(targetBalance) {
                  }
                  if (item.type === 'money' && newRoomData.money && newRoomData.money[id]) {
                      const moneyData = newRoomData.money[id];
-                      if(moneyData.isCollected && item.el.style.display !== 'none') item.el.style.display = 'none';
+                      if(moneyData.isCollected && item.el.style.display !== 'none') {
+                           item.el.style.display = 'none';
+                           if(heistGameState.elements[id]) delete heistGameState.elements[id]; // Remove collider
+                      }
                       else if(item.el.dataset.trapped === 'true' && moneyData.glassHealth <= 0 && item.el.querySelector('.glass-case')) {
                            item.el.querySelector('.glass-case').remove();
                            item.el.dataset.trapped = 'false';
@@ -3117,6 +3197,18 @@ function updateAllBalanceDisplays(targetBalance) {
             if (uid !== currentUser.uid && otherPlayerElements[uid]) {
                  updatePlayerScene(otherPlayerElements[uid].container, { inMinigame: 'heist-active' });
                  gsap.to(otherPlayerElements[uid].container, {left: pData.x, top: pData.y, duration: 0.1});
+                 otherPlayerElements[uid].container.classList.toggle('downed', pData.status === 'downed');
+                 
+                 const downedTimerEl = otherPlayerElements[uid].container.querySelector('.downed-timer');
+                 if (pData.status === 'downed') {
+                    const timePassed = Date.now() - pData.downedTimestamp;
+                    const timeLeft = Math.max(0, 10 - Math.floor(timePassed / 1000));
+                    downedTimerEl.textContent = timeLeft;
+                    downedTimerEl.style.display = 'block';
+                    if(timeLeft <= 0) activeHeistRef.child('players').child(uid).remove();
+                 } else {
+                    downedTimerEl.style.display = 'none';
+                 }
             }
         });
         
@@ -3158,17 +3250,21 @@ function updateAllBalanceDisplays(targetBalance) {
                 el.className = 'heist-money';
                 if (data.isCollected) {
                     el.style.display = 'none';
-                } else if (data.isTrapped && data.glassHealth > 0) {
-                    el.classList.add('trapped');
-                    el.dataset.trapped = 'true';
-                    const glass = document.createElement('div');
-                    glass.className = 'glass-case';
-                    glass.textContent = `${data.glassHealth}`;
-                    el.appendChild(glass);
+                } else {
+                    if (data.isTrapped && data.glassHealth > 0) {
+                        el.classList.add('trapped');
+                        el.dataset.trapped = 'true';
+                        const glass = document.createElement('div');
+                        glass.className = 'glass-case';
+                        glass.textContent = `${data.glassHealth}`;
+                        el.appendChild(glass);
+                    }
+                    heistGameState.elements[id] = { el, data, type }; // Only add to colliders if not collected
                 }
             } else if (id.startsWith('obs')) {
                 type = 'obstacle';
                 el.className = 'heist-obstacle';
+                 heistGameState.elements[id] = { el, data, type };
             }
             
             el.dataset.type = type;
@@ -3178,7 +3274,6 @@ function updateAllBalanceDisplays(targetBalance) {
             el.style.height = `${data.h}px`;
             
             heistGameArea.appendChild(el);
-            heistGameState.elements[id] = { el, data, type };
         }
         
         heistGameArea.appendChild(localPlayerContainer);
@@ -3233,51 +3328,89 @@ function updateAllBalanceDisplays(targetBalance) {
     }
 
     function updateHeistLogic(deltaTime) {
-        if (playerState.inMinigame !== 'heist-active' || !heistGameState.fullData || !heistGameState.currentRoomData || playerState.heist.health <= 0) {
+        if (playerState.inMinigame !== 'heist-active' || !heistGameState.fullData || !heistGameState.currentRoomData || playerState.heist.status === 'downed') {
+            // Reset timers if player is downed or not in heist
             if(playerState.heist.isCollecting) {
                  playerState.heist.isCollecting = false; playerState.heist.collectionTimer = 0;
                  playerState.heist.collectionTargetId = null; moneyCollectionProgress.style.display = 'none';
+            }
+            if(playerState.heist.isReviving) {
+                playerState.heist.isReviving = false; playerState.heist.reviveTimer = 0;
+                playerState.heist.reviveTargetId = null; 
+                Object.values(otherPlayerElements).forEach(p => {
+                    const reviveBar = p.container.querySelector('.revive-progress');
+                    if(reviveBar) reviveBar.style.display = 'none';
+                });
             }
             return;
         }
 
         const playerBox = { x: playerState.x, y: playerState.y, w: playerState.width, h: playerState.height };
         let currentlyCollidingWithMoneyId = null;
-        
-        // --- THIS IS THE CORRECTED LOGIC ---
-        const proximity = 20; // How many pixels away you can be to start collecting
+        let currentlyCollidingWithDownedPlayerId = null;
+        const proximity = 20;
 
+        // Check for collision with money
         for (const id in heistGameState.currentRoomData.money) {
             const moneyData = heistGameState.currentRoomData.money[id];
             if (moneyData.isCollected) continue;
 
             const moneyBox = { 
-                left: moneyData.x - proximity, 
-                top: moneyData.y - proximity, 
-                right: moneyData.x + moneyData.w + proximity, 
-                bottom: moneyData.y + moneyData.h + proximity 
+                left: moneyData.x - proximity, top: moneyData.y - proximity, 
+                right: moneyData.x + moneyData.w + proximity, bottom: moneyData.y + moneyData.h + proximity 
             };
-
-            const playerBox = {
-                left: playerState.x,
-                top: playerState.y,
-                right: playerState.x + playerState.width,
-                bottom: playerState.y + playerState.height
-            };
-
-            if (playerBox.right > moneyBox.left && playerBox.left < moneyBox.right && playerBox.bottom > moneyBox.top && playerBox.top < moneyBox.bottom) {
+            const pBox = { left: playerState.x, top: playerState.y, right: playerState.x + playerState.width, bottom: playerState.y + playerState.height };
+            if (pBox.right > moneyBox.left && pBox.left < moneyBox.right && pBox.bottom > moneyBox.top && pBox.top < moneyBox.bottom) {
                  currentlyCollidingWithMoneyId = id;
                  break;
             }
         }
+        
+        // Check for collision with downed players
+        for(const uid in heistGameState.fullData.players) {
+            if (uid === currentUser.uid) continue;
+            const otherPlayerData = heistGameState.fullData.players[uid];
+            if(otherPlayerData.status === 'downed') {
+                const downedBox = {
+                    left: otherPlayerData.x - proximity, top: otherPlayerData.y - proximity,
+                    right: otherPlayerData.x + playerState.width + proximity, bottom: otherPlayerData.y + playerState.height + proximity
+                };
+                 const pBox = { left: playerState.x, top: playerState.y, right: playerState.x + playerState.width, bottom: playerState.y + playerState.height };
+                 if (pBox.right > downedBox.left && pBox.left < downedBox.right && pBox.bottom > downedBox.top && pBox.top < downedBox.bottom) {
+                    currentlyCollidingWithDownedPlayerId = uid;
+                    break;
+                 }
+            }
+        }
 
         const isTryingToCollect = currentlyCollidingWithMoneyId && keys.space;
+        const isTryingToRevive = currentlyCollidingWithDownedPlayerId && keys.space;
 
-        if (isTryingToCollect) {
+        if (isTryingToRevive) {
+             const targetPlayerEl = otherPlayerElements[currentlyCollidingWithDownedPlayerId].container;
+             const reviveBar = targetPlayerEl.querySelector('.revive-progress');
+             const reviveBarFill = targetPlayerEl.querySelector('.revive-progress-fill');
+
+             if (playerState.heist.reviveTargetId !== currentlyCollidingWithDownedPlayerId) {
+                playerState.heist.reviveTimer = 0;
+                playerState.heist.reviveTargetId = currentlyCollidingWithDownedPlayerId;
+             }
+             playerState.heist.isReviving = true;
+             reviveBar.style.display = 'block';
+             playerState.heist.reviveTimer += deltaTime;
+             const progress = Math.min(1, playerState.heist.reviveTimer / 3.0); // 3-second revive
+             reviveBarFill.style.width = `${progress * 100}%`;
+
+             if (playerState.heist.reviveTimer >= 3.0) {
+                 activeHeistRef.child(`players/${currentlyCollidingWithDownedPlayerId}`).update({ status: 'alive', health: 50 });
+                 playerState.heist.isReviving = false; playerState.heist.reviveTimer = 0;
+                 playerState.heist.reviveTargetId = null; reviveBar.style.display = 'none';
+             }
+        } else if (isTryingToCollect) {
             const targetMoneyData = heistGameState.currentRoomData.money[currentlyCollidingWithMoneyId];
 
             if (targetMoneyData.isTrapped && targetMoneyData.glassHealth > 0) {
-                 // Do nothing if trying to collect trapped money with spacebar
+                 // Do nothing
             } else {
                 if (playerState.heist.collectionTargetId !== currentlyCollidingWithMoneyId) {
                     playerState.heist.collectionTimer = 0;
@@ -3308,10 +3441,14 @@ function updateAllBalanceDisplays(targetBalance) {
                 }
             }
         } else {
-            playerState.heist.isCollecting = false;
-            playerState.heist.collectionTimer = 0;
-            playerState.heist.collectionTargetId = null;
-            moneyCollectionProgress.style.display = 'none';
+             playerState.heist.isCollecting = false; playerState.heist.collectionTimer = 0;
+             playerState.heist.collectionTargetId = null; moneyCollectionProgress.style.display = 'none';
+             playerState.heist.isReviving = false; playerState.heist.reviveTimer = 0;
+            if(playerState.heist.reviveTargetId && otherPlayerElements[playerState.heist.reviveTargetId]) {
+                 const reviveBar = otherPlayerElements[playerState.heist.reviveTargetId].container.querySelector('.revive-progress');
+                 if(reviveBar) reviveBar.style.display = 'none';
+            }
+             playerState.heist.reviveTargetId = null;
         }
 
         const playerKeys = Object.keys(heistGameState.fullData.players);
@@ -3329,11 +3466,12 @@ function updateAllBalanceDisplays(targetBalance) {
                 let closestPlayer = null;
                 let minDistance = Infinity;
 
-                Object.values(heistGameState.fullData.players).forEach(p => {
+                Object.entries(heistGameState.fullData.players).forEach(([uid, p]) => {
+                    if (p.status !== 'alive') return;
                     const dx = (guard.x + guard.w / 2) - (p.x + playerState.width / 2);
                     const dy = (guard.y + guard.h / 2) - (p.y + playerState.height / 2);
                     const dist = Math.sqrt(dx*dx + dy*dy);
-                    if (dist < minDistance) { minDistance = dist; closestPlayer = p; }
+                    if (dist < minDistance) { minDistance = dist; closestPlayer = {uid, ...p}; }
                 });
 
                 let newAnimation = guard.animation;
@@ -3412,7 +3550,7 @@ function updateAllBalanceDisplays(targetBalance) {
                                 if(hit) { this.kill(); laser.remove(); return; }
 
                                 Object.entries(heistGameState.fullData.players).forEach(([uid, p]) => {
-                                    if(hit) return;
+                                    if(hit || p.status !== 'alive') return;
                                     const pBox = { left: p.x, top: p.y, right: p.x + playerState.width, bottom: p.y + playerState.height };
                                     if (laserBox.right > pBox.left && laserBox.left < pBox.right && laserBox.bottom > pBox.top && laserBox.top < pBox.bottom) {
                                         activeHeistRef.child(`players/${uid}/health`).set(firebase.database.ServerValue.increment(-5));
@@ -3506,7 +3644,7 @@ function updateAllBalanceDisplays(targetBalance) {
             container.className = 'player-character';
             container.style.width = `${pData.width}px`;
             container.style.height = `${pData.height}px`;
-            container.innerHTML = `<div class="player-ui-container"><div class="chat-bubble"></div><div class="player-nametag">${pData.email.split('@')[0]}</div><div class="money-collection-progress"><div class="money-collection-progress-fill"></div></div></div><img src="IDLE.gif">`;
+            container.innerHTML = `<div class="player-ui-container"><div class="revive-progress"><div class="revive-progress-fill"></div></div><div class="downed-timer"></div><div class="chat-bubble"></div><div class="player-nametag">${pData.email.split('@')[0]}</div><div class="money-collection-progress"><div class="money-collection-progress-fill"></div></div></div><img src="IDLE.gif">`;
 
             otherPlayerElements[uid] = { 
                 container, 
