@@ -2938,9 +2938,8 @@ function updateAllBalanceDisplays(targetBalance) {
                  else {
                     bankHeistTimerEl.textContent = '';
                     clearInterval(bankHeistTimerInterval);
-                    const playerKeys = Object.keys(heistData.players || {});
-                    if (playerKeys.length > 0 && playerKeys[0] === currentUser.uid) {
-                        generateAndStartHeist(heistData.players);
+                    if (heistData.leader === currentUser.uid) {
+                        generateAndStartHeist(heistData);
                     }
                 }
             }, 1000);
@@ -2961,18 +2960,20 @@ function updateAllBalanceDisplays(targetBalance) {
                  bankRef.set({
                     status: 'preparing',
                     startTime: firebase.database.ServerValue.TIMESTAMP,
+                    leader: currentUser.uid,
                     players: { [currentUser.uid]: true }
                 });
             };
         }
     }
     
-    function generateAndStartHeist(players) {
-        const playerKeys = Object.keys(players);
-        if (currentUser.uid !== playerKeys[0]) return; 
+    function generateAndStartHeist(bankData) {
+        const playerKeys = Object.keys(bankData.players);
+        if (currentUser.uid !== bankData.leader) return; 
 
         const newHeistData = {
             id: "heist_" + Date.now(),
+            leader: bankData.leader,
             currentRoom: 1,
             players: {},
             rooms: {}
@@ -3212,7 +3213,7 @@ function updateAllBalanceDisplays(targetBalance) {
         
         const players = heistData ? heistData.players : null;
         if (!heistData || !players || Object.keys(players).length === 0) {
-            const wasLeader = heistGameState.fullData && Object.keys(heistGameState.fullData.players || {})[0] === currentUser.uid;
+            const wasLeader = heistGameState.fullData && heistGameState.fullData.leader === currentUser.uid;
             if (wasLeader) {
                 bankRef.set({ cooldownUntil: Date.now() + 300000 });
                 activeHeistRef.remove();
@@ -3317,7 +3318,7 @@ function updateAllBalanceDisplays(targetBalance) {
                     const timeLeft = Math.max(0, 20 - Math.floor(timePassed / 1000));
                     downedTimerEl.textContent = timeLeft;
                     downedTimerEl.style.display = 'block';
-                    if(timeLeft <= 0 && playerKeys[0] === currentUser.uid) {
+                    if(timeLeft <= 0 && heistData.leader === currentUser.uid) {
                         activeHeistRef.child('players').child(uid).remove();
                     }
                  } else {
@@ -3326,8 +3327,7 @@ function updateAllBalanceDisplays(targetBalance) {
             }
         });
         
-        const playerKeys = Object.keys(heistData.players);
-        if (playerKeys.length > 0 && playerKeys[0] === currentUser.uid) {
+        if (heistData.leader === currentUser.uid) {
             checkHeistRoomCompletion(heistData);
         }
     }
@@ -3566,8 +3566,8 @@ function updateAllBalanceDisplays(targetBalance) {
              playerState.heist.reviveTargetId = null;
         }
 
-        const playerKeys = Object.keys(heistGameState.fullData.players);
-        if (playerKeys.length > 0 && playerKeys[0] === currentUser.uid) {
+        // Only the leader processes AI logic.
+        if (heistGameState.fullData.leader === currentUser.uid) {
             const updates = {};
             const AGGRO_RANGE = 450;
             const ATTACK_RANGE = 400;
