@@ -2679,6 +2679,7 @@ function updateAllBalanceDisplays(targetBalance) {
                 h: isVertical ? 250 + Math.random() * 200 : 30,
                 x: 0, y: 0
             };
+            // Ensure walls don't spawn in the dedicated safe zone on the left
             wall.x = spawnAreaWidth + Math.random() * (gameWidth - spawnAreaWidth - wall.w);
             wall.y = Math.random() * (gameHeight - wall.h);
 
@@ -2943,7 +2944,6 @@ function updateAllBalanceDisplays(targetBalance) {
     }
 
     function handleHeistMouseDown(e) {
-        // Stop all actions if player is dead or collecting money
         if (playerState.heist.health <= 0 || playerState.heist.isCollecting) return;
         
         const target = e.target;
