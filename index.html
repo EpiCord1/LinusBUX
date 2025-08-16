@@ -3231,10 +3231,8 @@ function updateAllBalanceDisplays(targetBalance) {
             activeHeistRef.remove();
         });
     }
-    
-    // --- THIS IS THE CORRECTED FUNCTION ---
+
     function updateHeistLogic(deltaTime) {
-        // Exit if not in the heist or game state is missing
         if (playerState.inMinigame !== 'heist-active' || !heistGameState.fullData || !heistGameState.currentRoomData || playerState.heist.health <= 0) {
             if(playerState.heist.isCollecting) {
                  playerState.heist.isCollecting = false; playerState.heist.collectionTimer = 0;
@@ -3246,22 +3244,18 @@ function updateAllBalanceDisplays(targetBalance) {
         const playerBox = { x: playerState.x, y: playerState.y, w: playerState.width, h: playerState.height };
         let currentlyCollidingWithMoneyId = null;
 
-        // Check for collision with collectible money
         for (const id in heistGameState.currentRoomData.money) {
             const moneyData = heistGameState.currentRoomData.money[id];
-            // Skip if already collected or still trapped behind glass
             if (moneyData.isCollected || (moneyData.isTrapped && moneyData.glassHealth > 0)) continue;
             
             const moneyBox = { x: moneyData.x, y: moneyData.y, w: moneyData.w, h: moneyData.h };
-            // Simple AABB collision check
-            if (playerBox.x < moneyBox.x + moneyBox.w && playerBox.x + playerBox.w > moneyBox.x && playerBox.y < moneyBox.y + moneyBox.h && playerBox.h + playerBox.y > moneyBox.y) {
+            if (playerBox.x < moneyBox.x + moneyBox.w && playerBox.x + playerBox.w > moneyBox.x && playerBox.y < moneyBox.y + moneyBox.h && playerBox.y + playerBox.h > moneyBox.y) {
                 currentlyCollidingWithMoneyId = id;
                 break;
             }
         }
 
         if (currentlyCollidingWithMoneyId) {
-            // Start or continue the collection process
             if (playerState.heist.collectionTargetId !== currentlyCollidingWithMoneyId) {
                 playerState.heist.collectionTimer = 0;
                 playerState.heist.collectionTargetId = currentlyCollidingWithMoneyId;
@@ -3269,10 +3263,9 @@ function updateAllBalanceDisplays(targetBalance) {
             playerState.heist.isCollecting = true;
             moneyCollectionProgress.style.display = 'block';
             playerState.heist.collectionTimer += deltaTime;
-            const progress = Math.min(1, playerState.heist.collectionTimer / 2.0); // 2-second collection time
+            const progress = Math.min(1, playerState.heist.collectionTimer / 2.0);
             moneyCollectionProgressFill.style.width = `${progress * 100}%`;
             
-            // If collection timer is complete, collect the money
             if (playerState.heist.collectionTimer >= 2.0) {
                 const moneyRef = activeHeistRef.child(`rooms/${playerState.heist.currentRoom}/money/${playerState.heist.collectionTargetId}`);
                 moneyRef.transaction(moneyData => {
@@ -3280,28 +3273,23 @@ function updateAllBalanceDisplays(targetBalance) {
                         moneyData.isCollected = true;
                         return moneyData;
                     }
-                    return; // Abort transaction if already collected by someone else
+                    return;
                 }).then(result => {
                     if (result.committed) {
                         const value = result.snapshot.val().value;
                         activeHeistRef.child(`players/${currentUser.uid}/moneyCollected`).set(firebase.database.ServerValue.increment(value));
                     }
                 });
-                // Reset state
-                playerState.heist.isCollecting = false; 
-                playerState.heist.collectionTimer = 0;
-                playerState.heist.collectionTargetId = null; 
-                moneyCollectionProgress.style.display = 'none';
+                playerState.heist.isCollecting = false; playerState.heist.collectionTimer = 0;
+                playerState.heist.collectionTargetId = null; moneyCollectionProgress.style.display = 'none';
             }
         } else {
-            // If not colliding with any money, reset the collection state
             playerState.heist.isCollecting = false;
             playerState.heist.collectionTimer = 0;
             playerState.heist.collectionTargetId = null;
             moneyCollectionProgress.style.display = 'none';
         }
 
-        // Leader-authoritative guard AI logic
         const playerKeys = Object.keys(heistGameState.fullData.players);
         if (playerKeys.length > 0 && playerKeys[0] === currentUser.uid) {
             const updates = {};
