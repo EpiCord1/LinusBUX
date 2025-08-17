@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -259,7 +258,7 @@
         position: relative;
         overflow: hidden;
     }
-    #world-container, #interior-container, #pizzeria-kitchen-container, #pizzeria-restaurant-container, #bank-container {
+    #world-container, #interior-container, #pizzeria-kitchen-container, #pizzeria-restaurant-container, #bank-container, #supermarket-container {
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     }
     .player-character, .npc-character {
@@ -282,6 +281,17 @@
         width: 100%; height: 100%; object-fit: contain;
         transition: transform 0.1s linear; pointer-events: none;
     }
+    .player-character .player-base-img { z-index: 1; }
+    .player-character .player-shirt-img, .player-character .player-hat-img {
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        object-fit: contain;
+        pointer-events: none;
+    }
+    .player-character .player-shirt-img { z-index: 2; }
+    .player-character .player-hat-img { z-index: 3; }
+
     .player-ui-container { position: absolute; bottom: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 5px; pointer-events: none; }
     .player-nametag {
         background: rgba(0, 0, 0, 0.7); color: white; padding: 3px 9px;
@@ -830,12 +840,12 @@
     .close-panel-btn:hover { color: var(--light-text); }
 
     /* Pizzeria Choice Panel */
-    #pizzeria-choice-panel .panel-content { max-width: 420px; }
-    #pizzeria-choice-panel h3 { font-size: 1.6rem; margin-bottom: 1rem; color: white; }
-    #pizzeria-choice-panel p { font-size: 1.1rem; color: var(--medium-text); margin-bottom: 2.5rem; }
-    .pizzeria-choice-buttons { display: flex; gap: 1rem; justify-content: center; }
-    #goto-kitchen-btn { background: var(--primary-blue); }
-    #goto-restaurant-btn { background: var(--secondary-purple); }
+    #pizzeria-choice-panel .panel-content, #supermarket-choice-panel .panel-content { max-width: 420px; }
+    #pizzeria-choice-panel h3, #supermarket-choice-panel h3 { font-size: 1.6rem; margin-bottom: 1rem; color: white; }
+    #pizzeria-choice-panel p, #supermarket-choice-panel p { font-size: 1.1rem; color: var(--medium-text); margin-bottom: 2.5rem; }
+    .pizzeria-choice-buttons, .supermarket-choice-buttons { display: flex; gap: 1rem; justify-content: center; }
+    #goto-kitchen-btn, #goto-checkout-btn { background: var(--primary-blue); }
+    #goto-restaurant-btn, #goto-shopping-btn { background: var(--secondary-purple); }
 
 
     /* User Interaction Panel */
@@ -868,6 +878,115 @@
     .toast.toast-success { border-left-color: var(--success); }
     .toast.toast-error { border-left-color: var(--danger); }
     .toast.toast-info { border-left-color: var(--primary-blue); }
+
+     /* --- SUPERMARKET & RETAIL JOB --- */
+    .hub-supermarket {
+        position: absolute; width: 260px; height: 190px;
+        background-color: #3498db; border: 5px solid #2980b9;
+        border-radius: 8px; cursor: pointer; z-index: 5;
+        display: flex; justify-content: center; align-items: center;
+        flex-direction: column; gap: 5px;
+        box-shadow: 0 0 25px rgba(52, 152, 219, 0.5);
+    }
+    .hub-supermarket h3 {
+        color: white; font-size: 1.8rem; margin: 0;
+        text-shadow: 2px 2px 3px rgba(0,0,0,0.5); font-weight: bold;
+    }
+    #supermarket-container {
+        display: none;
+        background-color: #ecf0f1;
+        justify-content: center;
+        align-items: center;
+    }
+    #checkout-minigame-container {
+        display: none;
+        width: 100%; height: 100%;
+        background-color: rgba(0,0,0,0.8);
+        backdrop-filter: blur(8px);
+        justify-content: center;
+        align-items: center;
+    }
+    #checkout-station {
+        width: 100%; max-width: 1000px; height: 600px;
+        background: #bdc3c7; border: 10px solid #7f8c8d;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        display: flex;
+        padding: 2rem; gap: 2rem;
+    }
+    #checkout-left-panel { flex-basis: 300px; display: flex; flex-direction: column; gap: 1.5rem; }
+    #customer-order-ticket {
+        background: #fff; color: #333; padding: 1rem; border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2); flex-grow: 1;
+    }
+    #customer-order-ticket h3 { margin-bottom: 0.5rem; }
+    #customer-shopping-list { list-style-position: inside; }
+    #customer-shopping-list li.scanned { color: var(--success); text-decoration: line-through; }
+
+    #checkout-right-panel { flex: 1; background: #95a5a6; border-radius: 10px; position: relative; }
+    #conveyor-belt {
+        padding: 1rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+        gap: 1rem; max-height: 100%; overflow-y: auto;
+    }
+    .conveyor-item {
+        aspect-ratio: 1/1; background: #ecf0f1; border-radius: 8px;
+        cursor: pointer; display: flex; flex-direction: column;
+        justify-content: center; align-items: center; padding: 5px;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .conveyor-item:hover { transform: scale(1.05); box-shadow: 0 0 10px var(--gold); }
+    .conveyor-item img { width: 70%; height: 70%; object-fit: contain; pointer-events: none; }
+    .conveyor-item span { font-size: 0.8rem; color: #333; font-weight: 600; text-align: center; }
+
+    #leave-checkout-btn { background-color: var(--danger); }
+    #shopping-panel {
+        display: none;
+        flex-direction: column;
+        gap: 1rem;
+        background: var(--dark-card);
+        padding: 2rem;
+        border-radius: var(--border-radius);
+        width: 100%;
+        max-width: 800px;
+        max-height: 80vh;
+    }
+    #shopping-panel.visible { display: flex; }
+    #shopping-item-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1.5rem;
+        overflow-y: auto;
+        padding: 1rem;
+    }
+    .shopping-item {
+        background: #1c1c1e;
+        border: 1px solid #38383a;
+        border-radius: 12px;
+        padding: 1rem;
+        text-align: center;
+        display: flex; flex-direction: column;
+        gap: 0.8rem;
+    }
+    .shopping-item img {
+        width: 100%;
+        height: 100px;
+        object-fit: contain;
+        background: #3a3a3c;
+        border-radius: 8px;
+        padding: 5px;
+    }
+    .shopping-item .item-price {
+        font-weight: bold;
+        color: var(--gold);
+    }
+    .shopping-item .buy-btn {
+        background-color: var(--success);
+    }
+     .shopping-item .buy-btn.owned {
+        background-color: var(--medium-text);
+        cursor: not-allowed;
+    }
+
 </style>
 </head>
 <body>
@@ -1086,6 +1205,30 @@
              <button id="leave-bank-btn">Leave Bank</button>
         </div>
 
+        <!-- Scene for Supermarket -->
+        <div id="supermarket-container" style="display: none;">
+             <div id="shopping-panel">
+                 <h3>Supermarket</h3>
+                 <div id="shopping-item-grid"></div>
+                 <button id="leave-shopping-btn">Done Shopping</button>
+             </div>
+             <div id="checkout-minigame-container">
+                 <div id="checkout-station">
+                     <div id="checkout-left-panel">
+                         <div id="customer-order-ticket">
+                              <h3>Customer's Items</h3>
+                              <ul id="customer-shopping-list"></ul>
+                         </div>
+                         <div id="retail-timer"><div id="retail-timer-bar"></div></div>
+                         <button id="leave-checkout-btn">End Shift</button>
+                     </div>
+                     <div id="checkout-right-panel">
+                         <div id="conveyor-belt"></div>
+                     </div>
+                 </div>
+             </div>
+        </div>
+
         <!-- Chat Input -->
         <div id="chat-input-container" style="display: none;">
             <form id="chat-form">
@@ -1152,6 +1295,19 @@
         <div class="pizzeria-choice-buttons">
             <button id="goto-kitchen-btn">Go to Kitchen (Job)</button>
             <button id="goto-restaurant-btn">Go to Restaurant</button>
+        </div>
+    </div>
+</div>
+
+<!-- Supermarket Choice Panel -->
+<div id="supermarket-choice-panel" class="panel-overlay">
+    <div class="panel-content">
+        <button class="close-panel-btn">&times;</button>
+        <h3>Welcome to the Supermarket!</h3>
+        <p>What would you like to do?</p>
+        <div class="supermarket-choice-buttons">
+            <button id="goto-checkout-btn">Work at Checkout (Job)</button>
+            <button id="goto-shopping-btn">Go Shopping</button>
         </div>
     </div>
 </div>
@@ -1226,7 +1382,15 @@ auth.onAuthStateChanged(user => {
         balanceRef.on('value', (snapshot) => {
             const data = snapshot.val();
             balance = (data && data.balance !== undefined) ? data.balance : 100;
-            if (!data) { balanceRef.set({ balance: 100, email: user.email }); }
+            if (!data) {
+                const initialData = {
+                    balance: 100,
+                    email: user.email,
+                    inventory: {},
+                    equippedItems: { hat: null, shirt: null }
+                };
+                balanceRef.set(initialData);
+            }
             updateAllBalanceDisplays(balance);
             isBalanceInitialized = true;
         });
@@ -1710,6 +1874,17 @@ function updateAllBalanceDisplays(targetBalance) {
     const heistHealthBarFill = document.getElementById('heist-player-health-bar-fill');
     const heistAbandonBtn = document.getElementById('heist-abandon-btn');
 
+    // --- Supermarket & Retail Job Elements ---
+    const supermarketContainer = document.getElementById('supermarket-container');
+    const supermarketChoicePanel = document.getElementById('supermarket-choice-panel');
+    const shoppingPanel = document.getElementById('shopping-panel');
+    const shoppingItemGrid = document.getElementById('shopping-item-grid');
+    const leaveShoppingBtn = document.getElementById('leave-shopping-btn');
+    const checkoutMinigameContainer = document.getElementById('checkout-minigame-container');
+    const conveyorBelt = document.getElementById('conveyor-belt');
+    const customerShoppingList = document.getElementById('customer-shopping-list');
+    const leaveCheckoutBtn = document.getElementById('leave-checkout-btn');
+
 
     // --- Firebase References ---
     const playersRef = db.ref('linusHub/players');
@@ -1731,8 +1906,21 @@ function updateAllBalanceDisplays(targetBalance) {
     const localPlayerContainer = document.createElement('div');
     localPlayerContainer.id = 'local-player-container';
     localPlayerContainer.className = 'player-character';
-    localPlayerContainer.innerHTML = `<div class="player-ui-container"><div class="revive-progress"><div class="revive-progress-fill"></div></div><div class="downed-timer"></div><div class="chat-bubble"></div><div class="player-nametag">You</div><div class="money-collection-progress"><div class="money-collection-progress-fill"></div></div></div><img id="player-character-img" src="IDLE.gif" alt="Player">`;
-    const localPlayerImage = localPlayerContainer.querySelector('#player-character-img');
+    localPlayerContainer.innerHTML = `
+        <div class="player-ui-container">
+            <div class="revive-progress"><div class="revive-progress-fill"></div></div>
+            <div class="downed-timer"></div>
+            <div class="chat-bubble"></div>
+            <div class="player-nametag">You</div>
+            <div class="money-collection-progress"><div class="money-collection-progress-fill"></div></div>
+        </div>
+        <img class="player-base-img" src="IDLE.gif" alt="Player">
+        <img class="player-shirt-img" src="">
+        <img class="player-hat-img" src="">
+    `;
+    const localPlayerImage = localPlayerContainer.querySelector('.player-base-img');
+    const localPlayerShirt = localPlayerContainer.querySelector('.player-shirt-img');
+    const localPlayerHat = localPlayerContainer.querySelector('.player-hat-img');
     const moneyCollectionProgress = localPlayerContainer.querySelector('.money-collection-progress');
     const moneyCollectionProgressFill = localPlayerContainer.querySelector('.money-collection-progress-fill');
 
@@ -1773,11 +1961,23 @@ function updateAllBalanceDisplays(targetBalance) {
         'rug': { name: 'Rug', width: 200, height: 120, color: '#006400' },
         'lamp': { name: 'Lamp', width: 40, height: 40, color: '#FFFF00' }
     };
+    const ITEM_CATALOG = {
+        'red_hat': { name: 'Red Hat', price: 25, type: 'hat', img: 'https://i.imgur.com/2K12A6C.png' },
+        'blue_shirt': { name: 'Blue Shirt', price: 40, type: 'shirt', img: 'https://i.imgur.com/2kL4b73.png' },
+        'green_shirt': { name: 'Green Shirt', price: 40, type: 'shirt', img: 'https://i.imgur.com/1yP1L5R.png'},
+        'crown': { name: 'Crown', price: 250, type: 'hat', img: 'https://i.imgur.com/hN5gT24.png' },
+        'apple': { name: 'Apple', price: 5, type: 'food', img: 'https://i.imgur.com/3jeVzt6.png'},
+        'bread': { name: 'Bread', price: 8, type: 'food', img: 'https://i.imgur.com/D4x3v7E.png'},
+        'cheese': { name: 'Cheese', price: 12, type: 'food', img: 'https://i.imgur.com/P4e7tJ0.png'},
+        'soda': { name: 'Soda', price: 7, type: 'food', img: 'https://i.imgur.com/JbJ4s5Z.png'}
+    };
+
     const GRID_SIZE = 40;
     const HOUSE_WIDTH = 200, HOUSE_HEIGHT = 200;
     const houseLayout = [ { id: 0, x: -200, y: -200 }, { id: 1, x: 250, y: -450 }, { id: 2, x: 650, y: -200 }, { id: 3, x: 900, y: 250 }, { id: 4, x: 650, y: 650 }, { id: 5, x: 250, y: 900 }, { id: 6, x: -200, y: 650 }, { id: 7, x: -650, y: 250 }, { id: 8, x: -900, y: -450 }, { id: 9, x: -550, y: -750 } ];
     const pizzeriaBuilding = { x: 0, y: 250, width: 250, height: 180 };
     const bankBuilding = { x: -600, y: 250, width: 280, height: 200 };
+    const supermarketBuilding = { x: -300, y: 650, width: 260, height: 190 };
 
     function updatePlayerScene(playerElement, otherPlayerState) {
         const localPlayerLocation = playerState.inMinigame || playerState.inHouseId || 'hub';
@@ -1790,6 +1990,7 @@ function updateAllBalanceDisplays(targetBalance) {
         else if (otherPlayerLocation === 'pizzeria-restaurant') targetParent = pizzeriaRestaurantRoom;
         else if (otherPlayerLocation === 'bank') targetParent = bankRoom;
         else if (otherPlayerLocation === 'heist-active') targetParent = heistGameArea;
+        else if (otherPlayerLocation === 'supermarket') targetParent = supermarketContainer;
         else if (otherPlayerLocation) targetParent = interiorRoom;
 
         if (targetParent && playerElement.parentElement !== targetParent) {
@@ -2010,6 +2211,14 @@ function updateAllBalanceDisplays(targetBalance) {
         bankEl.innerHTML = `<h3>BANK</h3>`;
         bankEl.addEventListener('click', enterBank);
         worldContainer.appendChild(bankEl);
+
+        const supermarketEl = document.createElement('div');
+        supermarketEl.className = 'hub-supermarket';
+        supermarketEl.style.left = `${supermarketBuilding.x}px`;
+        supermarketEl.style.top = `${supermarketBuilding.y}px`;
+        supermarketEl.innerHTML = `<h3>MARKET</h3>`;
+        supermarketEl.addEventListener('click', () => supermarketChoicePanel.classList.add('visible'));
+        worldContainer.appendChild(supermarketEl);
     }
 
     function onHouseClick(houseId) {
@@ -2061,8 +2270,8 @@ function updateAllBalanceDisplays(targetBalance) {
                 const itemBox = { left: item.x, top: item.y, right: item.x + item.w, bottom: item.y + item.h };
                  if (playerBox.right > itemBox.left && playerBox.left < itemBox.right && playerBox.bottom > itemBox.top && playerBox.top < itemBox.bottom) return true;
             }
-        } else if (playerState.inMinigame === 'bank') {
-            const room = bankRoom;
+        } else if (playerState.inMinigame === 'bank' || playerState.inMinigame === 'supermarket') {
+            const room = playerState.inMinigame === 'bank' ? bankRoom : supermarketContainer;
             if (nextX < 0 || nextY < 0 || nextX + playerState.width > room.offsetWidth || nextY + playerState.height > room.offsetHeight) return true;
         } else if (playerState.inHouseId !== null) { // Interior collision
             if (nextX < 0 || nextY < 0 || nextX + playerState.width > interiorRoom.offsetWidth || nextY + playerState.height > interiorRoom.offsetHeight) return true;
@@ -2082,6 +2291,8 @@ function updateAllBalanceDisplays(targetBalance) {
             if (playerBox.right > pizzeriaBox.left && playerBox.left < pizzeriaBox.right && playerBox.bottom > pizzeriaBox.top && playerBox.top < pizzeriaBox.bottom) return true;
             const bankBox = { left: bankBuilding.x, top: bankBuilding.y, right: bankBuilding.x + bankBuilding.width, bottom: bankBuilding.y + bankBuilding.height };
             if (playerBox.right > bankBox.left && playerBox.left < bankBox.right && playerBox.bottom > bankBox.top && playerBox.top < bankBox.bottom) return true;
+            const supermarketBox = { left: supermarketBuilding.x, top: supermarketBuilding.y, right: supermarketBuilding.x + supermarketBuilding.width, bottom: supermarketBuilding.y + supermarketBuilding.height };
+            if (playerBox.right > supermarketBox.left && playerBox.left < supermarketBox.right && playerBox.bottom > supermarketBox.top && playerBox.top < supermarketBox.bottom) return true;
         }
 
         return false;
@@ -2139,6 +2350,8 @@ function updateAllBalanceDisplays(targetBalance) {
 
         playerState.animation = isMoving ? 'walk' : 'idle';
         playerState.imgElement.style.transform = `scaleX(${playerState.direction})`;
+        localPlayerShirt.style.transform = `scaleX(${playerState.direction})`;
+        localPlayerHat.style.transform = `scaleX(${playerState.direction})`;
         const newSrc = (playerState.animation === 'walk') ? 'WALK.gif' : 'IDLE.gif';
         if (playerState.imgElement.src.indexOf(newSrc) === -1) { playerState.imgElement.src = newSrc; }
         
@@ -3725,6 +3938,222 @@ function updateAllBalanceDisplays(targetBalance) {
         }
     }
 
+    // --- SUPERMARKET & RETAIL JOB LOGIC ---
+    const retailJobState = {
+        active: false,
+        timerId: null,
+        currentCustomerItems: {}, // {itemId: count, ...}
+        scannedItems: {}
+    };
+
+    function enterSupermarketShopping() {
+        supermarketChoicePanel.classList.remove('visible');
+        playerState.hubX = playerState.x;
+        playerState.hubY = playerState.y;
+        playerState.inMinigame = 'supermarket';
+        if (playerRef) playerRef.update({ inMinigame: 'supermarket', inHouseId: null });
+
+        worldContainer.style.display = 'none';
+        supermarketContainer.style.display = 'flex';
+        shoppingPanel.classList.add('visible');
+        populateShoppingPanel();
+    }
+
+    async function populateShoppingPanel() {
+        shoppingItemGrid.innerHTML = '';
+        const userInventorySnapshot = await db.ref(`users/${currentUser.uid}/inventory`).once('value');
+        const userInventory = userInventorySnapshot.val() || {};
+
+        for (const itemId in ITEM_CATALOG) {
+            const item = ITEM_CATALOG[itemId];
+            const itemEl = document.createElement('div');
+            itemEl.className = 'shopping-item';
+            itemEl.innerHTML = `
+                <img src="${item.img}" alt="${item.name}">
+                <h4>${item.name}</h4>
+                <div class="item-price">${item.price.toLocaleString()} BUX</div>
+                <button class="buy-btn" data-item-id="${itemId}">Buy</button>
+            `;
+            const buyBtn = itemEl.querySelector('.buy-btn');
+            if (item.type === 'hat' || item.type === 'shirt') {
+                 if (userInventory[itemId]) {
+                    buyBtn.textContent = 'Owned';
+                    buyBtn.disabled = true;
+                    buyBtn.classList.add('owned');
+                }
+            }
+            buyBtn.addEventListener('click', () => buyItem(itemId));
+            shoppingItemGrid.appendChild(itemEl);
+        }
+    }
+
+    async function buyItem(itemId) {
+        const item = ITEM_CATALOG[itemId];
+        if (!item) return;
+
+        if (balance < item.price) {
+            showToast("Not enough BUX!", "error");
+            return;
+        }
+
+        const updates = {};
+        updates[`/users/${currentUser.uid}/balance`] = firebase.database.ServerValue.increment(-item.price);
+        updates[`/users/${currentUser.uid}/inventory/${itemId}`] = true;
+        
+        // Auto-equip clothing
+        if (item.type === 'hat') {
+            updates[`/users/${currentUser.uid}/equippedItems/hat`] = itemId;
+            updates[`/linusHub/players/${currentUser.uid}/equippedItems/hat`] = itemId;
+        } else if (item.type === 'shirt') {
+            updates[`/users/${currentUser.uid}/equippedItems/shirt`] = itemId;
+            updates[`/linusHub/players/${currentUser.uid}/equippedItems/shirt`] = itemId;
+        }
+
+        await db.ref().update(updates);
+        showToast(`You bought ${item.name}!`, 'success');
+
+        if(item.type === 'food') return; // Don't disable buy button for food
+        
+        // Update the button state
+        const button = shoppingItemGrid.querySelector(`.buy-btn[data-item-id="${itemId}"]`);
+        if (button) {
+            button.textContent = 'Owned';
+            button.disabled = true;
+            button.classList.add('owned');
+        }
+    }
+
+
+    function leaveSupermarket() {
+        playerState.inMinigame = null;
+        playerState.x = playerState.hubX;
+        playerState.y = supermarketBuilding.y + supermarketBuilding.height + 10;
+        if (playerRef) playerRef.update({ inMinigame: null, inHouseId: null, x: playerState.x, y: playerState.y });
+        
+        supermarketContainer.style.display = 'none';
+        shoppingPanel.classList.remove('visible');
+        worldContainer.style.display = 'block';
+
+        updatePlayerScene(localPlayerContainer, playerState);
+        Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.state));
+        updateLocalPlayerPosition();
+    }
+    
+    function startRetailJob() {
+        supermarketChoicePanel.classList.remove('visible');
+        playerState.hubX = playerState.x;
+        playerState.hubY = playerState.y;
+        playerState.inMinigame = 'retail-job';
+        if (playerRef) playerRef.update({ inMinigame: 'retail-job', inHouseId: null });
+        worldContainer.style.display = 'none';
+        supermarketContainer.style.display = 'flex';
+        checkoutMinigameContainer.style.display = 'flex';
+        retailJobState.active = true;
+        getNewRetailCustomer();
+    }
+    
+    function endRetailJob() {
+        if (retailJobState.timerId) clearTimeout(retailJobState.timerId);
+        retailJobState.active = false;
+        playerState.inMinigame = null;
+        playerState.x = playerState.hubX;
+        playerState.y = supermarketBuilding.y + supermarketBuilding.height + 10;
+        if (playerRef) playerRef.update({ inMinigame: null, inHouseId: null, x: playerState.x, y: playerState.y });
+        supermarketContainer.style.display = 'none';
+        checkoutMinigameContainer.style.display = 'none';
+        worldContainer.style.display = 'block';
+
+        updatePlayerScene(localPlayerContainer, playerState);
+        Object.values(otherPlayerElements).forEach(p => updatePlayerScene(p.container, p.state));
+        updateLocalPlayerPosition();
+    }
+
+    function getNewRetailCustomer() {
+        retailJobState.currentCustomerItems = {};
+        retailJobState.scannedItems = {};
+        
+        const allFoodItems = Object.keys(ITEM_CATALOG).filter(id => ITEM_CATALOG[id].type === 'food');
+        const numItemTypes = Math.floor(Math.random() * 3) + 2; // 2-4 different items
+        const customerItemsForConveyor = [];
+        
+        for(let i=0; i < numItemTypes; i++) {
+            const itemId = allFoodItems[Math.floor(Math.random() * allFoodItems.length)];
+            retailJobState.currentCustomerItems[itemId] = (retailJobState.currentCustomerItems[itemId] || 0) + 1;
+            customerItemsForConveyor.push(itemId);
+        }
+
+        // Add some random wrong items to the conveyor
+        const numWrongItems = Math.floor(Math.random() * 3);
+        for(let i=0; i < numWrongItems; i++) {
+             const itemId = allFoodItems[Math.floor(Math.random() * allFoodItems.length)];
+             customerItemsForConveyor.push(itemId);
+        }
+
+        // Shuffle conveyor
+        customerItemsForConveyor.sort(() => 0.5 - Math.random());
+        
+        updateRetailUI(customerItemsForConveyor);
+    }
+    
+    function updateRetailUI(conveyorItems) {
+        // Update customer list
+        customerShoppingList.innerHTML = '';
+        for(const itemId in retailJobState.currentCustomerItems) {
+            const li = document.createElement('li');
+            li.textContent = ITEM_CATALOG[itemId].name;
+            li.dataset.itemId = itemId;
+            customerShoppingList.appendChild(li);
+        }
+        
+        // Update conveyor belt
+        conveyorBelt.innerHTML = '';
+        conveyorItems.forEach(itemId => {
+            const item = ITEM_CATALOG[itemId];
+            const itemEl = document.createElement('div');
+            itemEl.className = 'conveyor-item';
+            itemEl.dataset.itemId = itemId;
+            itemEl.innerHTML = `<img src="${item.img}"><span>${item.name}</span>`;
+            itemEl.addEventListener('click', onScanItem);
+            conveyorBelt.appendChild(itemEl);
+        });
+    }
+
+    function onScanItem(e) {
+        const scannedId = e.target.dataset.itemId;
+        
+        if (!retailJobState.currentCustomerItems[scannedId]) {
+            // Scanned a wrong item
+            showToast("Wrong item! The customer left.", "error");
+            setTimeout(getNewRetailCustomer, 1500);
+            return;
+        }
+        
+        retailJobState.scannedItems[scannedId] = (retailJobState.scannedItems[scannedId] || 0) + 1;
+        
+        // Update UI
+        e.target.style.opacity = '0.5';
+        e.target.style.pointerEvents = 'none';
+        const listItem = customerShoppingList.querySelector(`li[data-item-id="${scannedId}"]`);
+        if(listItem) listItem.classList.add('scanned');
+        
+        // Check for completion
+        let allScanned = true;
+        for (const itemId in retailJobState.currentCustomerItems) {
+            if ((retailJobState.scannedItems[itemId] || 0) < retailJobState.currentCustomerItems[itemId]) {
+                allScanned = false;
+                break;
+            }
+        }
+        
+        if(allScanned) {
+            const payout = 5 + Object.keys(retailJobState.currentCustomerItems).length * 2;
+            showToast(`Checkout complete! +${payout} BUX`, 'success');
+            db.ref(`users/${currentUser.uid}/balance`).set(firebase.database.ServerValue.increment(payout));
+            setTimeout(getNewRetailCustomer, 1500);
+        }
+    }
+
+
     function gameLoop() {
         const now = performance.now();
         const deltaTime = (now - lastFrameTime) / 1000.0;
@@ -3746,11 +4175,21 @@ function updateAllBalanceDisplays(targetBalance) {
         playerRef = playersRef.child(currentUser.uid);
         worldContainer.appendChild(localPlayerContainer);
         initializeBuildings();
-        playerRef.set({
-            x: playerState.x, y: playerState.y, width: playerState.width, height: playerState.height,
-            direction: 1, animation: 'idle', email: currentUser.email || 'guest',
-            inHouseId: null, inMinigame: null
+
+        db.ref(`users/${currentUser.uid}/equippedItems`).once('value', (snapshot) => {
+            const equippedItems = snapshot.val() || { hat: null, shirt: null };
+             playerRef.set({
+                x: playerState.x, y: playerState.y, width: playerState.width, height: playerState.height,
+                direction: 1, animation: 'idle', email: currentUser.email || 'guest',
+                inHouseId: null, inMinigame: null,
+                equippedItems: equippedItems
+            });
+
+            // Set local player visuals
+            localPlayerHat.src = equippedItems.hat ? ITEM_CATALOG[equippedItems.hat].img : '';
+            localPlayerShirt.src = equippedItems.shirt ? ITEM_CATALOG[equippedItems.shirt].img : '';
         });
+
         playerRef.onDisconnect().remove();
 
         housesRef.on('value', snapshot => {
@@ -3794,11 +4233,24 @@ function updateAllBalanceDisplays(targetBalance) {
             container.className = 'player-character';
             container.style.width = `${pData.width}px`;
             container.style.height = `${pData.height}px`;
-            container.innerHTML = `<div class="player-ui-container"><div class="revive-progress"><div class="revive-progress-fill"></div></div><div class="downed-timer"></div><div class="chat-bubble"></div><div class="player-nametag">${pData.email.split('@')[0]}</div><div class="money-collection-progress"><div class="money-collection-progress-fill"></div></div></div><img src="IDLE.gif">`;
+            container.innerHTML = `
+                <div class="player-ui-container">
+                    <div class="revive-progress"><div class="revive-progress-fill"></div></div>
+                    <div class="downed-timer"></div>
+                    <div class="chat-bubble"></div>
+                    <div class="player-nametag">${pData.email.split('@')[0]}</div>
+                    <div class="money-collection-progress"><div class="money-collection-progress-fill"></div></div>
+                </div>
+                <img class="player-base-img" src="IDLE.gif">
+                <img class="player-shirt-img" src="">
+                <img class="player-hat-img" src="">
+            `;
 
             otherPlayerElements[uid] = { 
                 container, 
-                img: container.querySelector('img'), 
+                img: container.querySelector('.player-base-img'), 
+                shirt: container.querySelector('.player-shirt-img'),
+                hat: container.querySelector('.player-hat-img'),
                 bubble: container.querySelector('.chat-bubble'), 
                 state: pData 
             };
@@ -3835,6 +4287,13 @@ function updateAllBalanceDisplays(targetBalance) {
             if(oldLocation !== newLocation) {
                  updatePlayerScene(otherPlayer.container, otherPlayer.state);
             }
+
+            // Update appearance
+            const equipped = pData.equippedItems || {};
+            otherPlayer.hat.src = equipped.hat ? ITEM_CATALOG[equipped.hat].img : '';
+            otherPlayer.shirt.src = equipped.shirt ? ITEM_CATALOG[equipped.shirt].img : '';
+            otherPlayer.hat.style.transform = `scaleX(${pData.direction})`;
+            otherPlayer.shirt.style.transform = `scaleX(${pData.direction})`;
 
             otherPlayer.container.style.zIndex = Math.round(pData.y);
             otherPlayer.img.style.transform = `scaleX(${pData.direction})`;
@@ -3882,6 +4341,7 @@ function updateAllBalanceDisplays(targetBalance) {
         if (playerState.inMinigame === 'pizzeria-restaurant') leavePizzeriaRestaurant();
         if (playerState.inMinigame === 'bank') leaveBank();
         if (playerState.inMinigame === 'heist-active') leaveHeistScene();
+        if (playerState.inMinigame === 'supermarket' || playerState.inMinigame === 'retail-job') leaveSupermarket();
 
     }
 
@@ -3959,8 +4419,8 @@ function updateAllBalanceDisplays(targetBalance) {
     }
 
     function handleGlobalKeyDown(e) {
-        const isPanelVisible = userInteractionPanel.classList.contains('visible') || confirmationPanel.classList.contains('visible') || pizzeriaChoicePanel.classList.contains('visible');
-        if (isPanelVisible || playerState.inMinigame === 'pizzeria-kitchen') return;
+        const isPanelVisible = userInteractionPanel.classList.contains('visible') || confirmationPanel.classList.contains('visible') || pizzeriaChoicePanel.classList.contains('visible') || supermarketChoicePanel.classList.contains('visible');
+        if (isPanelVisible || playerState.inMinigame === 'pizzeria-kitchen' || playerState.inMinigame === 'retail-job') return;
         
         if (e.code === 'Space') { // Use e.code for better consistency
             e.preventDefault();
@@ -3992,6 +4452,13 @@ function updateAllBalanceDisplays(targetBalance) {
 
     leaveBankBtn.addEventListener('click', leaveBank);
     heistAbandonBtn.addEventListener('click', handleAbandonHeist);
+    
+    // Supermarket listeners
+    document.getElementById('goto-shopping-btn').addEventListener('click', enterSupermarketShopping);
+    leaveShoppingBtn.addEventListener('click', leaveSupermarket);
+    document.getElementById('goto-checkout-btn').addEventListener('click', startRetailJob);
+    leaveCheckoutBtn.addEventListener('click', endRetailJob);
+    supermarketChoicePanel.querySelector('.close-panel-btn').addEventListener('click', () => supermarketChoicePanel.classList.remove('visible'));
 
     const linusHubTab = document.getElementById('linus-hub');
     const observer = new MutationObserver(() => {
@@ -4004,4 +4471,3 @@ function updateAllBalanceDisplays(targetBalance) {
 </script>
 </body>
 </html>
-```
