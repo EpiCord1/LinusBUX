@@ -258,7 +258,7 @@
         position: relative;
         overflow: hidden;
     }
-    #world-container, #interior-container, #pizzeria-kitchen-container, #pizzeria-restaurant-container, #bank-container, #supermarket-room-container, #checkout-area-container {
+    #world-container, #interior-container, #pizzeria-kitchen-container, #pizzeria-restaurant-container, #bank-container {
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     }
     .player-character, .npc-character {
@@ -277,19 +277,10 @@
         0%, 100% { transform: scale(1); }
         50% { transform: scale(0.95); }
     }
-    .player-character .player-base-img, .npc-character img {
+    .player-character img, .npc-character img {
         width: 100%; height: 100%; object-fit: contain;
         transition: transform 0.1s linear; pointer-events: none;
-        z-index: 1;
     }
-    
-    .player-shirt-shape, .player-hat-shape {
-        position: absolute;
-        pointer-events: none;
-    }
-    .player-shirt-shape { z-index: 2; }
-    .player-hat-shape { z-index: 3; }
-
     .player-ui-container { position: absolute; bottom: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 5px; pointer-events: none; }
     .player-nametag {
         background: rgba(0, 0, 0, 0.7); color: white; padding: 3px 9px;
@@ -838,12 +829,12 @@
     .close-panel-btn:hover { color: var(--light-text); }
 
     /* Pizzeria Choice Panel */
-    #pizzeria-choice-panel .panel-content, #supermarket-choice-panel .panel-content { max-width: 420px; }
-    #pizzeria-choice-panel h3, #supermarket-choice-panel h3 { font-size: 1.6rem; margin-bottom: 1rem; color: white; }
-    #pizzeria-choice-panel p, #supermarket-choice-panel p { font-size: 1.1rem; color: var(--medium-text); margin-bottom: 2.5rem; }
-    .pizzeria-choice-buttons, .supermarket-choice-buttons { display: flex; gap: 1rem; justify-content: center; }
-    #goto-kitchen-btn, #goto-checkout-btn { background: var(--primary-blue); }
-    #goto-restaurant-btn, #goto-shopping-btn { background: var(--secondary-purple); }
+    #pizzeria-choice-panel .panel-content { max-width: 420px; }
+    #pizzeria-choice-panel h3 { font-size: 1.6rem; margin-bottom: 1rem; color: white; }
+    #pizzeria-choice-panel p { font-size: 1.1rem; color: var(--medium-text); margin-bottom: 2.5rem; }
+    .pizzeria-choice-buttons { display: flex; gap: 1rem; justify-content: center; }
+    #goto-kitchen-btn { background: var(--primary-blue); }
+    #goto-restaurant-btn { background: var(--secondary-purple); }
 
 
     /* User Interaction Panel */
@@ -876,113 +867,6 @@
     .toast.toast-success { border-left-color: var(--success); }
     .toast.toast-error { border-left-color: var(--danger); }
     .toast.toast-info { border-left-color: var(--primary-blue); }
-
-     /* --- SUPERMARKET & RETAIL JOB (Revamped) --- */
-    .hub-supermarket {
-        position: absolute; width: 260px; height: 190px;
-        background-color: #3498db; border: 5px solid #2980b9;
-        border-radius: 8px; cursor: pointer; z-index: 5;
-        display: flex; justify-content: center; align-items: center;
-        flex-direction: column; gap: 5px;
-        box-shadow: 0 0 25px rgba(52, 152, 219, 0.5);
-    }
-    .hub-supermarket h3 {
-        color: white; font-size: 1.8rem; margin: 0;
-        text-shadow: 2px 2px 3px rgba(0,0,0,0.5); font-weight: bold;
-    }
-    #supermarket-room-container, #checkout-area-container { display: none; }
-    #supermarket-room {
-        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-        width: 1200px; height: 700px; background-color: #ecf0f1;
-        border: 20px solid #bdc3c7; box-sizing: border-box;
-    }
-    .supermarket-shelf {
-        position: absolute; background-color: #95a5a6; border: 5px solid #7f8c8d;
-    }
-    .purchase-station {
-        position: absolute;
-        border: 3px dashed var(--gold);
-        cursor: pointer;
-        opacity: 0.5;
-        transition: opacity 0.3s;
-    }
-    .purchase-station:hover { opacity: 1; }
-    .purchase-station::after {
-        content: attr(data-category);
-        position: absolute; top: 50%; left: 50%;
-        transform: translate(-50%, -50%);
-        background: var(--gold); color: #121212; padding: 5px 10px;
-        border-radius: 6px; font-weight: bold;
-    }
-
-    #item-purchase-panel .panel-content { max-width: 600px; }
-    #item-purchase-panel h3 { margin-bottom: 1rem; }
-    #item-grid {
-        display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-        gap: 1rem; max-height: 40vh; overflow-y: auto; margin-bottom: 1.5rem;
-    }
-    .shop-item { background: #1c1c1e; border-radius: 8px; padding: 1rem; }
-    .shop-item .item-shape-container { height: 60px; display: flex; justify-content: center; align-items: center; margin-bottom: 0.5rem; }
-    .shop-item .item-price { color: var(--gold); font-weight: bold; margin: 0.5rem 0; }
-    .shop-item button.owned { background: var(--medium-text); }
-
-    /* New Checkout Job UI */
-    #checkout-area-container { background-color: rgba(0,0,0,0.8); backdrop-filter: blur(8px); }
-    #checkout-area {
-        position: relative; width: 100%; max-width: 1200px; height: 700px;
-        background-color: #bdc3c7; border: 10px solid #7f8c8d; border-radius: 20px;
-        overflow: hidden;
-    }
-    #checkout-counter {
-        position: absolute; left: 0; bottom: 200px;
-        width: 100%; height: 100px; background: #95a5a6;
-        border-top: 5px solid #7f8c8d; border-bottom: 5px solid #7f8c8d;
-        z-index: 100;
-    }
-    #scanner-area {
-        position: absolute; left: 350px; top: 20px;
-        width: 100px; height: 60px; background: #2c3e50;
-        border: 4px solid #34495e; border-radius: 8px;
-        box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
-    }
-    #scanner-area::after {
-        content: ''; position: absolute; left: 50%; top: 10px; transform: translateX(-50%);
-        width: 80%; height: 4px; background: #e74c3c;
-        box-shadow: 0 0 10px #e74c3c;
-        animation: scan-light 2s linear infinite;
-    }
-    @keyframes scan-light { 0%, 100% { top: 10px; } 50% { top: calc(100% - 14px); } }
-
-    #bagging-area {
-        position: absolute; left: 500px; top: 10px;
-        width: 250px; height: 180px;
-        background: rgba(0,0,0,0.1); border: 2px dashed #34495e;
-        border-radius: 10px; display: flex; flex-wrap: wrap;
-        gap: 5px; padding: 5px; align-content: flex-start;
-    }
-    .checkout-item {
-        position: absolute; cursor: grab; z-index: 110;
-        width: 60px; height: 60px; display: flex;
-        justify-content: center; align-items: center;
-    }
-    .checkout-item.dragging { z-index: 1000; }
-    .checkout-item.scanned { filter: brightness(0.7); }
-    
-    #cash-register-panel {
-        position: absolute; right: 20px; bottom: 320px;
-        background: var(--dark-card); padding: 1rem;
-        border-radius: var(--border-radius); z-index: 120;
-        width: 300px; display: none;
-    }
-    #cash-register-panel.visible { display: block; }
-    .register-display { background: #1c1c1e; padding: 0.8rem; border-radius: 8px; margin-bottom: 1rem; text-align: right; }
-    .register-display div { font-size: 1.1rem; }
-    .register-display #change-due-display { font-size: 1.5rem; font-weight: bold; color: var(--gold); }
-    #cash-drawer { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
-    #cash-drawer button { background: var(--primary-blue); font-size: 1.2rem; }
-    #current-change-display { margin-top: 1rem; font-size: 1.2rem; }
-    #give-change-btn { width: 100%; margin-top: 1rem; background: var(--success); }
-
 </style>
 </head>
 <body>
@@ -1201,41 +1085,6 @@
              <button id="leave-bank-btn">Leave Bank</button>
         </div>
 
-        <!-- Scene for Supermarket -->
-        <div id="supermarket-room-container">
-            <div id="supermarket-room">
-                <!-- Shelves and purchase stations rendered by JS -->
-            </div>
-            <button id="leave-supermarket-btn" style="position: absolute; bottom: 20px; right: 20px; z-index: 20;">Leave</button>
-        </div>
-
-        <!-- Scene for Checkout Job -->
-        <div id="checkout-area-container">
-            <div id="checkout-area">
-                <div id="checkout-counter">
-                    <div id="scanner-area"></div>
-                    <div id="bagging-area"></div>
-                </div>
-                <!-- Customer NPCs will be rendered here -->
-                <div id="cash-register-panel">
-                     <div class="register-display">
-                         <div>Total: <span id="total-due-display">0</span></div>
-                         <div>Paid: <span id="amount-paid-display">0</span></div>
-                         <div id="change-due-display">Change: 0</div>
-                     </div>
-                     <div id="current-change-display">Given: <span>0</span></div>
-                     <div id="cash-drawer">
-                         <button data-value="1">1</button>
-                         <button data-value="5">5</button>
-                         <button data-value="10">10</button>
-                         <button data-value="20">20</button>
-                     </div>
-                     <button id="give-change-btn">Give Change</button>
-                </div>
-            </div>
-            <button id="leave-checkout-btn" style="position: absolute; top: 20px; left: 20px; z-index: 150;">End Shift</button>
-        </div>
-
         <!-- Chat Input -->
         <div id="chat-input-container" style="display: none;">
             <form id="chat-form">
@@ -1303,28 +1152,6 @@
             <button id="goto-kitchen-btn">Go to Kitchen (Job)</button>
             <button id="goto-restaurant-btn">Go to Restaurant</button>
         </div>
-    </div>
-</div>
-
-<!-- Supermarket Choice Panel -->
-<div id="supermarket-choice-panel" class="panel-overlay">
-    <div class="panel-content">
-        <button class="close-panel-btn">&times;</button>
-        <h3>Welcome to the Supermarket!</h3>
-        <p>What would you like to do?</p>
-        <div class="supermarket-choice-buttons">
-            <button id="goto-checkout-btn">Work at Checkout (Job)</button>
-            <button id="goto-shopping-btn">Go Shopping</button>
-        </div>
-    </div>
-</div>
-
-<!-- Item Purchase Panel -->
-<div id="item-purchase-panel" class="panel-overlay">
-    <div class="panel-content">
-        <button class="close-panel-btn">&times;</button>
-        <h3 id="item-purchase-title">Shop</h3>
-        <div id="item-grid"></div>
     </div>
 </div>
 
@@ -1398,15 +1225,7 @@ auth.onAuthStateChanged(user => {
         balanceRef.on('value', (snapshot) => {
             const data = snapshot.val();
             balance = (data && data.balance !== undefined) ? data.balance : 100;
-            if (!data) {
-                const initialData = {
-                    balance: 100,
-                    email: user.email,
-                    inventory: {},
-                    equippedItems: { hat: null, shirt: null }
-                };
-                balanceRef.set(initialData);
-            }
+            if (!data) { balanceRef.set({ balance: 100, email: user.email }); }
             updateAllBalanceDisplays(balance);
             isBalanceInitialized = true;
         });
@@ -1890,19 +1709,6 @@ function updateAllBalanceDisplays(targetBalance) {
     const heistHealthBarFill = document.getElementById('heist-player-health-bar-fill');
     const heistAbandonBtn = document.getElementById('heist-abandon-btn');
 
-    // --- Supermarket & Retail Job Elements (Revamped) ---
-    const supermarketRoomContainer = document.getElementById('supermarket-room-container');
-    const supermarketRoom = document.getElementById('supermarket-room');
-    const leaveSupermarketBtn = document.getElementById('leave-supermarket-btn');
-    const supermarketChoicePanel = document.getElementById('supermarket-choice-panel');
-    const itemPurchasePanel = document.getElementById('item-purchase-panel');
-    const itemPurchaseTitle = document.getElementById('item-purchase-title');
-    const itemGrid = document.getElementById('item-grid');
-    const checkoutAreaContainer = document.getElementById('checkout-area-container');
-    const checkoutArea = document.getElementById('checkout-area');
-    const leaveCheckoutBtn = document.getElementById('leave-checkout-btn');
-    const cashRegisterPanel = document.getElementById('cash-register-panel');
-
 
     // --- Firebase References ---
     const playersRef = db.ref('linusHub/players');
@@ -1924,21 +1730,8 @@ function updateAllBalanceDisplays(targetBalance) {
     const localPlayerContainer = document.createElement('div');
     localPlayerContainer.id = 'local-player-container';
     localPlayerContainer.className = 'player-character';
-    localPlayerContainer.innerHTML = `
-        <div class="player-ui-container">
-            <div class="revive-progress"><div class="revive-progress-fill"></div></div>
-            <div class="downed-timer"></div>
-            <div class="chat-bubble"></div>
-            <div class="player-nametag">You</div>
-            <div class="money-collection-progress"><div class="money-collection-progress-fill"></div></div>
-        </div>
-        <img class="player-base-img" src="IDLE.gif" alt="Player">
-        <div class="player-shirt-shape"></div>
-        <div class="player-hat-shape"></div>
-    `;
-    const localPlayerImage = localPlayerContainer.querySelector('.player-base-img');
-    const localPlayerShirt = localPlayerContainer.querySelector('.player-shirt-shape');
-    const localPlayerHat = localPlayerContainer.querySelector('.player-hat-shape');
+    localPlayerContainer.innerHTML = `<div class="player-ui-container"><div class="revive-progress"><div class="revive-progress-fill"></div></div><div class="downed-timer"></div><div class="chat-bubble"></div><div class="player-nametag">You</div><div class="money-collection-progress"><div class="money-collection-progress-fill"></div></div></div><img id="player-character-img" src="IDLE.gif" alt="Player">`;
+    const localPlayerImage = localPlayerContainer.querySelector('#player-character-img');
     const moneyCollectionProgress = localPlayerContainer.querySelector('.money-collection-progress');
     const moneyCollectionProgressFill = localPlayerContainer.querySelector('.money-collection-progress-fill');
 
@@ -1959,10 +1752,9 @@ function updateAllBalanceDisplays(targetBalance) {
     localPlayerContainer.style.width = `${playerState.width}px`;
     localPlayerContainer.style.height = `${playerState.height}px`;
 
-    const keys = { w: false, a: false, s: false, d: false, space: false, e: false };
+    const keys = { w: false, a: false, s: false, d: false, space: false };
     let isChatting = false, gameLoopId = null, otherPlayerElements = {}, houseElements = {}, allHouses = {}, placedItemElements = {}, isEditingHouse = false, selectedFurnitureType = null;
     let restaurantFurnitureLayout = [];
-    let supermarketLayout = [];
     let restaurantFurnitureElements = {};
     let npcState = [];
     let lastFrameTime = performance.now();
@@ -1980,26 +1772,11 @@ function updateAllBalanceDisplays(targetBalance) {
         'rug': { name: 'Rug', width: 200, height: 120, color: '#006400' },
         'lamp': { name: 'Lamp', width: 40, height: 40, color: '#FFFF00' }
     };
-    const ITEM_CATALOG = {
-        // Hats
-        'red_hat': { name: 'Red Hat', price: 25, type: 'hat', shape: 'half-circle', color: '#e74c3c' },
-        'crown': { name: 'Crown', price: 250, type: 'hat', shape: 'crown', color: '#f1c40f' },
-        // Shirts
-        'blue_shirt': { name: 'Blue Shirt', price: 40, type: 'shirt', shape: 'rectangle', color: '#3498db' },
-        'green_shirt': { name: 'Green Shirt', price: 40, type: 'shirt', shape: 'rectangle', color: '#2ecc71' },
-        // Food
-        'apple': { name: 'Apple', price: 5, type: 'food', shape: 'circle', color: '#e74c3c' },
-        'bread': { name: 'Bread', price: 8, type: 'food', shape: 'rectangle', color: '#d35400' },
-        'cheese': { name: 'Cheese', price: 12, type: 'food', shape: 'triangle', color: '#f1c40f' },
-        'soda': { name: 'Soda', price: 7, type: 'food', shape: 'rectangle', color: '#2980b9' }
-    };
-
     const GRID_SIZE = 40;
     const HOUSE_WIDTH = 200, HOUSE_HEIGHT = 200;
     const houseLayout = [ { id: 0, x: -200, y: -200 }, { id: 1, x: 250, y: -450 }, { id: 2, x: 650, y: -200 }, { id: 3, x: 900, y: 250 }, { id: 4, x: 650, y: 650 }, { id: 5, x: 250, y: 900 }, { id: 6, x: -200, y: 650 }, { id: 7, x: -650, y: 250 }, { id: 8, x: -900, y: -450 }, { id: 9, x: -550, y: -750 } ];
     const pizzeriaBuilding = { x: 0, y: 250, width: 250, height: 180 };
     const bankBuilding = { x: -600, y: 250, width: 280, height: 200 };
-    const supermarketBuilding = { x: -300, y: 650, width: 260, height: 190 };
 
     function updatePlayerScene(playerElement, otherPlayerState) {
         const localPlayerLocation = playerState.inMinigame || playerState.inHouseId || 'hub';
@@ -2012,8 +1789,6 @@ function updateAllBalanceDisplays(targetBalance) {
         else if (otherPlayerLocation === 'pizzeria-restaurant') targetParent = pizzeriaRestaurantRoom;
         else if (otherPlayerLocation === 'bank') targetParent = bankRoom;
         else if (otherPlayerLocation === 'heist-active') targetParent = heistGameArea;
-        else if (otherPlayerLocation === 'supermarket') targetParent = supermarketRoom;
-        else if (otherPlayerLocation === 'checkout-job') targetParent = checkoutArea;
         else if (otherPlayerLocation) targetParent = interiorRoom;
 
         if (targetParent && playerElement.parentElement !== targetParent) {
@@ -2234,14 +2009,6 @@ function updateAllBalanceDisplays(targetBalance) {
         bankEl.innerHTML = `<h3>BANK</h3>`;
         bankEl.addEventListener('click', enterBank);
         worldContainer.appendChild(bankEl);
-
-        const supermarketEl = document.createElement('div');
-        supermarketEl.className = 'hub-supermarket';
-        supermarketEl.style.left = `${supermarketBuilding.x}px`;
-        supermarketEl.style.top = `${supermarketBuilding.y}px`;
-        supermarketEl.innerHTML = `<h3>MARKET</h3>`;
-        supermarketEl.addEventListener('click', () => supermarketChoicePanel.classList.add('visible'));
-        worldContainer.appendChild(supermarketEl);
     }
 
     function onHouseClick(houseId) {
@@ -2296,13 +2063,6 @@ function updateAllBalanceDisplays(targetBalance) {
         } else if (playerState.inMinigame === 'bank') {
             const room = bankRoom;
             if (nextX < 0 || nextY < 0 || nextX + playerState.width > room.offsetWidth || nextY + playerState.height > room.offsetHeight) return true;
-        } else if (playerState.inMinigame === 'supermarket') {
-            const room = supermarketRoom;
-            if (nextX < 0 || nextY < 0 || nextX + playerState.width > room.offsetWidth || nextY + playerState.height > room.offsetHeight) return true;
-            for (const item of supermarketLayout) {
-                 const itemBox = { left: item.x, top: item.y, right: item.x + item.w, bottom: item.y + item.h };
-                 if (item.type === 'shelf' && playerBox.right > itemBox.left && playerBox.left < itemBox.right && playerBox.bottom > itemBox.top && playerBox.top < itemBox.bottom) return true;
-            }
         } else if (playerState.inHouseId !== null) { // Interior collision
             if (nextX < 0 || nextY < 0 || nextX + playerState.width > interiorRoom.offsetWidth || nextY + playerState.height > interiorRoom.offsetHeight) return true;
             for (const itemId in placedItemElements) {
@@ -2321,8 +2081,6 @@ function updateAllBalanceDisplays(targetBalance) {
             if (playerBox.right > pizzeriaBox.left && playerBox.left < pizzeriaBox.right && playerBox.bottom > pizzeriaBox.top && playerBox.top < pizzeriaBox.bottom) return true;
             const bankBox = { left: bankBuilding.x, top: bankBuilding.y, right: bankBuilding.x + bankBuilding.width, bottom: bankBuilding.y + bankBuilding.height };
             if (playerBox.right > bankBox.left && playerBox.left < bankBox.right && playerBox.bottom > bankBox.top && playerBox.top < bankBox.bottom) return true;
-            const supermarketBox = { left: supermarketBuilding.x, top: supermarketBuilding.y, right: supermarketBuilding.x + supermarketBuilding.width, bottom: supermarketBuilding.y + supermarketBuilding.height };
-            if (playerBox.right > supermarketBox.left && playerBox.left < supermarketBox.right && playerBox.bottom > supermarketBox.top && playerBox.top < supermarketBox.bottom) return true;
         }
 
         return false;
@@ -2380,8 +2138,6 @@ function updateAllBalanceDisplays(targetBalance) {
 
         playerState.animation = isMoving ? 'walk' : 'idle';
         playerState.imgElement.style.transform = `scaleX(${playerState.direction})`;
-        localPlayerShirt.style.transform = `scaleX(${playerState.direction})`;
-        localPlayerHat.style.transform = `scaleX(${playerState.direction})`;
         const newSrc = (playerState.animation === 'walk') ? 'WALK.gif' : 'IDLE.gif';
         if (playerState.imgElement.src.indexOf(newSrc) === -1) { playerState.imgElement.src = newSrc; }
         
@@ -3968,9 +3724,6 @@ function updateAllBalanceDisplays(targetBalance) {
         }
     }
 
-    // --- SUPERMARKET & RETAIL JOB LOGIC (Revamped) ---
-    // (This section will be completely new)
-
     function gameLoop() {
         const now = performance.now();
         const deltaTime = (now - lastFrameTime) / 1000.0;
@@ -3992,21 +3745,11 @@ function updateAllBalanceDisplays(targetBalance) {
         playerRef = playersRef.child(currentUser.uid);
         worldContainer.appendChild(localPlayerContainer);
         initializeBuildings();
-
-        db.ref(`users/${currentUser.uid}/equippedItems`).once('value', (snapshot) => {
-            const equippedItems = snapshot.val() || { hat: null, shirt: null };
-             playerRef.set({
-                x: playerState.x, y: playerState.y, width: playerState.width, height: playerState.height,
-                direction: 1, animation: 'idle', email: currentUser.email || 'guest',
-                inHouseId: null, inMinigame: null,
-                equippedItems: equippedItems
-            });
-
-            // Set local player visuals
-            updatePlayerAppearance(localPlayerHat, localPlayerShirt, equippedItems);
-
+        playerRef.set({
+            x: playerState.x, y: playerState.y, width: playerState.width, height: playerState.height,
+            direction: 1, animation: 'idle', email: currentUser.email || 'guest',
+            inHouseId: null, inMinigame: null
         });
-
         playerRef.onDisconnect().remove();
 
         housesRef.on('value', snapshot => {
@@ -4050,24 +3793,11 @@ function updateAllBalanceDisplays(targetBalance) {
             container.className = 'player-character';
             container.style.width = `${pData.width}px`;
             container.style.height = `${pData.height}px`;
-            container.innerHTML = `
-                <div class="player-ui-container">
-                    <div class="revive-progress"><div class="revive-progress-fill"></div></div>
-                    <div class="downed-timer"></div>
-                    <div class="chat-bubble"></div>
-                    <div class="player-nametag">${pData.email.split('@')[0]}</div>
-                    <div class="money-collection-progress"><div class="money-collection-progress-fill"></div></div>
-                </div>
-                <img class="player-base-img" src="IDLE.gif">
-                <div class="player-shirt-shape"></div>
-                <div class="player-hat-shape"></div>
-            `;
+            container.innerHTML = `<div class="player-ui-container"><div class="revive-progress"><div class="revive-progress-fill"></div></div><div class="downed-timer"></div><div class="chat-bubble"></div><div class="player-nametag">${pData.email.split('@')[0]}</div><div class="money-collection-progress"><div class="money-collection-progress-fill"></div></div></div><img src="IDLE.gif">`;
 
             otherPlayerElements[uid] = { 
                 container, 
-                img: container.querySelector('.player-base-img'), 
-                shirt: container.querySelector('.player-shirt-shape'),
-                hat: container.querySelector('.player-hat-shape'),
+                img: container.querySelector('img'), 
                 bubble: container.querySelector('.chat-bubble'), 
                 state: pData 
             };
@@ -4104,11 +3834,6 @@ function updateAllBalanceDisplays(targetBalance) {
             if(oldLocation !== newLocation) {
                  updatePlayerScene(otherPlayer.container, otherPlayer.state);
             }
-
-            // Update appearance
-            updatePlayerAppearance(otherPlayer.hat, otherPlayer.shirt, pData.equippedItems);
-            otherPlayer.hat.style.transform = `scaleX(${pData.direction})`;
-            otherPlayer.shirt.style.transform = `scaleX(${pData.direction})`;
 
             otherPlayer.container.style.zIndex = Math.round(pData.y);
             otherPlayer.img.style.transform = `scaleX(${pData.direction})`;
@@ -4151,13 +3876,12 @@ function updateAllBalanceDisplays(targetBalance) {
         isChatting = false;
         chatInputContainer.style.display = 'none';
 
+        if (playerState.inHouseId) leaveHouse();
         if (playerState.inMinigame === 'pizzeria-kitchen') leavePizzeriaKitchen();
         if (playerState.inMinigame === 'pizzeria-restaurant') leavePizzeriaRestaurant();
         if (playerState.inMinigame === 'bank') leaveBank();
         if (playerState.inMinigame === 'heist-active') leaveHeistScene();
-        if (playerState.inMinigame === 'supermarket') leaveSupermarket(false);
-        if (playerState.inMinigame === 'checkout-job') endRetailJob(false);
-        if (playerState.inHouseId) leaveHouse();
+
     }
 
     function showConfirmationModal(message, onConfirm) {
@@ -4234,15 +3958,9 @@ function updateAllBalanceDisplays(targetBalance) {
     }
 
     function handleGlobalKeyDown(e) {
-        const isPanelVisible = userInteractionPanel.classList.contains('visible') || confirmationPanel.classList.contains('visible') || pizzeriaChoicePanel.classList.contains('visible') || supermarketChoicePanel.classList.contains('visible') || itemPurchasePanel.classList.contains('visible');
-        if (isPanelVisible || playerState.inMinigame === 'pizzeria-kitchen' || playerState.inMinigame === 'checkout-job') return;
+        const isPanelVisible = userInteractionPanel.classList.contains('visible') || confirmationPanel.classList.contains('visible') || pizzeriaChoicePanel.classList.contains('visible');
+        if (isPanelVisible || playerState.inMinigame === 'pizzeria-kitchen') return;
         
-        if (e.key.toLowerCase() === 'e') {
-            keys.e = true;
-            if(playerState.inMinigame === 'supermarket') checkPurchaseStationInteraction();
-            return;
-        }
-
         if (e.code === 'Space') { // Use e.code for better consistency
             e.preventDefault();
             if (playerState.isSitting) {
@@ -4273,15 +3991,6 @@ function updateAllBalanceDisplays(targetBalance) {
 
     leaveBankBtn.addEventListener('click', leaveBank);
     heistAbandonBtn.addEventListener('click', handleAbandonHeist);
-    
-    // Supermarket listeners
-    document.getElementById('goto-shopping-btn').addEventListener('click', enterSupermarket);
-    leaveSupermarketBtn.addEventListener('click', () => leaveSupermarket(true));
-    document.getElementById('goto-checkout-btn').addEventListener('click', startRetailJob);
-    leaveCheckoutBtn.addEventListener('click', () => endRetailJob(true));
-    supermarketChoicePanel.querySelector('.close-panel-btn').addEventListener('click', () => supermarketChoicePanel.classList.remove('visible'));
-    itemPurchasePanel.querySelector('.close-panel-btn').addEventListener('click', () => itemPurchasePanel.classList.remove('visible'));
-
 
     const linusHubTab = document.getElementById('linus-hub');
     const observer = new MutationObserver(() => {
