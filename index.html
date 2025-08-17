@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -740,13 +741,6 @@
         width: 100%; height: 100%;
         filter: hue-rotate(300deg) brightness(0.8);
     }
-    .heist-boss-guard {
-        width: 120px;
-        height: 120px;
-    }
-    .heist-boss-guard .heist-guard-character {
-         filter: hue-rotate(330deg) brightness(1.1) saturate(1.5);
-    }
     .heist-guard-alert {
         position: absolute;
         top: -25px; left: 50%;
@@ -781,7 +775,7 @@
         pointer-events: none; /* Pass clicks to parent */
     }
 
-    .heist-bullet {
+    .heist-bullet, .heist-laser {
         position: absolute;
         background-color: yellow;
         width: 10px; height: 4px;
@@ -789,18 +783,10 @@
         box-shadow: 0 0 10px yellow;
         pointer-events: none;
     }
-
-    .heist-laser, .heist-laser-beam {
-        position: absolute;
+    .heist-laser {
         background-color: var(--danger);
         box-shadow: 0 0 10px var(--danger);
         height: 3px;
-        pointer-events: none;
-    }
-    .heist-laser-beam {
-        background: linear-gradient(90deg, transparent, rgba(255, 69, 58, 0.8), transparent);
-        box-shadow: 0 0 15px 3px rgba(255, 69, 58, 0.5);
-        border-radius: 4px;
     }
 
     .heist-obstacle {
@@ -1761,7 +1747,7 @@ function updateAllBalanceDisplays(targetBalance) {
             health: 100, moneyCollected: 0, isCollecting: false, isReviving: false,
             collectionTimer: 0, collectionTargetId: null, reviveTimer: 0, reviveTargetId: null,
             currentRoom: 1, status: 'alive', downedTimestamp: 0,
-            isHoldingClick: false, glassDamageInterval: null, lastShotTime: 0, lastLaserHitTime: 0
+            isHoldingClick: false, glassDamageInterval: null, lastShotTime: 0
         }
     };
     localPlayerContainer.style.width = `${playerState.width}px`;
@@ -1777,8 +1763,7 @@ function updateAllBalanceDisplays(targetBalance) {
         elements: {}, 
         currentRoomData: null,
         fullData: null,
-        guards: {},
-        isSpawningReinforcement: false
+        guards: {}
     };
 
     // --- Constants and Catalogs ---
@@ -2997,9 +2982,18 @@ function updateAllBalanceDisplays(targetBalance) {
         
         for (let i = 1; i <= 10; i++) {
             const obstacles = generateSimpleWalls(1200, 700, 250);
-            const roomData = { guards: {}, money: {}, obstacles, lasers: {} };
-
+            const roomData = { guards: {}, money: {}, obstacles };
+            const numGuards = 3 + Math.floor(Math.random() * 4);
             const numMoney = 8 + Math.floor(Math.random() * 3);
+
+            for (let g = 0; g < numGuards; g++) {
+                 const spawnPoint = findSafeSpawnPoint(obstacles, 80, 80);
+                roomData.guards['guard' + g] = { 
+                    x: spawnPoint.x, y: spawnPoint.y, 
+                    w: 80, h: 80, health: 150, animation: 'idle'
+                };
+            }
+
             for (let m = 0; m < numMoney; m++) {
                 const isTrapped = Math.random() < 0.3;
                  const spawnPoint = findSafeSpawnPoint(obstacles, 60, 35);
@@ -3009,40 +3003,6 @@ function updateAllBalanceDisplays(targetBalance) {
                     isTrapped: isTrapped, glassHealth: isTrapped ? 5 : 0 
                 };
             }
-
-            // --- NEW: Difficulty Scaling and Final Boss ---
-            if (i === 10) { // Final Boss Room
-                const spawnPoint = findSafeSpawnPoint(obstacles, 120, 120);
-                roomData.guards['boss_guard'] = {
-                    x: spawnPoint.x, y: spawnPoint.y,
-                    w: 120, h: 120, health: 1500, animation: 'idle', isBoss: true
-                };
-            } else { // Regular Rooms
-                const numGuards = Math.floor(3 + (i * 1.2));
-                const guardHealth = 150 + (i * 15);
-                for (let g = 0; g < numGuards; g++) {
-                     const spawnPoint = findSafeSpawnPoint(obstacles, 80, 80);
-                    roomData.guards['guard' + g] = { 
-                        x: spawnPoint.x, y: spawnPoint.y, 
-                        w: 80, h: 80, health: guardHealth, animation: 'idle'
-                    };
-                }
-            }
-
-            // --- NEW: Add Lasers ---
-            if (i >= 3) {
-                const numLasers = Math.floor(1 + (i / 4) + Math.random()); // 1-3 lasers depending on room
-                for (let l = 0; l < numLasers; l++) {
-                    const isVertical = Math.random() > 0.5;
-                    roomData.lasers['laser' + l] = {
-                        isVertical: isVertical,
-                        pos: isVertical ? 150 + Math.random() * 900 : 100 + Math.random() * 500, // x for vertical, y for horizontal
-                        size: 8,
-                        speed: 100 + (i * 10)
-                    };
-                }
-            }
-
             newHeistData.rooms[i] = roomData;
         }
         
@@ -3222,6 +3182,7 @@ function updateAllBalanceDisplays(targetBalance) {
                     const bulletBox = { left: bulletX, top: bulletY, right: bulletX + 10, bottom: bulletY + 4 };
                     
                     let hit = false;
+                    // Check for obstacle hits first
                     for (const id in heistGameState.elements) {
                         if (heistGameState.elements[id].type === 'obstacle') {
                             const obs = heistGameState.elements[id].data;
@@ -3233,13 +3194,16 @@ function updateAllBalanceDisplays(targetBalance) {
                     }
                     if(hit) { this.kill(); bullet.remove(); return; }
 
+                    // --- NEW: Check for guard hits ---
                     for(const guardId in heistGameState.guards) {
                         const guard = heistGameState.guards[guardId];
                         if (guard.health <= 0) continue;
                         const guardBox = { left: guard.x, top: guard.y, right: guard.x + guard.w, bottom: guard.y + guard.h };
                         if (bulletBox.right > guardBox.left && bulletBox.left < guardBox.right && bulletBox.bottom > guardBox.top && bulletBox.top < guardBox.bottom) {
+                            // On hit, decrement health in Firebase
                             activeHeistRef.child(`rooms/${playerState.heist.currentRoom}/guards/${guardId}/health`).set(firebase.database.ServerValue.increment(-25));
-                            hit = true; break;
+                            hit = true; 
+                            break;
                         }
                     }
                     if(hit) { this.kill(); bullet.remove(); }
@@ -3266,7 +3230,7 @@ function updateAllBalanceDisplays(targetBalance) {
         if (!players[currentUser.uid]) {
              if(playerState.inMinigame === 'heist-active') {
                 showToast("You were eliminated from the heist.", "error");
-                leaveHeistScene(0);
+                leaveHeistScene(0); // Pass 0 loot since they were kicked
              }
              return;
         }
@@ -3275,13 +3239,8 @@ function updateAllBalanceDisplays(targetBalance) {
         const myData = heistData.players[currentUser.uid];
         playerState.heist.health = myData.health;
         playerState.heist.moneyCollected = myData.moneyCollected;
+        playerState.heist.currentRoom = heistData.currentRoom;
         
-        // This prevents player from getting stuck in an old room if data arrives slow
-        if(playerState.heist.currentRoom !== heistData.currentRoom) {
-             playerState.heist.currentRoom = heistData.currentRoom;
-             heistGameState.currentRoomData = null; // Force a full re-render
-        }
-
         if (playerState.heist.status === 'downed' && myData.status === 'alive') {
             playerState.heist.status = 'alive';
             showToast('You have been revived!', 'success');
@@ -3298,7 +3257,7 @@ function updateAllBalanceDisplays(targetBalance) {
         heistRoomCounter.textContent = `${heistData.currentRoom}/10`;
 
         const newRoomData = heistData.rooms[heistData.currentRoom];
-        if (JSON.stringify(newRoomData) !== JSON.stringify(heistGameState.currentRoomData)) {
+        if (JSON.stringify(newRoomData?.obstacles) !== JSON.stringify(heistGameState.currentRoomData?.obstacles)) {
             heistGameState.currentRoomData = newRoomData;
             renderHeistRoom(newRoomData);
              const startPos = heistData.players[currentUser.uid];
@@ -3307,7 +3266,7 @@ function updateAllBalanceDisplays(targetBalance) {
                  playerState.y = startPos.y;
              }
         } else {
-             // This is for smooth updates of dynamic elements like guards
+             heistGameState.currentRoomData = newRoomData;
              for(const id in heistGameState.elements) {
                  const item = heistGameState.elements[id];
                  if (item.type === 'guard' && newRoomData.guards && newRoomData.guards[id]) {
@@ -3321,10 +3280,7 @@ function updateAllBalanceDisplays(targetBalance) {
                      gsap.to(item.el, { left: guardData.x, top: guardData.y, duration: 0.1, ease: 'linear' });
 
                      const healthFill = item.el.querySelector('.heist-guard-health-fill');
-                     if(healthFill) {
-                        const maxHealth = guardData.isBoss ? 1500 : (150 + (heistData.currentRoom * 15));
-                        healthFill.style.width = `${Math.max(0, guardData.health / maxHealth) * 100}%`;
-                     }
+                     if(healthFill) healthFill.style.width = `${Math.max(0, guardData.health / 150) * 100}%`;
                      
                      const guardImg = item.el.querySelector('.heist-guard-character');
                      const newSrc = (guardData.animation === 'walk') ? 'WALK.gif' : 'IDLE.gif';
@@ -3365,11 +3321,14 @@ function updateAllBalanceDisplays(targetBalance) {
                  const downedTimerEl = otherPlayer.container.querySelector('.downed-timer');
                  if (pData.status === 'downed') {
                     const timePassed = Date.now() - pData.downedTimestamp;
-                    const reviveWindow = 20000;
+                    const reviveWindow = 20000; // 20 seconds
                     const timeLeft = Math.max(0, Math.ceil((reviveWindow - timePassed) / 1000));
                     downedTimerEl.textContent = timeLeft;
                     downedTimerEl.style.display = 'block';
+                    
+                    // --- NEW: Check if player should be kicked ---
                     if(timePassed >= reviveWindow && heistData.leader === currentUser.uid) {
+                        // The leader is responsible for removing the player to avoid race conditions.
                         activeHeistRef.child('players').child(uid).remove();
                     }
                  } else {
@@ -3379,7 +3338,7 @@ function updateAllBalanceDisplays(targetBalance) {
         });
         
         if (heistData.leader === currentUser.uid) {
-            updateHeistRoomState(heistData);
+            checkHeistRoomCompletion(heistData);
         }
     }
 
@@ -3389,7 +3348,7 @@ function updateAllBalanceDisplays(targetBalance) {
         heistGameState.guards = {};
         if(!roomData) return;
 
-        const allItems = {...roomData.guards, ...roomData.money, ...roomData.obstacles, ...roomData.lasers};
+        const allItems = {...roomData.guards, ...roomData.money, ...roomData.obstacles};
 
         for(const id in allItems) {
             const data = allItems[id];
@@ -3397,24 +3356,21 @@ function updateAllBalanceDisplays(targetBalance) {
             el.dataset.id = id;
             
             let type = '';
-            if (id.startsWith('guard') || id.startsWith('boss')) {
+            if (id.startsWith('guard')) {
                 type = 'guard';
                 el.className = 'heist-guard';
-                if (data.isBoss) el.classList.add('heist-boss-guard');
-
                 if(data.health > 0) {
-                     const maxHealth = data.isBoss ? 1500 : (150 + (playerState.heist.currentRoom * 15));
                      el.innerHTML = `
                         <div class="heist-guard-alert">!</div>
                         <img src="IDLE.gif" class="heist-guard-character">
-                        <div style="position: absolute; bottom: -15px; left: 0; width: 100%; height: 8px; background-color: #333; border-radius: 4px;"><div class="heist-guard-health-fill" style="width: ${Math.max(0, data.health / maxHealth) * 100}%; height: 100%; background-color: var(--success); border-radius: 4px;"></div></div>
+                        <div style="position: absolute; bottom: -15px; left: 0; width: 100%; height: 8px; background-color: #333; border-radius: 4px;"><div class="heist-guard-health-fill" style="width: ${Math.max(0, data.health / 150) * 100}%; height: 100%; background-color: var(--success); border-radius: 4px;"></div></div>
                     `;
                     heistGameState.guards[id] = { 
                         el, ...data, 
                         state: 'patrolling', stateTimer: 2 + Math.random() * 3, 
                         target: {x: data.x, y: data.y}, path: [], pathRecalculateTimer: 0
                     };
-                    heistGameState.elements[id] = { el, data, type };
+                     heistGameState.elements[id] = { el, data, type };
                 } else {
                      el.style.display = 'none';
                 }
@@ -3438,37 +3394,13 @@ function updateAllBalanceDisplays(targetBalance) {
                 type = 'obstacle';
                 el.className = 'heist-obstacle';
                  heistGameState.elements[id] = { el, data, type };
-            } else if (id.startsWith('laser')) {
-                 type = 'laser';
-                 el.className = 'heist-laser-beam';
-                 if (data.isVertical) {
-                    el.style.left = `${data.pos}px`;
-                    el.style.width = `${data.size}px`;
-                    el.style.height = `${heistGameArea.offsetHeight}px`;
-                 } else {
-                    el.style.top = `${data.pos}px`;
-                    el.style.height = `${data.size}px`;
-                    el.style.width = `${heistGameArea.offsetWidth}px`;
-                 }
-                 heistGameState.elements[id] = { el, data, type };
-                 
-                 // Animate the laser client-side for smoothness
-                 const duration = (heistGameArea.offsetWidth / data.speed);
-                 if (data.isVertical) {
-                    gsap.fromTo(el, { x: 0 }, { x: heistGameArea.offsetWidth, duration: duration, yoyo: true, repeat: -1, ease: 'sine.inOut' });
-                 } else {
-                    gsap.fromTo(el, { y: 0 }, { y: heistGameArea.offsetHeight, duration: duration, yoyo: true, repeat: -1, ease: 'sine.inOut' });
-                 }
             }
             
-            if (type) el.dataset.type = type;
-
-            if(type !== 'laser') {
-                el.style.left = `${data.x}px`;
-                el.style.top = `${data.y}px`;
-                el.style.width = `${data.w}px`;
-                el.style.height = `${data.h}px`;
-            }
+            el.dataset.type = type;
+            el.style.left = `${data.x}px`;
+            el.style.top = `${data.y}px`;
+            el.style.width = `${data.w}px`;
+            el.style.height = `${data.h}px`;
             
             heistGameArea.appendChild(el);
         }
@@ -3481,24 +3413,14 @@ function updateAllBalanceDisplays(targetBalance) {
         });
     }
     
-    function updateHeistRoomState(heistData) {
+    function checkHeistRoomCompletion(heistData) {
         const room = heistData.rooms[heistData.currentRoom];
-        if (!room || !currentUser || heistData.leader !== currentUser.uid) return;
+        if (!room || !currentUser) return;
 
         const allGuardsDefeated = Object.values(room.guards || {}).every(g => g.health <= 0);
-        const moneyRemains = Object.values(room.money || {}).some(m => !m.isCollected);
-
-        if (allGuardsDefeated && moneyRemains) {
-            // --- NEW: Reinforcement Logic ---
-            if (!heistGameState.isSpawningReinforcement) {
-                heistGameState.isSpawningReinforcement = true;
-                setTimeout(() => {
-                    spawnReinforcementGuard(heistData.currentRoom);
-                    heistGameState.isSpawningReinforcement = false;
-                }, 3000); // 3 second delay before reinforcement arrives
-            }
-        } else if (allGuardsDefeated && !moneyRemains) {
-            // --- Completion Logic ---
+        const allMoneyCollected = Object.values(room.money || {}).every(m => m.isCollected);
+        
+        if (allGuardsDefeated && allMoneyCollected) {
             if (heistData.currentRoom >= 10) {
                 endHeist(heistData);
             } else {
@@ -3509,21 +3431,11 @@ function updateAllBalanceDisplays(targetBalance) {
                     updates[`players/${uid}/x`] = spawnPoint.x;
                     updates[`players/${uid}/y`] = spawnPoint.y;
                 });
+                
                 activeHeistRef.update(updates);
             }
+            return;
         }
-    }
-
-    function spawnReinforcementGuard(roomId) {
-        const roomData = heistGameState.fullData.rooms[roomId];
-        const spawnPoint = findSafeSpawnPoint(roomData.obstacles, 80, 80, { x: 1000, y: 0, w: 200, h: 700 }); // Spawn near the right edge
-        const guardHealth = 150 + (roomId * 15);
-        const newGuardId = 'reinforcement_' + Date.now();
-        const newGuard = {
-            x: spawnPoint.x, y: spawnPoint.y,
-            w: 80, h: 80, health: guardHealth, animation: 'idle'
-        };
-        activeHeistRef.child(`rooms/${roomId}/guards/${newGuardId}`).set(newGuard);
     }
     
     function endHeist(heistData) {
@@ -3545,8 +3457,8 @@ function updateAllBalanceDisplays(targetBalance) {
     }
 
     function updateHeistLogic(deltaTime) {
-        if (playerState.inMinigame !== 'heist-active' || !heistGameState.fullData || !heistGameState.currentRoomData) {
-             if(playerState.heist.isCollecting) {
+        if (playerState.inMinigame !== 'heist-active' || !heistGameState.fullData || !heistGameState.currentRoomData || playerState.heist.status === 'downed') {
+            if(playerState.heist.isCollecting) {
                  playerState.heist.isCollecting = false; playerState.heist.collectionTimer = 0;
                  playerState.heist.collectionTargetId = null; moneyCollectionProgress.style.display = 'none';
             }
@@ -3560,30 +3472,6 @@ function updateAllBalanceDisplays(targetBalance) {
             }
             return;
         }
-        
-        // --- NEW: Laser Collision ---
-        const now = performance.now();
-        if (now - playerState.heist.lastLaserHitTime > 1000) { // 1s invulnerability
-             for(const id in heistGameState.elements) {
-                const item = heistGameState.elements[id];
-                if (item.type !== 'laser') continue;
-                
-                const laserEl = item.el;
-                const laserRect = laserEl.getBoundingClientRect();
-                const playerRect = localPlayerContainer.getBoundingClientRect();
-
-                if (laserRect.right > playerRect.left && laserRect.left < playerRect.right &&
-                    laserRect.bottom > playerRect.top && laserRect.top < playerRect.bottom) {
-                    
-                    activeHeistRef.child(`players/${currentUser.uid}/health`).set(firebase.database.ServerValue.increment(-10));
-                    playerState.heist.lastLaserHitTime = now;
-                    break; 
-                }
-             }
-        }
-
-
-        if (playerState.heist.status === 'downed') { return; }
 
         const playerBox = { x: playerState.x, y: playerState.y, w: playerState.width, h: playerState.height };
         let currentlyCollidingWithMoneyId = null;
@@ -3790,7 +3678,7 @@ function updateAllBalanceDisplays(targetBalance) {
                     heistGameArea.appendChild(laser);
                     const angle = Math.atan2(closestPlayer.y + 40 - (guard.y + 40), closestPlayer.x + 40 - (guard.x + 40));
                     gsap.fromTo(laser, 
-                        { x: guard.x + guard.w / 2, y: guard.y + guard.h / 2, rotation: angle * (180 / Math.PI) },
+                        { x: guard.x + 40, y: guard.y + 40, rotation: angle * (180 / Math.PI) },
                         { 
                             x: `+=${Math.cos(angle) * 1200}`, y: `+=${Math.sin(angle) * 1200}`, 
                             duration: 1, ease: "linear",
@@ -4116,3 +4004,4 @@ function updateAllBalanceDisplays(targetBalance) {
 </script>
 </body>
 </html>
+```
