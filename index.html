@@ -3181,6 +3181,7 @@ function updateAllBalanceDisplays(targetBalance) {
                     const bulletBox = { left: bulletX, top: bulletY, right: bulletX + 10, bottom: bulletY + 4 };
                     
                     let hit = false;
+                    // Check for obstacle hits first
                     for (const id in heistGameState.elements) {
                         if (heistGameState.elements[id].type === 'obstacle') {
                             const obs = heistGameState.elements[id].data;
@@ -3192,13 +3193,16 @@ function updateAllBalanceDisplays(targetBalance) {
                     }
                     if(hit) { this.kill(); bullet.remove(); return; }
 
+                    // --- NEW: Check for guard hits ---
                     for(const guardId in heistGameState.guards) {
                         const guard = heistGameState.guards[guardId];
                         if (guard.health <= 0) continue;
                         const guardBox = { left: guard.x, top: guard.y, right: guard.x + guard.w, bottom: guard.y + guard.h };
                         if (bulletBox.right > guardBox.left && bulletBox.left < guardBox.right && bulletBox.bottom > guardBox.top && bulletBox.top < guardBox.bottom) {
+                            // On hit, decrement health in Firebase
                             activeHeistRef.child(`rooms/${playerState.heist.currentRoom}/guards/${guardId}/health`).set(firebase.database.ServerValue.increment(-25));
-                            hit = true; break;
+                            hit = true; 
+                            break;
                         }
                     }
                     if(hit) { this.kill(); bullet.remove(); }
@@ -3224,7 +3228,8 @@ function updateAllBalanceDisplays(targetBalance) {
 
         if (!players[currentUser.uid]) {
              if(playerState.inMinigame === 'heist-active') {
-                leaveHeistScene(playerState.heist.moneyCollected);
+                showToast("You were eliminated from the heist.", "error");
+                leaveHeistScene(0); // Pass 0 loot since they were kicked
              }
              return;
         }
@@ -3282,7 +3287,7 @@ function updateAllBalanceDisplays(targetBalance) {
                      item.el.classList.toggle('attacking', guardData.animation === 'attacking');
                      
                      if(guardData.health <= 0 && item.el.style.display !== 'none') {
-                        item.el.style.display = 'none';
+                        gsap.to(item.el, { opacity: 0, duration: 0.5, onComplete: () => item.el.style.display = 'none'});
                      }
                  }
                  if (item.type === 'money' && newRoomData.money && newRoomData.money[id]) {
@@ -3315,10 +3320,14 @@ function updateAllBalanceDisplays(targetBalance) {
                  const downedTimerEl = otherPlayer.container.querySelector('.downed-timer');
                  if (pData.status === 'downed') {
                     const timePassed = Date.now() - pData.downedTimestamp;
-                    const timeLeft = Math.max(0, 20 - Math.floor(timePassed / 1000));
+                    const reviveWindow = 20000; // 20 seconds
+                    const timeLeft = Math.max(0, Math.ceil((reviveWindow - timePassed) / 1000));
                     downedTimerEl.textContent = timeLeft;
                     downedTimerEl.style.display = 'block';
-                    if(timeLeft <= 0 && heistData.leader === currentUser.uid) {
+                    
+                    // --- NEW: Check if player should be kicked ---
+                    if(timePassed >= reviveWindow && heistData.leader === currentUser.uid) {
+                        // The leader is responsible for removing the player to avoid race conditions.
                         activeHeistRef.child('players').child(uid).remove();
                     }
                  } else {
@@ -3360,6 +3369,7 @@ function updateAllBalanceDisplays(targetBalance) {
                         state: 'patrolling', stateTimer: 2 + Math.random() * 3, 
                         target: {x: data.x, y: data.y}, path: [], pathRecalculateTimer: 0
                     };
+                     heistGameState.elements[id] = { el, data, type };
                 } else {
                      el.style.display = 'none';
                 }
